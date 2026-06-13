@@ -410,7 +410,17 @@ GUI Editor は JUCE 8 の `BREAKING_CHANGES.md` によれば長期間 deprecated
 
 ### project generator との整合性
 
-`Projucer.jucer` に戻さず Xcode project だけ編集すると、Projucer 自身で保存・再生成した時に変更が消える。最終的には `.jucer` 側にも必ず反映する。
+`Projucer.jucer` に戻さず Xcode project だけ編集すると、Projucer 自身で保存・再生成した時に変更が消える。この作業では `Projucer/Projucer.jucer` を正本として扱い、Xcode project / Visual Studio project / Makefile / CMake 側はそこから生成・同期される派生物として扱う。
+
+実装時の原則:
+
+- `ComponentEditor` の source 登録はまず `Projucer.jucer` に追加する
+- 既存 Projucer で `Projucer.jucer` を開いて save し、Xcode project を再生成する
+- 再生成された Xcode project で Mac Debug build を行い、コンパイルエラーを確認する
+- Xcode project への直接編集は、原因切り分けや一時的なビルド実験に限る
+- 最終コミットには `Projucer.jucer` と、そこから再生成された project files の整合した差分を含める
+
+この順序にすると、後で Projucer 自身を保存した時に GUI Editor 復活用の source 登録が消える事故を避けられる。
 
 ### コピー配置の include path 問題
 
@@ -419,14 +429,16 @@ GUI Editor は JUCE 8 の `BREAKING_CHANGES.md` によれば長期間 deprecated
 ## 作業順の推奨
 
 1. `Source/ComponentEditor` をコピー
-2. Mac Xcode project に `.cpp` を追加
-3. コンパイルエラーを修正
-4. `OpenDocumentManager` に `createGUIDocumentType()` を戻す
-5. 既存 GUI file を開く動作を確認
-6. GUI Editor menu/command を戻す
-7. 新規 GUI Component 作成を戻す
-8. `Projucer.jucer` / CMake / exporter を整える
-9. 手動確認と差分整理
+2. JUCE 7 の `Projucer.jucer` から `ComponentEditor` group の source 登録を確認する
+3. 作業用 `Projucer/Projucer.jucer` に `ComponentEditor` group を追加する
+4. 既存 Projucer で `Projucer.jucer` を開いて save し、Mac Xcode project などを再生成する
+5. Mac Debug build を行い、コンパイルエラーを修正する
+6. `OpenDocumentManager` に `createGUIDocumentType()` を戻す
+7. 既存 GUI file を開く動作を確認
+8. GUI Editor menu/command を戻す
+9. 新規 GUI Component 作成を戻す
+10. `Projucer.jucer` / CMake / exporter の整合を確認する
+11. 手動確認と差分整理
 
 ## 初期スコープ外
 
