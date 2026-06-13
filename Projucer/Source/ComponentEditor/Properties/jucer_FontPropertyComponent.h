@@ -47,7 +47,7 @@ public:
             Font::findFonts (fonts);
 
             for (int i = 0; i < fonts.size(); ++i)
-                fontNames.add (fonts[i].getTypefaceName());
+                fontNames.add (fonts.getReference (i).getTypefaceName());
         }
 
         choices.addArray (fontNames);
@@ -83,12 +83,12 @@ public:
     {
         auto extraKerning = font.getExtraKerningFactor();
 
-        if (typefaceName == getDefaultFont())  return Font (font.getHeight(), font.getStyleFlags()).withExtraKerningFactor (extraKerning);
-        if (typefaceName == getDefaultSans())  return Font (Font::getDefaultSansSerifFontName(), font.getHeight(), font.getStyleFlags()).withExtraKerningFactor (extraKerning);
-        if (typefaceName == getDefaultSerif()) return Font (Font::getDefaultSerifFontName(), font.getHeight(), font.getStyleFlags()).withExtraKerningFactor (extraKerning);
-        if (typefaceName == getDefaultMono())  return Font (Font::getDefaultMonospacedFontName(), font.getHeight(), font.getStyleFlags()).withExtraKerningFactor (extraKerning);
+        if (typefaceName == getDefaultFont())  return makeLegacyFont (Font::getDefaultSansSerifFontName(), font.getHeight(), font.getStyleFlags(), extraKerning);
+        if (typefaceName == getDefaultSans())  return makeLegacyFont (Font::getDefaultSansSerifFontName(), font.getHeight(), font.getStyleFlags(), extraKerning);
+        if (typefaceName == getDefaultSerif()) return makeLegacyFont (Font::getDefaultSerifFontName(), font.getHeight(), font.getStyleFlags(), extraKerning);
+        if (typefaceName == getDefaultMono())  return makeLegacyFont (Font::getDefaultMonospacedFontName(), font.getHeight(), font.getStyleFlags(), extraKerning);
 
-        auto f = Font (typefaceName, font.getHeight(), font.getStyleFlags()).withExtraKerningFactor (extraKerning);
+        auto f = makeLegacyFont (typefaceName, font.getHeight(), font.getStyleFlags(), extraKerning);
 
         if (f.getAvailableStyles().contains (font.getTypefaceStyle()))
             f.setTypefaceStyle (font.getTypefaceStyle());
@@ -119,24 +119,36 @@ public:
     {
         String s;
 
-        s << "juce::Font ("
+        s << "juce::Font (juce::FontOptions { "
           << getTypefaceNameCode (typefaceName)
           << CodeHelpers::floatLiteral (font.getHeight(), 2)
           << ", ";
 
         if (font.getAvailableStyles().contains (font.getTypefaceStyle()))
-            s << "juce::Font::plain).withTypefaceStyle ("
+            s << "juce::Font::plain }.withStyle ("
               << CodeHelpers::stringLiteral (font.getTypefaceStyle())
               << ")";
         else
             s << getFontStyleCode (font)
-              << ")";
+              << " }";
+
+        s << ".withMetricsKind (juce::TypefaceMetricsKind::legacy)";
 
         if (! approximatelyEqual (font.getExtraKerningFactor(), 0.0f))
-            s << ".withExtraKerningFactor ("
+            s << ".withKerningFactor ("
               << CodeHelpers::floatLiteral (font.getExtraKerningFactor(), 3)
               << ")";
 
+        s << ")";
+
         return s;
+    }
+
+private:
+    static Font makeLegacyFont (const String& typefaceName, float height, int styleFlags, float extraKerning)
+    {
+        return Font { FontOptions { typefaceName, height, styleFlags }
+                          .withMetricsKind (TypefaceMetricsKind::legacy)
+                          .withKerningFactor (extraKerning) };
     }
 };

@@ -80,7 +80,8 @@ public:
 
         Label defaultLabel;
 
-        Font font;
+        Font font { FontOptions { Font::getDefaultSansSerifFontName(), 15.0f, Font::plain }
+                        .withMetricsKind (TypefaceMetricsKind::legacy) };
         font.setHeight ((float) xml.getDoubleAttribute ("fontsize", 15.0));
         font.setBold (xml.getBoolAttribute ("bold", false));
         font.setItalic (xml.getBoolAttribute ("italic", false));
@@ -673,9 +674,9 @@ private:
         public:
             FontStyleChangeAction (Label* const comp, ComponentLayout& l, const Font& newState_)
                 : ComponentUndoableAction <Label> (comp, l),
-                  newState (newState_)
+                  newState (newState_),
+                  oldState (comp->getFont())
             {
-                oldState = comp->getFont();
             }
 
             bool perform() override

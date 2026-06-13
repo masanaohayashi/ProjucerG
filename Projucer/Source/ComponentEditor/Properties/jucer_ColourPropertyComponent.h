@@ -66,7 +66,8 @@ public:
                                 Colour (0xffffffff).overlaidWith (colour));
 
             g.setColour (Colours::white.overlaidWith (colour).contrasting());
-            g.setFont (Font ((float) getHeight() * 0.6f, Font::bold));
+            g.setFont (Font { FontOptions { (float) getHeight() * 0.6f, Font::bold }
+                                  .withMetricsKind (TypefaceMetricsKind::legacy) });
             g.drawFittedText (colour.toDisplayString (true),
                               2, 1, getWidth() - 4, getHeight() - 1,
                               Justification::centred, 1);
