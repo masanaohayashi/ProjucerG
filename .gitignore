@@ -1,0 +1,10 @@
+.DS_Store
+**/.DS_Store
+
+# Reference JUCE checkouts used for comparison.
+/JUCE-7.0.12/
+/JUCE-8.0.13/
+
+# Local build output from the copied Projucer.
+/Projucer/Builds/MacOSX/build/
+/Projucer/Builds/MacOSX/DerivedData/
