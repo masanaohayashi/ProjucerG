@@ -96,10 +96,13 @@ private:
 
 
 //==============================================================================
+OpenDocumentManager::DocumentType* createGUIDocumentType();
+
 OpenDocumentManager::OpenDocumentManager()
 {
     registerType (new UnknownDocument::Type());
     registerType (new SourceCodeDocument::Type());
+    registerType (createGUIDocumentType());
 }
 
 void OpenDocumentManager::clear()

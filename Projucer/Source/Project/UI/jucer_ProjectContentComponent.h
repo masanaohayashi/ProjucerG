@@ -100,6 +100,7 @@ public:
 
     void refreshProjectTreeFileStatuses();
     void updateMissingFileStatuses();
+    void addNewGUIFile();
 
     void showBubbleMessage (Rectangle<int>, const String&);
 

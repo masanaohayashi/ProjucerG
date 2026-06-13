@@ -33,6 +33,11 @@
 */
 
 //==============================================================================
+PopupMenu createGUIEditorMenu();
+void handleGUIEditorMenuCommand (int);
+void registerGUIEditorCommands();
+
+//==============================================================================
 struct ProjucerApplication::MainMenuModel final : public MenuBarModel
 {
     MainMenuModel()
@@ -293,7 +298,12 @@ MenuBarModel* ProjucerApplication::getMenuModel()
 
 StringArray ProjucerApplication::getMenuNames()
 {
-    return { "File", "Edit", "View", "Window", "Document", "Tools", "Help" };
+    StringArray currentMenuNames { "File", "Edit", "View", "Window", "Document", "GUI Editor", "Tools", "Help" };
+
+    if (! isGUIEditorEnabled())
+        currentMenuNames.removeString ("GUI Editor");
+
+    return currentMenuNames;
 }
 
 PopupMenu ProjucerApplication::createMenu (const String& menuName)
@@ -312,6 +322,10 @@ PopupMenu ProjucerApplication::createMenu (const String& menuName)
 
     if (menuName == "Document")
         return createDocumentMenu();
+
+    if (menuName == "GUI Editor")
+        if (isGUIEditorEnabled())
+            return createGUIEditorMenu();
 
     if (menuName == "Tools")
         return createToolsMenu();
@@ -506,6 +520,8 @@ PopupMenu ProjucerApplication::createToolsMenu()
     menu.addCommandItem (commandManager.get(), CommandIDs::showUTF8Tool);
     menu.addCommandItem (commandManager.get(), CommandIDs::showSVGPathTool);
     menu.addCommandItem (commandManager.get(), CommandIDs::showTranslationTool);
+    menu.addSeparator();
+    menu.addCommandItem (commandManager.get(), CommandIDs::enableGUIEditor);
     return menu;
 }
 
@@ -876,6 +892,10 @@ void ProjucerApplication::handleMainMenuCommand (int menuItemID)
     {
         findAndLaunchExample (menuItemID - examplesBaseID);
     }
+    else
+    {
+        handleGUIEditorMenuCommand (menuItemID);
+    }
 }
 
 //==============================================================================
@@ -898,6 +918,7 @@ void ProjucerApplication::getAllCommands (Array <CommandID>& commands)
                               CommandIDs::showAboutWindow,
                               CommandIDs::checkForNewVersion,
                               CommandIDs::enableNewVersionCheck,
+                              CommandIDs::enableGUIEditor,
                               CommandIDs::showForum,
                               CommandIDs::showAPIModules,
                               CommandIDs::showAPIClasses,
@@ -969,6 +990,13 @@ void ProjucerApplication::getCommandInfo (CommandID commandID, ApplicationComman
         result.setInfo ("SVG Path Converter", "Shows the SVG->Path data conversion utility", CommandCategories::general, 0);
         break;
 
+    case CommandIDs::enableGUIEditor:
+        result.setInfo ("GUI Editor Enabled",
+                        "Enables or disables the GUI editor functionality",
+                        CommandCategories::general,
+                        (isGUIEditorEnabled() ? ApplicationCommandInfo::isTicked : 0));
+        break;
+
     case CommandIDs::showAboutWindow:
         result.setInfo ("About Projucer", "Shows the Projucer's 'About' page.", CommandCategories::general, 0);
         break;
@@ -1021,6 +1049,7 @@ bool ProjucerApplication::perform (const InvocationInfo& info)
         case CommandIDs::clearRecentFiles:          clearRecentFiles(); break;
         case CommandIDs::showUTF8Tool:              showUTF8ToolWindow(); break;
         case CommandIDs::showSVGPathTool:           showSVGPathDataToolWindow(); break;
+        case CommandIDs::enableGUIEditor:           enableOrDisableGUIEditor(); break;
         case CommandIDs::showGlobalPathsWindow:     showPathsWindow (false); break;
         case CommandIDs::showAboutWindow:           showAboutWindow(); break;
         case CommandIDs::checkForNewVersion:        LatestVersionCheckerAndUpdater::getInstance()->checkForNewVersion (false); break;
@@ -1175,6 +1204,16 @@ void ProjucerApplication::showSVGPathDataToolWindow()
                                 500, 500, 300, 300, 1000, 1000);
 }
 
+bool ProjucerApplication::isGUIEditorEnabled() const
+{
+    return getGlobalProperties().getBoolValue (Ids::guiEditorEnabled);
+}
+
+void ProjucerApplication::enableOrDisableGUIEditor()
+{
+    getGlobalProperties().setValue (Ids::guiEditorEnabled, ! isGUIEditorEnabled());
+}
+
 void ProjucerApplication::showAboutWindow()
 {
     if (aboutWindow != nullptr)
@@ -1317,6 +1356,8 @@ void ProjucerApplication::initCommandManager()
         CppCodeEditorComponent ed (File(), doc);
         commandManager->registerAllCommandsForTarget (&ed);
     }
+
+    registerGUIEditorCommands();
 }
 
 static void rescanModules (AvailableModulesList& list, const Array<File>& paths, bool async)

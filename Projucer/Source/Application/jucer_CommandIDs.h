@@ -65,6 +65,7 @@ namespace CommandIDs
         showAboutWindow         = 0x300024,
         checkForNewVersion      = 0x300025,
         enableNewVersionCheck   = 0x300026,
+        enableGUIEditor         = 0x300027,
 
         showProjectSettings     = 0x300030,
         showFileExplorerPanel   = 0x300033,
@@ -98,6 +99,8 @@ namespace CommandIDs
         showAPIModules          = 0x300101,
         showAPIClasses          = 0x300102,
         showTutorials           = 0x300103,
+
+        addNewGUIFile           = 0x300200,
 
         lastCommandIDEntry
     };

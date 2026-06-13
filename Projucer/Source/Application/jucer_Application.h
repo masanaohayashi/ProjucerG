@@ -71,6 +71,8 @@ public:
     void getCommandInfo (CommandID commandID, ApplicationCommandInfo&) override;
     bool perform (const InvocationInfo&) override;
 
+    bool isGUIEditorEnabled() const;
+
     //==============================================================================
     void openFile (const File&, std::function<void (bool)>);
     void showPathsWindow (bool highlightJUCEPath = false);
@@ -163,6 +165,8 @@ private:
     void launchModulesBrowser();
     void launchClassesBrowser();
     void launchTutorialsBrowser();
+
+    void enableOrDisableGUIEditor();
 
     //==============================================================================
    #if JUCE_MAC

@@ -666,7 +666,8 @@ void ProjectContentComponent::getAllCommands (Array <CommandID>& commands)
                          CommandIDs::saveAndOpenInIDE,
                          CommandIDs::createNewExporter,
                          CommandIDs::deleteSelectedItem,
-                         CommandIDs::showTranslationTool });
+                         CommandIDs::showTranslationTool,
+                         CommandIDs::addNewGUIFile });
 }
 
 void ProjectContentComponent::getCommandInfo (const CommandID commandID, ApplicationCommandInfo& result)
@@ -822,6 +823,13 @@ void ProjectContentComponent::getCommandInfo (const CommandID commandID, Applica
                         CommandCategories::general, 0);
         break;
 
+    case CommandIDs::addNewGUIFile:
+        result.setInfo ("Add new GUI Component...",
+                        "Adds a new GUI Component file to the project",
+                        CommandCategories::general,
+                        (! ProjucerApplication::getApp().isGUIEditorEnabled() ? ApplicationCommandInfo::isDisabled : 0));
+        break;
+
     default:
         break;
     }
@@ -885,6 +893,8 @@ bool ProjectContentComponent::perform (const InvocationInfo& info)
 
         case CommandIDs::showTranslationTool:       showTranslationTool();          break;
 
+        case CommandIDs::addNewGUIFile:             addNewGUIFile();                break;
+
         default:
             return false;
     }
@@ -901,6 +911,16 @@ void ProjectContentComponent::getSelectedProjectItemsBeingDragged (const DragAnd
                                                                    OwnedArray<Project::Item>& selectedNodes)
 {
     TreeItemTypes::FileTreeItemBase::getSelectedProjectItemsBeingDragged (dragSourceDetails, selectedNodes);
+}
+
+void ProjectContentComponent::addNewGUIFile()
+{
+    if (project != nullptr)
+    {
+        wizardHolder = std::make_unique<WizardHolder>();
+        wizardHolder->wizard.reset (createGUIComponentWizard (*project));
+        wizardHolder->wizard->createNewFile (*project, project->getMainGroup());
+    }
 }
 
 //==============================================================================
