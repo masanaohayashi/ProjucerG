@@ -9,15 +9,16 @@ Software Limited.
 
 ## Current Status
 
-The `master` branch currently contains the JUCE 8 based version.
+The `juce9` branch contains the JUCE 9 preview based version.
 
 Implemented changes include:
 
 - Restored the legacy GUI Editor source files from JUCE 7.
-- Reconnected the GUI Editor document type and menus in the JUCE 8 Projucer.
+- Reconnected the GUI Editor document type and menus in the JUCE 9 preview
+  Projucer.
 - Added the GUI Editor enable/disable preference.
 - Added "New GUI Component" support.
-- Updated GUI Editor font code to use JUCE 8 `FontOptions`.
+- Updated GUI Editor font code to use `FontOptions`.
 - Fixed a legacy GUI Editor resizing bug where right-edge and bottom-right
   resizing could snap back immediately.
 - Verified macOS Debug builds and Projucer `--resave` stability.
@@ -26,9 +27,9 @@ Implemented changes include:
 
 Planned branch structure:
 
-- `master`: current JUCE 8 based branch.
-- `juce8`: JUCE 8 based maintenance branch, if split from `master`.
-- `juce9`: future JUCE 9 based branch.
+- `master`: development branch.
+- `8.0.13` tag: JUCE 8.0.13 based version.
+- `juce9`: JUCE 9 preview based branch.
 
 ## Repository Layout
 
@@ -42,11 +43,11 @@ not tracked by git.
 
 ## Build Requirements
 
-This branch expects a JUCE 8 checkout next to this repository. The current
-development setup used:
+This branch expects the JUCE 9 preview checkout next to this repository. The
+current development setup used:
 
 ```text
-../JUCE-8.0.13
+../JUCE-juce9
 ```
 
 The Projucer project file is:
@@ -77,8 +78,8 @@ xcodebuild -project Projucer/Builds/MacOSX/Projucer.xcodeproj \
 ProjucerG contains code derived from the JUCE Framework and the JUCE Projucer.
 JUCE is copyright Raw Material Software Limited and its contributors.
 
-Unless you have a separate commercial JUCE licence from Raw Material Software
-Limited that permits your intended use, the JUCE-derived code in this repository
-is distributed under the GNU Affero General Public License version 3.
+The JUCE 9 preview source files state that they may be used under the GNU Affero
+General Public License version 3 and cannot be licensed commercially for the
+preview.
 
 See [LICENSE.md](LICENSE.md) for details.

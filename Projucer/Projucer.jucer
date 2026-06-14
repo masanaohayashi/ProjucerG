@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT id="M70qfTRRk" name="Projucer" projectType="guiapp" juceFolder="../JUCE-8.0.13"
+<JUCERPROJECT id="M70qfTRRk" name="Projucer" projectType="guiapp" juceFolder="../JUCE-juce9"
               version="8.0.13" bundleIdentifier="com.juce.theprojucer" companyName="Raw Material Software Limited"
               companyCopyright="Raw Material Software Limited" useAppConfig="0"
               addUsingNamespaceToJuceHeader="1" jucerFormatVersion="1">
@@ -16,14 +16,14 @@
                        linkTimeOptimisation="0" recommendedWarnings="LLVM"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
-        <MODULEPATH id="juce_gui_extra" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_graphics" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_events" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_data_structures" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_cryptography" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_core" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_build_tools" path="../JUCE-8.0.13/extras/Build"/>
+        <MODULEPATH id="juce_gui_extra" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_graphics" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_events" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_cryptography" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_core" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_build_tools" path="../JUCE-juce9/extras/Build"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2019 targetFolder="Builds/VisualStudio2019" bigIcon="Zrx1Gl" extraCompilerFlags="/w44265 /w45038 /w44062"
@@ -34,14 +34,14 @@
                        useRuntimeLibDLL="0" linkTimeOptimisation="0"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
-        <MODULEPATH id="juce_gui_extra" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_graphics" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_events" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_data_structures" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_cryptography" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_core" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_build_tools" path="../JUCE-8.0.13/extras/Build"/>
+        <MODULEPATH id="juce_gui_extra" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_graphics" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_events" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_cryptography" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_core" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_build_tools" path="../JUCE-juce9/extras/Build"/>
       </MODULEPATHS>
     </VS2019>
     <VS2022 targetFolder="Builds/VisualStudio2022" bigIcon="Zrx1Gl" extraCompilerFlags="/w44265 /w45038 /w44062"
@@ -52,14 +52,14 @@
                        useRuntimeLibDLL="0" linkTimeOptimisation="0"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
-        <MODULEPATH id="juce_gui_extra" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_graphics" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_events" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_data_structures" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_cryptography" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_core" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_build_tools" path="../JUCE-8.0.13/extras/Build"/>
+        <MODULEPATH id="juce_gui_extra" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_graphics" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_events" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_cryptography" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_core" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_build_tools" path="../JUCE-juce9/extras/Build"/>
       </MODULEPATHS>
     </VS2022>
     <VS2026 targetFolder="Builds/VisualStudio2026" bigIcon="Zrx1Gl" extraCompilerFlags="/w44265 /w45038 /w44062"
@@ -70,14 +70,14 @@
                        useRuntimeLibDLL="0" linkTimeOptimisation="0"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
-        <MODULEPATH id="juce_gui_extra" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_graphics" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_events" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_data_structures" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_cryptography" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_core" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_build_tools" path="../JUCE-8.0.13/extras/Build"/>
+        <MODULEPATH id="juce_gui_extra" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_graphics" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_events" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_cryptography" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_core" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_build_tools" path="../JUCE-juce9/extras/Build"/>
       </MODULEPATHS>
     </VS2026>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" bigIcon="Zrx1Gl" smallIcon="Zrx1Gl">
@@ -86,14 +86,14 @@
         <CONFIGURATION name="Release" isDebug="0" targetName="Projucer"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
-        <MODULEPATH id="juce_gui_extra" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_graphics" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_events" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_data_structures" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_cryptography" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_core" path="../JUCE-8.0.13/modules"/>
-        <MODULEPATH id="juce_build_tools" path="../JUCE-8.0.13/extras/Build"/>
+        <MODULEPATH id="juce_gui_extra" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_graphics" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_events" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_cryptography" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_core" path="../JUCE-juce9/modules"/>
+        <MODULEPATH id="juce_build_tools" path="../JUCE-juce9/extras/Build"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -166,21 +166,21 @@
     </GROUP>
     <GROUP id="{BFDB3102-5EB6-41E0-043A-05C0DFF7A34D}" name="BinaryData">
       <FILE id="wkLB4B" name="JuceLV2Defines.h.in" compile="0" resource="1"
-            file="../JUCE-8.0.13/extras/Build/CMake/JuceLV2Defines.h.in"/>
+            file="../JUCE-juce9/extras/Build/CMake/JuceLV2Defines.h.in"/>
       <FILE id="QRvesq" name="LaunchScreen.storyboard" compile="0" resource="1"
-            file="../JUCE-8.0.13/extras/Build/CMake/LaunchScreen.storyboard"/>
+            file="../JUCE-juce9/extras/Build/CMake/LaunchScreen.storyboard"/>
       <FILE id="QCgjY8" name="PIPAudioProcessor.cpp.in" compile="0" resource="1"
-            file="../JUCE-8.0.13/extras/Build/CMake/PIPAudioProcessor.cpp.in"/>
+            file="../JUCE-juce9/extras/Build/CMake/PIPAudioProcessor.cpp.in"/>
       <FILE id="oxq0Fs" name="PIPAudioProcessorWithARA.cpp.in" compile="0"
-            resource="1" file="../JUCE-8.0.13/extras/Build/CMake/PIPAudioProcessorWithARA.cpp.in"/>
+            resource="1" file="../JUCE-juce9/extras/Build/CMake/PIPAudioProcessorWithARA.cpp.in"/>
       <FILE id="AwIYFr" name="PIPComponent.cpp.in" compile="0" resource="1"
-            file="../JUCE-8.0.13/extras/Build/CMake/PIPComponent.cpp.in"/>
+            file="../JUCE-juce9/extras/Build/CMake/PIPComponent.cpp.in"/>
       <FILE id="SncItz" name="PIPConsole.cpp.in" compile="0" resource="1"
-            file="../JUCE-8.0.13/extras/Build/CMake/PIPConsole.cpp.in"/>
+            file="../JUCE-juce9/extras/Build/CMake/PIPConsole.cpp.in"/>
       <FILE id="xokhSP" name="RecentFilesMenuTemplate.nib" compile="0" resource="1"
-            file="../JUCE-8.0.13/extras/Build/CMake/RecentFilesMenuTemplate.nib"/>
+            file="../JUCE-juce9/extras/Build/CMake/RecentFilesMenuTemplate.nib"/>
       <FILE id="H4EF8K" name="UnityPluginGUIScript.cs.in" compile="0" resource="1"
-            file="../JUCE-8.0.13/extras/Build/CMake/UnityPluginGUIScript.cs.in"/>
+            file="../JUCE-juce9/extras/Build/CMake/UnityPluginGUIScript.cs.in"/>
       <GROUP id="{6528902B-862F-277C-31AA-6F6283E7D5C8}" name="gradle">
         <FILE id="HA0Kl7" name="gradle-wrapper.jar" compile="0" resource="1"
               file="Source/BinaryData/gradle/gradle-wrapper.jar"/>
@@ -298,9 +298,9 @@
       <FILE id="bvFank" name="colourscheme_light.xml" compile="0" resource="1"
             file="Source/BinaryData/colourscheme_light.xml"/>
       <FILE id="SDFoQY" name="juce_runtime_arch_detection.cpp" compile="0"
-            resource="1" file="../JUCE-8.0.13/extras/Build/CMake/juce_runtime_arch_detection.cpp"/>
+            resource="1" file="../JUCE-juce9/extras/Build/CMake/juce_runtime_arch_detection.cpp"/>
       <FILE id="m0ZzB2" name="juce_LinuxSubprocessHelper.cpp" compile="0"
-            resource="1" file="../JUCE-8.0.13/extras/Build/CMake/juce_LinuxSubprocessHelper.cpp"/>
+            resource="1" file="../JUCE-juce9/extras/Build/CMake/juce_LinuxSubprocessHelper.cpp"/>
       <FILE id="OMFBxs" name="juce_SimpleBinaryBuilder.cpp" compile="0" resource="1"
             file="Source/BinaryData/juce_SimpleBinaryBuilder.cpp"/>
     </GROUP>

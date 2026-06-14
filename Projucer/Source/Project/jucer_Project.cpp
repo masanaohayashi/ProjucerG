@@ -1,33 +1,17 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE framework.
+   This file is part of the JUCE 9 preview.
    Copyright (c) Raw Material Software Limited
 
-   JUCE is an open source framework subject to commercial or open source
-   licensing.
+   You may use this code under the terms of the AGPLv3
+   (see www.gnu.org/licenses).
 
-   By downloading, installing, or using the JUCE framework, or combining the
-   JUCE framework with any other source code, object code, content or any other
-   copyrightable work, you agree to the terms of the JUCE End User Licence
-   Agreement, and all incorporated terms including the JUCE Privacy Policy and
-   the JUCE Website Terms of Service, as applicable, which will bind you. If you
-   do not agree to the terms of these agreements, we will not license the JUCE
-   framework to you, and you must discontinue the installation or download
-   process and cease use of the JUCE framework.
+   For the JUCE 9 preview this file cannot be licensed commercially.
 
-   JUCE End User Licence Agreement: https://juce.com/legal/juce-8-licence/
-   JUCE Privacy Policy: https://juce.com/juce-privacy-policy
-   JUCE Website Terms of Service: https://juce.com/juce-website-terms-of-service/
-
-   Or:
-
-   You may also use this code under the terms of the AGPLv3:
-   https://www.gnu.org/licenses/agpl-3.0.en.html
-
-   THE JUCE FRAMEWORK IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL
-   WARRANTIES, WHETHER EXPRESSED OR IMPLIED, INCLUDING WARRANTY OF
-   MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, ARE DISCLAIMED.
+   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
+   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
+   DISCLAIMED.
 
   ==============================================================================
 */
@@ -195,6 +179,11 @@ void Project::updateTitleDependencies()
     pluginARACompatibleArchiveIDsValue.setDefault (getDefaultARACompatibleArchiveIDs());
 }
 
+void Project::updateVersionDependencies()
+{
+    pluginARAArchiveIDValue.setDefault (getDefaultARADocumentArchiveID());
+}
+
 String Project::getDocumentTitle()
 {
     return getProjectNameString();
@@ -218,6 +207,9 @@ void Project::updateWebsiteDependencies()
 void Project::updateProjectSettings()
 {
     projectRoot.setProperty (Ids::name, getDocumentTitle(), nullptr);
+
+    if (shouldEnableARA())
+        projectRoot.setProperty (Ids::araDocumentArchiveID, getARADocumentArchiveIDString(), nullptr);
 }
 
 bool Project::setCppVersionFromOldExporterSettings()
@@ -373,7 +365,7 @@ void Project::initialiseAudioPluginValues()
     pluginVST3CategoryValue.referTo          (projectRoot, Ids::pluginVST3Category,         getUndoManager(), getDefaultVST3Categories(), ",");
     pluginAAXCategoryValue.referTo           (projectRoot, Ids::pluginAAXCategory,          getUndoManager(), getDefaultAAXCategories(),  ",");
 
-    pluginEnableARA.referTo                  (projectRoot, Ids::enableARA,                  getUndoManager(),  shouldEnableARA(), ",");
+    pluginEnableARA.referTo                  (projectRoot, Ids::enableARA,                  getUndoManager(), shouldEnableARA(), ",");
     pluginARAAnalyzableContentValue.referTo  (projectRoot, Ids::pluginARAAnalyzableContent, getUndoManager(), getDefaultARAContentTypes(), ",");
     pluginARATransformFlagsValue.referTo     (projectRoot, Ids::pluginARATransformFlags,    getUndoManager(), getDefaultARATransformationFlags(), ",");
     pluginARACompatibleArchiveIDsValue.referTo (projectRoot, Ids::araCompatibleArchiveIDs,  getUndoManager(), getDefaultARACompatibleArchiveIDs());
@@ -1135,6 +1127,10 @@ void Project::valueTreePropertyChanged (ValueTree& tree, const Identifier& prope
         if (property == Ids::name)
         {
             updateTitleDependencies();
+        }
+        else if (property == Ids::version)
+        {
+            updateVersionDependencies();
         }
         else if (property == Ids::companyName)
         {
