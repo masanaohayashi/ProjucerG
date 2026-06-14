@@ -34,11 +34,15 @@ Planned branch structure:
 ## Repository Layout
 
 - `Projucer/`: the modified Projucer source tree.
-- `design.md`: Japanese design and implementation notes.
+- `docs/design.md`: Japanese design and implementation notes.
 - `docs/maintenance.md`: maintainer workflow for tracking new upstream JUCE
   releases.
-- `JUCE7_JUCE8_modules_diff.md`: Japanese notes on JUCE module differences.
-- `JUCE7_JUCE8_Projucer_diff.md`: Japanese notes on Projucer differences.
+- `docs/JUCE7_JUCE8_modules_diff.md`: Japanese notes on JUCE module
+  differences.
+- `docs/JUCE7_JUCE8_Projucer_diff.md`: Japanese notes on Projucer
+  differences.
+- `docs/JUCE8_JUCE9_Projucer_diff.md`: Japanese notes on Projucer
+  differences.
 
 The local JUCE checkout directories used during development are intentionally
 not tracked by git.
