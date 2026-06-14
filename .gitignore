@@ -4,6 +4,7 @@
 # Reference JUCE checkouts used for comparison.
 /JUCE-7.0.12/
 /JUCE-8.0.13/
+/JUCE-juce9/
 
 # Local build output from the copied Projucer.
 /Projucer/Builds/MacOSX/build/
