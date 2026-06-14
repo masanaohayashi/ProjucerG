@@ -35,6 +35,8 @@ Planned branch structure:
 
 - `Projucer/`: the modified Projucer source tree.
 - `design.md`: Japanese design and implementation notes.
+- `docs/maintenance.md`: maintainer workflow for tracking new upstream JUCE
+  releases.
 - `JUCE7_JUCE8_modules_diff.md`: Japanese notes on JUCE module differences.
 - `JUCE7_JUCE8_Projucer_diff.md`: Japanese notes on Projucer differences.
 
