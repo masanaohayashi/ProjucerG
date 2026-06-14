@@ -86,8 +86,8 @@ OpenDocumentManager::DocumentType* createGUIDocumentType();
 OpenDocumentManager::OpenDocumentManager()
 {
     registerType (new UnknownDocument::Type());
-    registerType (createGUIDocumentType());
     registerType (new SourceCodeDocument::Type());
+    registerType (createGUIDocumentType());
 }
 
 void OpenDocumentManager::clear()
