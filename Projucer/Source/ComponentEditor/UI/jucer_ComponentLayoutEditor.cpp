@@ -30,6 +30,9 @@
 #include "../jucer_ObjectTypes.h"
 #include "../Components/jucer_JucerComponentHandler.h"
 
+#include <unordered_map>
+#include <unordered_set>
+
 //==============================================================================
 class SubComponentHolderComp    : public Component
 {
@@ -198,19 +201,35 @@ void ComponentLayoutEditor::updateOverlayPositions()
 
 void ComponentLayoutEditor::refreshAllComponents()
 {
+    std::unordered_set<Component*> layoutComponents;
+    layoutComponents.reserve ((size_t) layout.getNumComponents());
+
+    for (int i = 0; i < layout.getNumComponents(); ++i)
+        layoutComponents.insert (layout.getComponent (i));
+
+    std::unordered_map<Component*, ComponentOverlayComponent*> overlaysByTarget;
+    overlaysByTarget.reserve (layoutComponents.size());
+
     for (int i = getNumChildComponents(); --i >= 0;)
     {
         std::unique_ptr<ComponentOverlayComponent> overlay (dynamic_cast<ComponentOverlayComponent*> (getChildComponent (i)));
 
-        if (overlay != nullptr && layout.containsComponent (overlay->target))
-            overlay.release();
+        if (overlay != nullptr)
+        {
+            if (layoutComponents.find (overlay->target) != layoutComponents.end()
+                && overlaysByTarget.find (overlay->target) == overlaysByTarget.end())
+            {
+                overlaysByTarget.emplace (overlay->target, overlay.get());
+                overlay.release();
+            }
+        }
     }
 
     for (int i = subCompHolder->getNumChildComponents(); --i >= 0;)
     {
         Component* const comp = subCompHolder->getChildComponent (i);
 
-        if (! layout.containsComponent (comp))
+        if (layoutComponents.find (comp) == layoutComponents.end())
             subCompHolder->removeChildComponent (comp);
     }
 
@@ -222,7 +241,8 @@ void ComponentLayoutEditor::refreshAllComponents()
         auto c = layout.getComponent (i);
         jassert (c != nullptr);
 
-        auto overlay = getOverlayCompFor (c);
+        auto overlayIter = overlaysByTarget.find (c);
+        auto overlay = overlayIter != overlaysByTarget.end() ? overlayIter->second : nullptr;
 
         bool isNewOverlay = false;
 
