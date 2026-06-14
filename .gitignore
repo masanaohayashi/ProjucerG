@@ -9,3 +9,4 @@
 # Local build output from the copied Projucer.
 /Projucer/Builds/MacOSX/build/
 /Projucer/Builds/MacOSX/DerivedData/
+/dist/

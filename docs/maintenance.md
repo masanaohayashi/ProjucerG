@@ -170,6 +170,56 @@ then tag the resulting commit with the upstream JUCE version.
     git push origin 9.0.0
     ```
 
+## macOS Release And Notarization
+
+Release build and notarization are split into two scripts:
+
+```text
+scripts/build_release_macos.sh
+scripts/notarize_macos.sh
+```
+
+The build script builds the Release app, optionally signs it with a Developer ID
+Application certificate, verifies the signature, and creates a zip suitable for
+notarization.
+
+Set the signing identity before running it:
+
+```sh
+export PROJUCERG_DEVELOPER_ID_APPLICATION="Developer ID Application: Your Name (TEAMID)"
+scripts/build_release_macos.sh
+```
+
+If `PROJUCERG_DEVELOPER_ID_APPLICATION` is omitted, the script still builds and
+zips the app, but notarization will fail until the app is signed.
+
+Create a notarytool keychain profile once:
+
+```sh
+xcrun notarytool store-credentials "ProjucerG-notary" \
+  --apple-id "you@example.com" \
+  --team-id "TEAMID" \
+  --password "app-specific-password"
+```
+
+Then submit the zip, staple the app, and verify Gatekeeper assessment:
+
+```sh
+export PROJUCERG_NOTARY_PROFILE="ProjucerG-notary"
+scripts/notarize_macos.sh
+```
+
+Useful overrides:
+
+- `PROJUCERG_CONFIGURATION`: defaults to `Release`.
+- `PROJUCERG_XCODE_SCHEME`: defaults to `Projucer - App`.
+- `PROJUCERG_DERIVED_DATA_PATH`: defaults to
+  `Projucer/Builds/MacOSX/DerivedData`.
+- `PROJUCERG_APP_PATH`: defaults to the built `Projucer.app`.
+- `PROJUCERG_DIST_DIR`: defaults to `dist/macos`.
+- `PROJUCERG_ZIP_PATH`: defaults to
+  `dist/macos/ProjucerG-macOS-Release.zip`.
+
 ## Patch Notes
 
 The GUI Editor restoration should remain a small, reviewable patch on top of
@@ -184,4 +234,3 @@ files under `patches/` that separate:
 
 Keeping these concerns separate will make future upstream release updates easier
 to review and reapply.
-

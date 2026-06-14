@@ -79,6 +79,13 @@ xcodebuild -project Projucer/Builds/MacOSX/Projucer.xcodeproj \
   -quiet build
 ```
 
+For macOS Release builds and notarization, see:
+
+```text
+scripts/build_release_macos.sh
+scripts/notarize_macos.sh
+```
+
 ## License
 
 ProjucerG contains code derived from the JUCE Framework and the JUCE Projucer.
