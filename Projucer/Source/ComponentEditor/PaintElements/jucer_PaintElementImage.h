@@ -117,6 +117,8 @@ private:
     double opacity;
     StretchMode mode;
     String customPaintCode;
+    String cachedDrawableResourceName;
+    std::unique_ptr<Drawable> cachedDrawable;
 
     //==============================================================================
     class ImageElementResourceProperty   : public ImageResourceProperty <PaintElementImage>

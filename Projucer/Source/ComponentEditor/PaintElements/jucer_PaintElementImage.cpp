@@ -38,7 +38,36 @@ PaintElementImage::~PaintElementImage() {}
 const Drawable* PaintElementImage::getDrawable()
 {
     if (JucerDocument* const document = getDocument())
+    {
+        if (resourceName.contains ("::"))
+        {
+            if (cachedDrawable == nullptr || cachedDrawableResourceName != resourceName)
+            {
+                cachedDrawableResourceName = resourceName;
+                cachedDrawable.reset();
+
+                if (auto* project = document->getCppDocument().getProject())
+                {
+                    JucerResourceFile resourceFile (*project);
+
+                    for (int i = 0; i < resourceFile.getNumFiles(); ++i)
+                    {
+                        const auto& file = resourceFile.getFile (i);
+
+                        if (resourceName == resourceFile.getClassName() + "::" + resourceFile.getDataVariableFor (file))
+                        {
+                            cachedDrawable = Drawable::createFromImageFile (file);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return cachedDrawable.get();
+        }
+
         return document->getResources().getDrawable (resourceName);
+    }
 
     return nullptr;
 }
@@ -206,6 +235,8 @@ void PaintElementImage::setResource (const String& newName, const bool undoable)
         else
         {
             resourceName = newName;
+            cachedDrawableResourceName.clear();
+            cachedDrawable.reset();
             changed();
         }
     }
@@ -344,6 +375,8 @@ bool PaintElementImage::loadFromXml (const XmlElement& xml)
         resourceName = xml.getStringAttribute ("resource", String());
         opacity = xml.getDoubleAttribute ("opacity", 1.0);
         mode = (StretchMode) xml.getIntAttribute ("mode", (int) stretched);
+        cachedDrawableResourceName.clear();
+        cachedDrawable.reset();
 
         repaint();
         return true;
@@ -399,7 +432,7 @@ PaintElementImage::StretchModeProperty::StretchModeProperty (PaintElementImage* 
 {
     listener.setPropertyToRefresh (*this);
 
-    choices.add ("Stretched to fit");
+    choices.add ("Stretch to Fit");
     choices.add ("Maintain aspect ratio");
     choices.add ("Maintain aspect ratio, only reduce in size");
 }
