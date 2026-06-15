@@ -506,16 +506,53 @@ public:
     };
 
     //==============================================================================
+    static Image getImageForPreview (JucerDocument& document, const String& resourceName)
+    {
+        if (resourceName.contains ("::"))
+        {
+            if (auto* project = document.getCppDocument().getProject())
+            {
+                JucerResourceFile resourceFile (*project);
+
+                for (int i = 0; i < resourceFile.getNumFiles(); ++i)
+                {
+                    const auto& file = resourceFile.getFile (i);
+
+                    if (resourceName == resourceFile.getClassName() + "::" + resourceFile.getDataVariableFor (file))
+                        return ImageCache::getFromFile (file);
+                }
+            }
+
+            return {};
+        }
+
+        return document.getResources().getImageFromCache (resourceName);
+    }
+
     static void updateButtonImages (JucerDocument& document, ImageButton* const ib)
     {
-        Image norm = document.getResources().getImageFromCache (getImageResource (ib, normalImage));
-        Image over = document.getResources().getImageFromCache (getImageResource (ib, overImage));
-        Image down = document.getResources().getImageFromCache (getImageResource (ib, downImage));
+        Image norm = getImageForPreview (document, getImageResource (ib, normalImage));
+        Image over = getImageForPreview (document, getImageResource (ib, overImage));
+        Image down = getImageForPreview (document, getImageResource (ib, downImage));
+        auto previewImage = norm;
+        auto previewRole = normalImage;
+
+        if (! previewImage.isValid())
+        {
+            previewImage = over;
+            previewRole = overImage;
+        }
+
+        if (! previewImage.isValid())
+        {
+            previewImage = down;
+            previewRole = downImage;
+        }
 
         ib->setImages (false, true, doesImageKeepProportions (ib),
-                       norm,
-                       getImageOpacity (ib, normalImage),
-                       getImageColour (ib, normalImage),
+                       previewImage,
+                       getImageOpacity (ib, previewRole),
+                       getImageColour (ib, previewRole),
                        over,
                        getImageOpacity (ib, overImage),
                        getImageColour (ib, overImage),
