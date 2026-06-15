@@ -564,14 +564,19 @@ void ComponentTypeHandler::fillInMemberVariableDeclarations (GeneratedCode& code
 void ComponentTypeHandler::fillInResizeCode (GeneratedCode& code, Component* component, const String& memberVariableName)
 {
     const RelativePositionedRectangle pos (getComponentPosition (component));
+    const auto* layout = code.document->getComponentLayout();
+    const bool positionUsesRelativeTarget = layout->getComponentRelativePosTarget (component, 0) != nullptr
+                                         || layout->getComponentRelativePosTarget (component, 1) != nullptr
+                                         || layout->getComponentRelativePosTarget (component, 2) != nullptr
+                                         || layout->getComponentRelativePosTarget (component, 3) != nullptr;
 
     String x, y, w, h, r;
-    positionToCode (pos, code.document->getComponentLayout(), x, y, w, h);
+    positionToCode (pos, layout, x, y, w, h);
 
     r << memberVariableName << "->setBounds ("
       << x << ", " << y << ", " << w << ", " << h << ");\n";
 
-    if (pos.rect.isPositionAbsolute() && ! code.document->getComponentLayout()->isComponentPositionRelative (component))
+    if (pos.rect.isPositionAbsolute() && ! positionUsesRelativeTarget)
         code.constructorCode += r + "\n";
     else
         code.getCallbackCode (String(), "void", "resized()", false) += r;

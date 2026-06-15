@@ -635,10 +635,10 @@ struct RelativePositionedRectangle
 
         if (layout != nullptr)
         {
-            rx = layout->findComponentWithId (relativeToX);
-            ry = layout->findComponentWithId (relativeToY);
-            rw = layout->findComponentWithId (relativeToW);
-            rh = layout->findComponentWithId (relativeToH);
+            if (relativeToX != 0) rx = layout->findComponentWithId (relativeToX);
+            if (relativeToY != 0) ry = layout->findComponentWithId (relativeToY);
+            if (relativeToW != 0) rw = layout->findComponentWithId (relativeToW);
+            if (relativeToH != 0) rh = layout->findComponentWithId (relativeToH);
         }
 
         x = parentArea.getX() + (rx != nullptr ? rx->getX() : 0);

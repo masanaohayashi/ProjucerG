@@ -34,7 +34,8 @@ class ComponentLayoutEditor  : public Component,
                                public FileDragAndDropTarget,
                                public DragAndDropTarget,
                                public LassoSource<Component*>,
-                               private ChangeListener
+                               private ChangeListener,
+                               private AsyncUpdater
 {
 public:
     //==============================================================================
@@ -75,6 +76,7 @@ public:
 
 private:
     void changeListenerCallback (ChangeBroadcaster*) override;
+    void handleAsyncUpdate() override;
 
     JucerDocument& document;
     ComponentLayout& layout;
