@@ -42,10 +42,25 @@ ComponentLayout::~ComponentLayout()
 }
 
 //==============================================================================
-void ComponentLayout::changed()
+void ComponentLayout::changed (bool positionOnly)
 {
+    if (positionOnly)
+        pendingPositionOnlyChange = true;
+    else
+        pendingFullRefresh = true;
+
     if (document != nullptr)
         document->changed();
+}
+
+bool ComponentLayout::consumePendingPositionOnlyChange()
+{
+    const bool result = pendingPositionOnlyChange && ! pendingFullRefresh;
+
+    pendingPositionOnlyChange = false;
+    pendingFullRefresh = false;
+
+    return result;
 }
 
 void ComponentLayout::perform (std::unique_ptr<UndoableAction> action, const String& actionName)
@@ -666,7 +681,7 @@ void ComponentLayout::setComponentPosition (Component* comp,
         else
         {
             ComponentTypeHandler::setComponentPosition (comp, newPos, this);
-            changed();
+            changed (true);
         }
     }
 }
@@ -945,23 +960,23 @@ void positionToCode (const RelativePositionedRectangle& position,
 {
     // these are the code sections for the positions of the relative comps
     String xrx, xry, xrw, xrh;
-    if (Component* const relCompX = layout != nullptr ? layout->findComponentWithId (position.relativeToX) : nullptr)
+    if (Component* const relCompX = (layout != nullptr && position.relativeToX != 0) ? layout->findComponentWithId (position.relativeToX) : nullptr)
         positionToCode (ComponentTypeHandler::getComponentPosition (relCompX), layout, xrx, xry, xrw, xrh);
 
     String yrx, yry, yrw, yrh;
 
-    if (Component* const relCompY = layout != nullptr ? layout->findComponentWithId (position.relativeToY) : nullptr)
+    if (Component* const relCompY = (layout != nullptr && position.relativeToY != 0) ? layout->findComponentWithId (position.relativeToY) : nullptr)
         positionToCode (ComponentTypeHandler::getComponentPosition (relCompY), layout, yrx, yry, yrw, yrh);
 
     String wrx, wry, wrw, wrh;
 
-    if (Component* const relCompW = (layout != nullptr && position.rect.getWidthMode() != PositionedRectangle::absoluteSize)
+    if (Component* const relCompW = (layout != nullptr && position.relativeToW != 0 && position.rect.getWidthMode() != PositionedRectangle::absoluteSize)
                                         ? layout->findComponentWithId (position.relativeToW) : nullptr)
         positionToCode (ComponentTypeHandler::getComponentPosition (relCompW), layout, wrx, wry, wrw, wrh);
 
     String hrx, hry, hrw, hrh;
 
-    if (Component* const relCompH = (layout != nullptr && position.rect.getHeightMode() != PositionedRectangle::absoluteSize)
+    if (Component* const relCompH = (layout != nullptr && position.relativeToH != 0 && position.rect.getHeightMode() != PositionedRectangle::absoluteSize)
                                         ? layout->findComponentWithId (position.relativeToH) : nullptr)
         positionToCode (ComponentTypeHandler::getComponentPosition (relCompH), layout, hrx, hry, hrw, hrh);
 

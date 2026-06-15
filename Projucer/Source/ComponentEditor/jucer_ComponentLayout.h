@@ -41,7 +41,8 @@ public:
     ~ComponentLayout();
 
     //==============================================================================
-    void changed();
+    void changed (bool positionOnly = false);
+    bool consumePendingPositionOnlyChange();
 
     int getNumComponents() const noexcept                                { return components.size(); }
     Component* getComponent (const int index) const noexcept             { return components [index]; }
@@ -129,6 +130,8 @@ private:
     int nextCompUID;
 
     int addComponentIndexAdded = 0;
+    bool pendingPositionOnlyChange = false;
+    bool pendingFullRefresh = false;
 
     String getUnusedMemberName (String nameRoot, Component* comp) const;
 };

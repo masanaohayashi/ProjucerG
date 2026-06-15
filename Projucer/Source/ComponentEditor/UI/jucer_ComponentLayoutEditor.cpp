@@ -149,6 +149,20 @@ void ComponentLayoutEditor::visibilityChanged()
 
 void ComponentLayoutEditor::changeListenerCallback (ChangeBroadcaster*)
 {
+    triggerAsyncUpdate();
+}
+
+void ComponentLayoutEditor::handleAsyncUpdate()
+{
+    if (! isVisible())
+        return;
+
+    if (layout.consumePendingPositionOnlyChange())
+    {
+        updateOverlayPositions();
+        return;
+    }
+
     refreshAllComponents();
 }
 
