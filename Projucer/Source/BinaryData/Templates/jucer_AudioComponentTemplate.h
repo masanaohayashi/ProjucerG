@@ -1,6 +1,8 @@
 #pragma once
 
+//[Headers]     -- You can add your own extra header files here --
 %%include_juce%%
+//[/Headers]
 
 //==============================================================================
 /*
@@ -15,18 +17,26 @@ public:
     ~%%content_component_class%%() override;
 
     //==============================================================================
+    //[UserMethods]     -- You can add your own custom methods in this section.
     void prepareToPlay (int samplesPerBlockExpected, double sampleRate) override;
     void getNextAudioBlock (const juce::AudioSourceChannelInfo& bufferToFill) override;
     void releaseResources() override;
+    //[/UserMethods]
 
     //==============================================================================
     void paint (juce::Graphics& g) override;
     void resized() override;
 
 private:
+    //[UserVariables]   -- You can add your own custom variables in this section.
+    //[/UserVariables]
+
     //==============================================================================
     // Your private member variables go here...
 
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (%%content_component_class%%)
 };
+
+//[EndFile] You can add extra defines here...
+//[/EndFile]
