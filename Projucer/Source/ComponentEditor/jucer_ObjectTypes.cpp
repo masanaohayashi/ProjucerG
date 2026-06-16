@@ -62,6 +62,7 @@
 #include "Components/jucer_TreeViewHandler.h"
 #include "Components/jucer_GenericComponentHandler.h"
 #include "Components/jucer_ImageButtonHandler.h"
+#include "Components/jucer_ImageComponentHandler.h"
 
 namespace ObjectTypes
 {
@@ -137,6 +138,7 @@ static TabbedComponentHandler tabbedComp;
 static TreeViewHandler treeview;
 static GenericComponentHandler genericHandler;
 static ImageButtonHandler imageButtonHandler;
+static ImageComponentHandler imageComponentHandler;
 
 static ComponentTypeHandler* const compTypes[] =
 {
@@ -154,6 +156,7 @@ static ComponentTypeHandler* const compTypes[] =
     &treeview,
     &genericHandler,
     &imageButtonHandler,
+    &imageComponentHandler,
     nullptr
 };
 

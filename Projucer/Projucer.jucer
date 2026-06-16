@@ -342,6 +342,8 @@
               resource="0" file="Source/ComponentEditor/Components/jucer_HyperlinkButtonHandler.h"/>
         <FILE id="bwtEL9" name="jucer_ImageButtonHandler.h" compile="0" resource="0"
               file="Source/ComponentEditor/Components/jucer_ImageButtonHandler.h"/>
+        <FILE id="ICmpHn" name="jucer_ImageComponentHandler.h" compile="0"
+              resource="0" file="Source/ComponentEditor/Components/jucer_ImageComponentHandler.h"/>
         <FILE id="VrPZpe" name="jucer_JucerComponentHandler.h" compile="0"
               resource="0" file="Source/ComponentEditor/Components/jucer_JucerComponentHandler.h"/>
         <FILE id="DSATgF" name="jucer_LabelHandler.h" compile="0" resource="0"

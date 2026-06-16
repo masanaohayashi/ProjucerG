@@ -2092,6 +2092,7 @@
     <ClInclude Include="..\..\Source\ComponentEditor\Components\jucer_GroupComponentHandler.h"/>
     <ClInclude Include="..\..\Source\ComponentEditor\Components\jucer_HyperlinkButtonHandler.h"/>
     <ClInclude Include="..\..\Source\ComponentEditor\Components\jucer_ImageButtonHandler.h"/>
+    <ClInclude Include="..\..\Source\ComponentEditor\Components\jucer_ImageComponentHandler.h"/>
     <ClInclude Include="..\..\Source\ComponentEditor\Components\jucer_JucerComponentHandler.h"/>
     <ClInclude Include="..\..\Source\ComponentEditor\Components\jucer_LabelHandler.h"/>
     <ClInclude Include="..\..\Source\ComponentEditor\Components\jucer_SliderHandler.h"/>

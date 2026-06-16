@@ -2694,6 +2694,9 @@
     <ClInclude Include="..\..\Source\ComponentEditor\Components\jucer_ImageButtonHandler.h">
       <Filter>Projucer\ComponentEditor\Components</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\Source\ComponentEditor\Components\jucer_ImageComponentHandler.h">
+      <Filter>Projucer\ComponentEditor\Components</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\Source\ComponentEditor\Components\jucer_JucerComponentHandler.h">
       <Filter>Projucer\ComponentEditor\Components</Filter>
     </ClInclude>
