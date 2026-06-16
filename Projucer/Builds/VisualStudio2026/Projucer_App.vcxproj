@@ -2088,6 +2088,7 @@
     <ClInclude Include="..\..\Source\ComponentEditor\Components\jucer_ComponentNameProperty.h"/>
     <ClInclude Include="..\..\Source\ComponentEditor\Components\jucer_ComponentTypeHandler.h"/>
     <ClInclude Include="..\..\Source\ComponentEditor\Components\jucer_ComponentUndoableAction.h"/>
+    <ClInclude Include="..\..\Source\ComponentEditor\Components\jucer_DrawableButtonHandler.h"/>
     <ClInclude Include="..\..\Source\ComponentEditor\Components\jucer_GenericComponentHandler.h"/>
     <ClInclude Include="..\..\Source\ComponentEditor\Components\jucer_GroupComponentHandler.h"/>
     <ClInclude Include="..\..\Source\ComponentEditor\Components\jucer_HyperlinkButtonHandler.h"/>

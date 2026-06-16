@@ -61,6 +61,7 @@
 #include "Components/jucer_TabbedComponentHandler.h"
 #include "Components/jucer_TreeViewHandler.h"
 #include "Components/jucer_GenericComponentHandler.h"
+#include "Components/jucer_DrawableButtonHandler.h"
 #include "Components/jucer_ImageButtonHandler.h"
 #include "Components/jucer_ImageComponentHandler.h"
 
@@ -137,6 +138,7 @@ static ViewportHandler viewport;
 static TabbedComponentHandler tabbedComp;
 static TreeViewHandler treeview;
 static GenericComponentHandler genericHandler;
+static DrawableButtonHandler drawableButtonHandler;
 static ImageButtonHandler imageButtonHandler;
 static ImageComponentHandler imageComponentHandler;
 
@@ -155,6 +157,7 @@ static ComponentTypeHandler* const compTypes[] =
     &tabbedComp,
     &treeview,
     &genericHandler,
+    &drawableButtonHandler,
     &imageButtonHandler,
     &imageComponentHandler,
     nullptr

@@ -334,6 +334,8 @@
               file="Source/ComponentEditor/Components/jucer_ComponentTypeHandler.h"/>
         <FILE id="QpvtcR" name="jucer_ComponentUndoableAction.h" compile="0"
               resource="0" file="Source/ComponentEditor/Components/jucer_ComponentUndoableAction.h"/>
+        <FILE id="DrwBHn" name="jucer_DrawableButtonHandler.h" compile="0"
+              resource="0" file="Source/ComponentEditor/Components/jucer_DrawableButtonHandler.h"/>
         <FILE id="vjUD9G" name="jucer_GenericComponentHandler.h" compile="0"
               resource="0" file="Source/ComponentEditor/Components/jucer_GenericComponentHandler.h"/>
         <FILE id="UHlZe2" name="jucer_GroupComponentHandler.h" compile="0"
