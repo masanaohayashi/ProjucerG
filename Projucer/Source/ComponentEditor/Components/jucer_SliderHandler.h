@@ -90,6 +90,9 @@ struct SliderHandler  : public ComponentTypeHandler
         e->setAttribute ("textBoxHeight", s->getTextBoxHeight());
         e->setAttribute ("skewFactor", s->getSkewFactor());
         e->setAttribute ("needsCallback", needsSliderListener (s));
+        e->setAttribute ("filmstripImage", getFilmstripImage (s));
+        e->setAttribute ("filmstripFrames", getFilmstripFrames (s));
+        e->setAttribute ("filmstripVertical", isFilmstripVertical (s));
 
         return e;
     }
@@ -115,6 +118,9 @@ struct SliderHandler  : public ComponentTypeHandler
         s->setSkewFactor (xml.getDoubleAttribute ("skewFactor", 1.0));
 
         setNeedsSliderListener (s, xml.getBoolAttribute ("needsCallback", true));
+        setFilmstripImage (const_cast<ComponentLayout&> (*layout), s, xml.getStringAttribute ("filmstripImage", String()), false);
+        setFilmstripFrames (const_cast<ComponentLayout&> (*layout), s, xml.getIntAttribute ("filmstripFrames", 1), false);
+        setFilmstripVertical (const_cast<ComponentLayout&> (*layout), s, xml.getBoolAttribute ("filmstripVertical", true), false);
 
         return true;
     }
@@ -147,6 +153,8 @@ struct SliderHandler  : public ComponentTypeHandler
 
         if (! approximatelyEqual (s->getSkewFactor(), 1.0))
             r << memberVariableName << "->setSkewFactor (" << s->getSkewFactor() << ");\n";
+
+        addFilmstripCreationCode (code, s, memberVariableName, r);
 
         r << '\n';
         code.constructorCode += r;
@@ -194,6 +202,9 @@ struct SliderHandler  : public ComponentTypeHandler
             props.add (new SliderTextboxSizeProperty (s, document, true));
             props.add (new SliderTextboxSizeProperty (s, document, false));
             props.add (new SliderSkewProperty (s, document));
+            props.add (new FilmstripImageProperty (*document.getComponentLayout(), s));
+            props.add (new FilmstripFramesProperty (*document.getComponentLayout(), s));
+            props.add (new FilmstripLayoutProperty (*document.getComponentLayout(), s));
             props.add (new SliderCallbackProperty (s, document));
         }
 
@@ -211,6 +222,343 @@ struct SliderHandler  : public ComponentTypeHandler
     }
 
 private:
+    static Identifier filmstripImageProperty()     { return "filmstripImage"; }
+    static Identifier filmstripFramesProperty()    { return "filmstripFrames"; }
+    static Identifier filmstripVerticalProperty()  { return "filmstripVertical"; }
+
+    struct FilmstripSliderLookAndFeel  : public LookAndFeel_V4
+    {
+        Component::SafePointer<Slider> owner;
+        Image image;
+        String imageResource;
+        int frames = 1;
+        bool vertical = true;
+
+        void drawRotarySlider (Graphics& g, int x, int y, int width, int height,
+                               float sliderPos, float rotaryStartAngle,
+                               float rotaryEndAngle, Slider& slider) override
+        {
+            if (image.isValid() && frames > 1)
+            {
+                drawFilmstripFrame (g, image, x, y, width, height, sliderPos, frames, vertical);
+                return;
+            }
+
+            LookAndFeel_V4::drawRotarySlider (g, x, y, width, height, sliderPos,
+                                              rotaryStartAngle, rotaryEndAngle, slider);
+        }
+    };
+
+    static OwnedArray<FilmstripSliderLookAndFeel>& getPreviewLookAndFeels()
+    {
+        static OwnedArray<FilmstripSliderLookAndFeel> lookAndFeels;
+        return lookAndFeels;
+    }
+
+    static FilmstripSliderLookAndFeel* getPreviewLookAndFeelFor (Slider& slider)
+    {
+        auto& lookAndFeels = getPreviewLookAndFeels();
+
+        for (int i = lookAndFeels.size(); --i >= 0;)
+        {
+            if (lookAndFeels[i]->owner == nullptr)
+                lookAndFeels.remove (i);
+            else if (lookAndFeels[i]->owner == &slider)
+                return lookAndFeels[i];
+        }
+
+        auto* lookAndFeel = new FilmstripSliderLookAndFeel();
+        lookAndFeel->owner = &slider;
+        lookAndFeels.add (lookAndFeel);
+        return lookAndFeel;
+    }
+
+    static void drawFilmstripFrame (Graphics& g, const Image& image, int x, int y, int width, int height,
+                                    float sliderPos, int frames, bool vertical)
+    {
+        frames = jmax (1, frames);
+        const auto frame = jlimit (0, frames - 1, roundToInt (sliderPos * (float) (frames - 1)));
+
+        if (vertical)
+        {
+            const auto frameHeight = image.getHeight() / frames;
+
+            if (frameHeight > 0)
+                g.drawImage (image, x, y, width, height,
+                             0, frame * frameHeight, image.getWidth(), frameHeight);
+        }
+        else
+        {
+            const auto frameWidth = image.getWidth() / frames;
+
+            if (frameWidth > 0)
+                g.drawImage (image, x, y, width, height,
+                             frame * frameWidth, 0, frameWidth, image.getHeight());
+        }
+    }
+
+    static Image getImageForPreview (JucerDocument& document, const String& resourceName)
+    {
+        if (resourceName.contains ("::"))
+        {
+            if (auto* project = document.getCppDocument().getProject())
+            {
+                JucerResourceFile resourceFile (*project);
+
+                for (int i = 0; i < resourceFile.getNumFiles(); ++i)
+                {
+                    const auto& file = resourceFile.getFile (i);
+
+                    if (resourceName == resourceFile.getClassName() + "::" + resourceFile.getDataVariableFor (file))
+                        return ImageCache::getFromFile (file);
+                }
+            }
+
+            return {};
+        }
+
+        return document.getResources().getImageFromCache (resourceName);
+    }
+
+    static void updateFilmstripPreview (ComponentLayout& layout, Slider* slider)
+    {
+        const auto imageResource = getFilmstripImage (slider);
+
+        if (imageResource.isEmpty())
+        {
+            slider->setLookAndFeel (nullptr);
+            slider->repaint();
+            return;
+        }
+
+        auto* lookAndFeel = getPreviewLookAndFeelFor (*slider);
+        lookAndFeel->imageResource = imageResource;
+        lookAndFeel->image = getImageForPreview (*layout.getDocument(), imageResource);
+        lookAndFeel->frames = getFilmstripFrames (slider);
+        lookAndFeel->vertical = isFilmstripVertical (slider);
+        slider->setLookAndFeel (lookAndFeel);
+        slider->repaint();
+    }
+
+    static String getFilmstripImage (Slider* slider)
+    {
+        return slider->getProperties()[filmstripImageProperty()].toString();
+    }
+
+    static int getFilmstripFrames (Slider* slider)
+    {
+        return jmax (1, (int) slider->getProperties().getWithDefault (filmstripFramesProperty(), 1));
+    }
+
+    static bool isFilmstripVertical (Slider* slider)
+    {
+        return slider->getProperties().getWithDefault (filmstripVerticalProperty(), true);
+    }
+
+    struct SetFilmstripPropertyAction  : public ComponentUndoableAction<Slider>
+    {
+        SetFilmstripPropertyAction (Slider* slider, ComponentLayout& l, Identifier property_, var newValue_)
+            : ComponentUndoableAction<Slider> (slider, l),
+              property (property_),
+              newValue (std::move (newValue_))
+        {
+            oldValue = slider->getProperties()[property];
+        }
+
+        bool perform() override
+        {
+            showCorrectTab();
+            getComponent()->getProperties().set (property, newValue);
+            updateFilmstripPreview (layout, getComponent());
+            changed();
+            return true;
+        }
+
+        bool undo() override
+        {
+            showCorrectTab();
+            getComponent()->getProperties().set (property, oldValue);
+            updateFilmstripPreview (layout, getComponent());
+            changed();
+            return true;
+        }
+
+        Identifier property;
+        var newValue, oldValue;
+    };
+
+    static void setFilmstripImage (ComponentLayout& layout, Slider* slider, const String& image, bool undoable)
+    {
+        if (getFilmstripImage (slider) == image)
+            return;
+
+        if (undoable)
+            layout.perform (std::make_unique<SetFilmstripPropertyAction> (slider, layout, filmstripImageProperty(), image),
+                            "Change slider filmstrip image");
+        else
+        {
+            slider->getProperties().set (filmstripImageProperty(), image);
+            updateFilmstripPreview (layout, slider);
+            layout.changed();
+        }
+    }
+
+    static void setFilmstripFrames (ComponentLayout& layout, Slider* slider, int frames, bool undoable)
+    {
+        frames = jmax (1, frames);
+
+        if (getFilmstripFrames (slider) == frames)
+            return;
+
+        if (undoable)
+            layout.perform (std::make_unique<SetFilmstripPropertyAction> (slider, layout, filmstripFramesProperty(), frames),
+                            "Change slider filmstrip frame count");
+        else
+        {
+            slider->getProperties().set (filmstripFramesProperty(), frames);
+            updateFilmstripPreview (layout, slider);
+            layout.changed();
+        }
+    }
+
+    static void setFilmstripVertical (ComponentLayout& layout, Slider* slider, bool vertical, bool undoable)
+    {
+        if (isFilmstripVertical (slider) == vertical)
+            return;
+
+        if (undoable)
+            layout.perform (std::make_unique<SetFilmstripPropertyAction> (slider, layout, filmstripVerticalProperty(), vertical),
+                            "Change slider filmstrip layout");
+        else
+        {
+            slider->getProperties().set (filmstripVerticalProperty(), vertical);
+            updateFilmstripPreview (layout, slider);
+            layout.changed();
+        }
+    }
+
+    static String getImageCreationCode (Slider* slider)
+    {
+        const auto resourceName = getFilmstripImage (slider);
+
+        if (resourceName.isEmpty())
+            return "juce::Image()";
+
+        return "juce::ImageCache::getFromMemory (" + resourceName + ", " + resourceName + "Size)";
+    }
+
+    static void addFilmstripCreationCode (GeneratedCode& code, Slider* slider,
+                                          const String& memberVariableName, String& constructorCode)
+    {
+        if (getFilmstripImage (slider).isEmpty())
+            return;
+
+        const auto suffix = String (code.getUniqueSuffix());
+        const auto lookAndFeelClass = "FilmstripSliderLookAndFeel" + suffix;
+        const auto lookAndFeelMember = "filmstripSliderLookAndFeel" + suffix;
+
+        code.privateMemberDeclarations
+            << "struct " << lookAndFeelClass << "  : public juce::LookAndFeel_V4\n"
+            << "{\n"
+            << "    void setFilmstrip (juce::Image imageToUse, int numFramesToUse, bool verticalLayoutToUse)\n"
+            << "    {\n"
+            << "        image = imageToUse;\n"
+            << "        numFrames = juce::jmax (1, numFramesToUse);\n"
+            << "        verticalLayout = verticalLayoutToUse;\n"
+            << "    }\n\n"
+            << "    void drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height,\n"
+            << "                           float sliderPos, float rotaryStartAngle,\n"
+            << "                           float rotaryEndAngle, juce::Slider& slider) override\n"
+            << "    {\n"
+            << "        if (image.isValid() && numFrames > 1)\n"
+            << "        {\n"
+            << "            auto frame = juce::jlimit (0, numFrames - 1,\n"
+            << "                                      juce::roundToInt (sliderPos * (float) (numFrames - 1)));\n\n"
+            << "            if (verticalLayout)\n"
+            << "            {\n"
+            << "                auto frameHeight = image.getHeight() / numFrames;\n\n"
+            << "                if (frameHeight > 0)\n"
+            << "                    g.drawImage (image, x, y, width, height,\n"
+            << "                                 0, frame * frameHeight, image.getWidth(), frameHeight);\n"
+            << "            }\n"
+            << "            else\n"
+            << "            {\n"
+            << "                auto frameWidth = image.getWidth() / numFrames;\n\n"
+            << "                if (frameWidth > 0)\n"
+            << "                    g.drawImage (image, x, y, width, height,\n"
+            << "                                 frame * frameWidth, 0, frameWidth, image.getHeight());\n"
+            << "            }\n\n"
+            << "            return;\n"
+            << "        }\n\n"
+            << "        juce::LookAndFeel_V4::drawRotarySlider (g, x, y, width, height, sliderPos,\n"
+            << "                                                rotaryStartAngle, rotaryEndAngle, slider);\n"
+            << "    }\n\n"
+            << "    juce::Image image;\n"
+            << "    int numFrames = 1;\n"
+            << "    bool verticalLayout = true;\n"
+            << "};\n\n"
+            << lookAndFeelClass << " " << lookAndFeelMember << ";\n";
+
+        constructorCode << lookAndFeelMember << ".setFilmstrip ("
+                        << getImageCreationCode (slider) << ", " << getFilmstripFrames (slider) << ", "
+                        << CodeHelpers::boolLiteral (isFilmstripVertical (slider)) << ");\n";
+        constructorCode << memberVariableName << "->setLookAndFeel (&" << lookAndFeelMember << ");\n";
+        code.destructorCode << memberVariableName << "->setLookAndFeel (nullptr);\n";
+    }
+
+    class FilmstripImageProperty  : public ImageResourceProperty<Slider>
+    {
+    public:
+        FilmstripImageProperty (ComponentLayout& layout_, Slider* owner)
+            : ImageResourceProperty<Slider> (*layout_.getDocument(), owner, "filmstrip image", true),
+              layout (layout_)
+        {
+        }
+
+        void setResource (const String& newName) override     { setFilmstripImage (layout, element, newName, true); }
+        String getResource() const override                   { return getFilmstripImage (element); }
+
+    private:
+        ComponentLayout& layout;
+    };
+
+    struct FilmstripFramesProperty  : public ComponentTextProperty<Slider>
+    {
+        FilmstripFramesProperty (ComponentLayout& layout_, Slider* slider)
+            : ComponentTextProperty<Slider> ("filmstrip frames", 8, false, slider, *layout_.getDocument()),
+              layout (layout_)
+        {
+        }
+
+        void setText (const String& newText) override         { setFilmstripFrames (layout, component, newText.getIntValue(), true); }
+        String getText() const override                       { return String (getFilmstripFrames (component)); }
+
+        ComponentLayout& layout;
+    };
+
+    struct FilmstripLayoutProperty  : public ComponentChoiceProperty<Slider>
+    {
+        FilmstripLayoutProperty (ComponentLayout& layout_, Slider* slider)
+            : ComponentChoiceProperty<Slider> ("filmstrip layout", slider, *layout_.getDocument()),
+              layout (layout_)
+        {
+            choices.add ("Vertical");
+            choices.add ("Horizontal");
+        }
+
+        void setIndex (int newIndex) override
+        {
+            setFilmstripVertical (layout, component, newIndex != 1, true);
+        }
+
+        int getIndex() const override
+        {
+            return isFilmstripVertical (component) ? 0 : 1;
+        }
+
+        ComponentLayout& layout;
+    };
+
     //==============================================================================
     struct SliderTypeProperty  : public ComponentChoiceProperty<Slider>
     {
