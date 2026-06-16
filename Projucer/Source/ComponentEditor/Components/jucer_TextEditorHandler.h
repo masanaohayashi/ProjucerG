@@ -52,6 +52,8 @@ public:
         TextEditor* te = (TextEditor*) comp;
 
         e->setAttribute ("initialText", comp->getProperties() ["initialText"].toString());
+        e->setAttribute ("emptyText", getEmptyText (te));
+        e->setAttribute ("emptyTextColour", getEmptyTextColour (te).toString());
 
         e->setAttribute ("multiline", te->isMultiLine());
         e->setAttribute ("retKeyStartsLine", te->getReturnKeyStartsNewLine());
@@ -81,6 +83,9 @@ public:
         const String initialText (xml.getStringAttribute ("initialText"));
         te->setText (initialText, false);
         te->getProperties().set ("initialText", initialText);
+
+        setEmptyText (te, xml.getStringAttribute ("emptyText", String()), false, *const_cast<ComponentLayout*> (layout));
+        setEmptyTextColour (te, Colour::fromString (xml.getStringAttribute ("emptyTextColour", getDefaultEmptyTextColour().toString())), false, *const_cast<ComponentLayout*> (layout));
         return true;
     }
 
@@ -95,6 +100,8 @@ public:
         if (auto* t = dynamic_cast<TextEditor*> (component))
         {
             props.add (new TextEditorInitialTextProperty (t, document));
+            props.add (new TextEditorEmptyTextProperty (t, document));
+            props.add (new TextEditorEmptyTextColourProperty (t, document));
             props.add (new TextEditorMultiLineProperty (t, document));
             props.add (new TextEditorReadOnlyProperty (t, document));
             props.add (new TextEditorScrollbarsProperty (t, document));
@@ -123,14 +130,105 @@ public:
               << memberVariableName << "->setScrollbarsShown (" << CodeHelpers::boolLiteral (te->areScrollbarsShown()) << ");\n"
               << memberVariableName << "->setCaretVisible (" << CodeHelpers::boolLiteral (te->isCaretVisible()) << ");\n"
               << memberVariableName << "->setPopupMenuEnabled (" << CodeHelpers::boolLiteral (te->isPopupMenuEnabled()) << ");\n"
-              << getColourIntialisationCode (component, memberVariableName)
-              << memberVariableName << "->setText (" << quotedString (te->getProperties() ["initialText"].toString(), code.shouldUseTransMacro()) << ");\n\n";
+              << getColourIntialisationCode (component, memberVariableName);
+
+            if (getEmptyText (te).isNotEmpty())
+                s << memberVariableName << "->setTextToShowWhenEmpty ("
+                  << quotedString (getEmptyText (te), code.shouldUseTransMacro()) << ", "
+                  << CodeHelpers::colourToCode (getEmptyTextColour (te)) << ");\n";
+
+            s << memberVariableName << "->setText (" << quotedString (te->getProperties() ["initialText"].toString(), code.shouldUseTransMacro()) << ");\n\n";
 
             code.constructorCode += s;
         }
     }
 
 private:
+    static Identifier emptyTextProperty()        { return "emptyText"; }
+    static Identifier emptyTextColourProperty()  { return "emptyTextColour"; }
+
+    static Colour getDefaultEmptyTextColour()    { return Colours::grey; }
+
+    static String getEmptyText (TextEditor* textEditor)
+    {
+        return textEditor->getProperties()[emptyTextProperty()].toString();
+    }
+
+    static Colour getEmptyTextColour (TextEditor* textEditor)
+    {
+        return Colour::fromString (textEditor->getProperties().getWithDefault (emptyTextColourProperty(),
+                                                                               getDefaultEmptyTextColour().toString()).toString());
+    }
+
+    static void applyEmptyText (TextEditor* textEditor)
+    {
+        textEditor->setTextToShowWhenEmpty (getEmptyText (textEditor), getEmptyTextColour (textEditor));
+    }
+
+    struct SetTextEditorPropertyAction  : public ComponentUndoableAction<TextEditor>
+    {
+        SetTextEditorPropertyAction (TextEditor* textEditor, ComponentLayout& layout_, Identifier property_, var newValue_)
+            : ComponentUndoableAction<TextEditor> (textEditor, layout_),
+              property (property_),
+              newValue (std::move (newValue_))
+        {
+            oldValue = textEditor->getProperties()[property];
+        }
+
+        bool perform() override
+        {
+            showCorrectTab();
+            getComponent()->getProperties().set (property, newValue);
+            applyEmptyText (getComponent());
+            changed();
+            return true;
+        }
+
+        bool undo() override
+        {
+            showCorrectTab();
+            getComponent()->getProperties().set (property, oldValue);
+            applyEmptyText (getComponent());
+            changed();
+            return true;
+        }
+
+        Identifier property;
+        var newValue, oldValue;
+    };
+
+    static void setEmptyText (TextEditor* textEditor, const String& text, bool undoable, ComponentLayout& layout)
+    {
+        if (getEmptyText (textEditor) == text)
+            return;
+
+        if (undoable)
+            layout.perform (std::make_unique<SetTextEditorPropertyAction> (textEditor, layout, emptyTextProperty(), text),
+                            "Change TextEditor placeholder text");
+        else
+        {
+            textEditor->getProperties().set (emptyTextProperty(), text);
+            applyEmptyText (textEditor);
+            layout.changed();
+        }
+    }
+
+    static void setEmptyTextColour (TextEditor* textEditor, Colour colour, bool undoable, ComponentLayout& layout)
+    {
+        if (getEmptyTextColour (textEditor) == colour)
+            return;
+
+        if (undoable)
+            layout.perform (std::make_unique<SetTextEditorPropertyAction> (textEditor, layout, emptyTextColourProperty(), colour.toString()),
+                            "Change TextEditor placeholder colour");
+        else
+        {
+            textEditor->getProperties().set (emptyTextColourProperty(), colour.toString());
+            applyEmptyText (textEditor);
+            layout.changed();
+        }
+    }
+
     //==============================================================================
     class TextEditorMultiLineProperty  : public ComponentChoiceProperty <TextEditor>
     {
@@ -429,5 +527,46 @@ private:
 
             String newState, oldState;
         };
+    };
+
+    //==============================================================================
+    class TextEditorEmptyTextProperty  : public ComponentTextProperty <TextEditor>
+    {
+    public:
+        TextEditorEmptyTextProperty (TextEditor* comp, JucerDocument& doc)
+            : ComponentTextProperty <TextEditor> ("placeholder text", 10000, true, comp, doc)
+        {}
+
+        void setText (const String& newText) override
+        {
+            setEmptyText (component, newText, true, *document.getComponentLayout());
+        }
+
+        String getText() const override
+        {
+            return getEmptyText (component);
+        }
+    };
+
+    class TextEditorEmptyTextColourProperty  : public ComponentColourProperty<TextEditor>
+    {
+    public:
+        TextEditorEmptyTextColourProperty (TextEditor* comp, JucerDocument& doc)
+            : ComponentColourProperty<TextEditor> ("placeholder colour", comp, doc, false)
+        {
+        }
+
+        Colour getColour() const override
+        {
+            return getEmptyTextColour (component);
+        }
+
+        void setColour (Colour newColour) override
+        {
+            document.getUndoManager().undoCurrentTransactionOnly();
+            setEmptyTextColour (component, newColour, true, *document.getComponentLayout());
+        }
+
+        void resetToDefault() override {}
     };
 };
