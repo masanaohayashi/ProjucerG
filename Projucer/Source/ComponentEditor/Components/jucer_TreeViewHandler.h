@@ -80,6 +80,7 @@ public:
         props.add (new TreeViewRootItemProperty (t, document));
         props.add (new TreeViewRootOpennessProperty (t, document));
 
+        addLookAndFeelProperty (t, document, props);
         addColourProperties (t, document, props);
     }
 

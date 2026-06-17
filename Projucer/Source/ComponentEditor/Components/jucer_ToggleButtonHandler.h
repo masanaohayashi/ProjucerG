@@ -52,6 +52,7 @@ public:
         if (auto* tb = dynamic_cast<ToggleButton*> (component))
             props.add (new ToggleButtonStateProperty (tb, document));
 
+        addLookAndFeelProperty (component, document, props);
         addColourProperties (component, document, props);
     }
 

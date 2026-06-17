@@ -112,6 +112,7 @@ public:
 
         props.add (new GenericCompClassProperty (dynamic_cast<GenericComponent*> (component), document));
         props.add (new GenericCompParamsProperty (dynamic_cast<GenericComponent*> (component), document));
+        addLookAndFeelProperty (component, document, props);
     }
 
     String getClassName (Component* comp) const override

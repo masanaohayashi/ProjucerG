@@ -205,6 +205,7 @@ struct SliderHandler  : public ComponentTypeHandler
             props.add (new FilmstripImageProperty (*document.getComponentLayout(), s));
             props.add (new FilmstripFramesProperty (*document.getComponentLayout(), s));
             props.add (new FilmstripLayoutProperty (*document.getComponentLayout(), s));
+            addLookAndFeelProperty (component, document, props);
             props.add (new SliderCallbackProperty (s, document));
         }
 
@@ -219,6 +220,14 @@ struct SliderHandler  : public ComponentTypeHandler
     static void setNeedsSliderListener (Component* slider, bool shouldDoCallback)
     {
         slider->getProperties().set ("generateListenerCallback", shouldDoCallback);
+    }
+
+    bool shouldGenerateLookAndFeelCode (Component* component) const override
+    {
+        if (auto* slider = dynamic_cast<Slider*> (component))
+            return getFilmstripImage (slider).isEmpty();
+
+        return true;
     }
 
 private:
@@ -326,7 +335,7 @@ private:
 
         if (imageResource.isEmpty())
         {
-            slider->setLookAndFeel (nullptr);
+            ComponentTypeHandler::setComponentLookAndFeelString (slider, ComponentTypeHandler::getComponentLookAndFeelString (slider));
             slider->repaint();
             return;
         }

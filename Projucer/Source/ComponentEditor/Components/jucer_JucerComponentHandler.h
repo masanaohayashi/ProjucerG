@@ -99,6 +99,7 @@ public:
             props.add (new JucerCompFileProperty (tc, document));
             props.add (new ConstructorParamsProperty (tc, document));
             props.add (new JucerCompOpenDocProperty (tc));
+            addLookAndFeelProperty (tc, document, props);
         }
     }
 

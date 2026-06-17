@@ -52,6 +52,7 @@ public:
         if (multipleSelected)
             return;
 
+        addLookAndFeelProperty (component, document, props);
         addColourProperties (component, document, props);
     }
 

@@ -88,8 +88,15 @@ public:
                               JucerDocument& document,
                               Array<PropertyComponent*>& props);
 
+    void addLookAndFeelProperty (Component* component,
+                                 JucerDocument& document,
+                                 Array<PropertyComponent*>& props);
+
     String getColourIntialisationCode (Component* component,
                                        const String& objectName);
+
+    static String getComponentLookAndFeelString (Component* component);
+    static void setComponentLookAndFeelString (Component* component, const String& lookAndFeel);
 
     //==============================================================================
     virtual Component* createNewComponent (JucerDocument*) = 0;
@@ -111,6 +118,7 @@ public:
     virtual void fillInCreationCode (GeneratedCode&, Component*, const String& memberVariableName);
     virtual String getCreationParameters (GeneratedCode&, Component*);
     virtual void fillInDeletionCode (GeneratedCode&, Component*, const String& memberVariableName);
+    virtual bool shouldGenerateLookAndFeelCode (Component*) const;
 
     //==============================================================================
     const String& getTypeName() const noexcept                { return typeName; }

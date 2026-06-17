@@ -104,6 +104,8 @@ public:
             props.add (new ViewportContentClassProperty (v, document));
             props.add (new ConstructorParamsProperty (v, document));
         }
+
+        addLookAndFeelProperty (v, document, props);
     }
 
     String getCreationParameters (GeneratedCode&, Component* comp) override

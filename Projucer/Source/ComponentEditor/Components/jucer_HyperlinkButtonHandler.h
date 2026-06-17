@@ -55,6 +55,7 @@ public:
         if (auto* hb = dynamic_cast<HyperlinkButton*> (component))
             props.add (new HyperlinkURLProperty (hb, document));
 
+        addLookAndFeelProperty (component, document, props);
         addColourProperties (component, document, props);
     }
 

@@ -196,6 +196,7 @@ public:
                 props.add (new LabelLossOfFocusProperty (l, document));
         }
 
+        addLookAndFeelProperty (component, document, props);
         addColourProperties (component, document, props);
     }
 

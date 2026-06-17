@@ -113,6 +113,8 @@ public:
 
             if (t->getNumTabs() > 0)
                 props.add (new TabRemoveTabProperty (t, doc));
+
+            addLookAndFeelProperty (t, doc, props);
         }
     }
 

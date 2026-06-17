@@ -116,6 +116,7 @@ public:
             props.add (new GroupJustificationProperty (gc, document));
         }
 
+        addLookAndFeelProperty (component, document, props);
         addColourProperties (component, document, props);
     }
 

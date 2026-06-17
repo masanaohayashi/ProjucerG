@@ -39,6 +39,7 @@ MainComponent::MainComponent ()
     setLookAndFeel (&projectDefaultLookAndFeel);
     tabbedComponent.reset (new juce::TabbedComponent (juce::TabbedButtonBar::TabsAtTop));
     addAndMakeVisible (tabbedComponent.get());
+    tabbedComponent->setLookAndFeel (&tabbedComponentLookAndFeel);
     tabbedComponent->setTabBarDepth (30);
     tabbedComponent->addTab (TRANS ("LookAndFeelV1"), juce::Colours::lightgrey, new LF1Component(), true);
     tabbedComponent->addTab (TRANS ("LookAndFeelV2"), juce::Colours::lightgrey, new LF2Component(), true);
@@ -55,16 +56,52 @@ MainComponent::MainComponent ()
     juce__slider->setTextBoxStyle (juce::Slider::TextBoxLeft, false, 80, 20);
     juce__slider->addListener (this);
 
-    juce__slider->setBounds (64, 328, 150, 24);
+    juce__slider->setBounds (32, 296, 150, 24);
 
     juce__slider2.reset (new juce::Slider ("new slider"));
     addAndMakeVisible (juce__slider2.get());
+    juce__slider2->setLookAndFeel (&juce__slider2LookAndFeel);
     juce__slider2->setRange (0, 10, 0);
     juce__slider2->setSliderStyle (juce::Slider::Rotary);
     juce__slider2->setTextBoxStyle (juce::Slider::TextBoxBelow, false, 80, 20);
     juce__slider2->addListener (this);
 
     juce__slider2->setBounds (280, 304, 104, 64);
+
+    juce__textButton.reset (new juce::TextButton ("new button"));
+    addAndMakeVisible (juce__textButton.get());
+    juce__textButton->setLookAndFeel (&juce__textButtonLookAndFeel);
+    juce__textButton->addListener (this);
+
+    juce__textButton->setBounds (432, 288, 150, 24);
+
+    juce__textButton2.reset (new juce::TextButton ("new button"));
+    addAndMakeVisible (juce__textButton2.get());
+    juce__textButton2->setLookAndFeel (&juce__textButton2LookAndFeel);
+    juce__textButton2->addListener (this);
+
+    juce__textButton2->setBounds (432, 320, 150, 24);
+
+    juce__textButton3.reset (new juce::TextButton ("new button"));
+    addAndMakeVisible (juce__textButton3.get());
+    juce__textButton3->setLookAndFeel (&juce__textButton3LookAndFeel);
+    juce__textButton3->addListener (this);
+
+    juce__textButton3->setBounds (432, 352, 150, 24);
+
+    juce__toggleButton.reset (new juce::ToggleButton ("new toggle button"));
+    addAndMakeVisible (juce__toggleButton.get());
+    juce__toggleButton->addListener (this);
+
+    juce__toggleButton->setBounds (225, 144, 150, 24);
+
+    juce__toggleButton2.reset (new juce::ToggleButton ("new toggle button"));
+    addAndMakeVisible (juce__toggleButton2.get());
+    juce__toggleButton2->setLookAndFeel (&juce__toggleButton2LookAndFeel);
+    juce__toggleButton2->addListener (this);
+    juce__toggleButton2->setColour (juce::ToggleButton::textColourId, juce::Colour (0xffb72a2a));
+
+    juce__toggleButton2->setBounds (24, 336, 150, 24);
 
 
     //[UserPreSize]
@@ -83,9 +120,20 @@ MainComponent::~MainComponent()
     //[/Destructor_pre]
 
     setLookAndFeel (nullptr);
+    tabbedComponent->setLookAndFeel (nullptr);
     tabbedComponent = nullptr;
     juce__slider = nullptr;
+    juce__slider2->setLookAndFeel (nullptr);
     juce__slider2 = nullptr;
+    juce__textButton->setLookAndFeel (nullptr);
+    juce__textButton = nullptr;
+    juce__textButton2->setLookAndFeel (nullptr);
+    juce__textButton2 = nullptr;
+    juce__textButton3->setLookAndFeel (nullptr);
+    juce__textButton3 = nullptr;
+    juce__toggleButton = nullptr;
+    juce__toggleButton2->setLookAndFeel (nullptr);
+    juce__toggleButton2 = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -133,6 +181,41 @@ void MainComponent::sliderValueChanged (juce::Slider* sliderThatWasMoved)
     //[/UsersliderValueChanged_Post]
 }
 
+void MainComponent::buttonClicked (juce::Button* buttonThatWasClicked)
+{
+    //[UserbuttonClicked_Pre]
+    //[/UserbuttonClicked_Pre]
+
+    if (buttonThatWasClicked == juce__textButton.get())
+    {
+        //[UserButtonCode_juce__textButton] -- add your button handler code here..
+        //[/UserButtonCode_juce__textButton]
+    }
+    else if (buttonThatWasClicked == juce__textButton2.get())
+    {
+        //[UserButtonCode_juce__textButton2] -- add your button handler code here..
+        //[/UserButtonCode_juce__textButton2]
+    }
+    else if (buttonThatWasClicked == juce__textButton3.get())
+    {
+        //[UserButtonCode_juce__textButton3] -- add your button handler code here..
+        //[/UserButtonCode_juce__textButton3]
+    }
+    else if (buttonThatWasClicked == juce__toggleButton.get())
+    {
+        //[UserButtonCode_juce__toggleButton] -- add your button handler code here..
+        //[/UserButtonCode_juce__toggleButton]
+    }
+    else if (buttonThatWasClicked == juce__toggleButton2.get())
+    {
+        //[UserButtonCode_juce__toggleButton2] -- add your button handler code here..
+        //[/UserButtonCode_juce__toggleButton2]
+    }
+
+    //[UserbuttonClicked_Post]
+    //[/UserbuttonClicked_Post]
+}
+
 
 
 //[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
@@ -150,13 +233,12 @@ BEGIN_JUCER_METADATA
 
 <JUCER_COMPONENT documentType="Component" className="MainComponent" componentName=""
                  parentClasses="public juce::Component" constructorParams="" variableInitialisers=""
-                 lookAndFeel="juce::LookAndFeel_V3" snapPixels="8" snapActive="1"
-                 snapShown="1" overlayOpacity="0.330" fixedSize="1" initialWidth="600"
-                 initialHeight="400">
+                 snapPixels="8" snapActive="1" snapShown="1" overlayOpacity="0.330"
+                 fixedSize="1" initialWidth="600" initialHeight="400">
   <BACKGROUND backgroundColour="ff323e44"/>
   <TABBEDCOMPONENT name="" id="7438dfa499ef687a" memberName="tabbedComponent" virtualName=""
-                   explicitFocusOrder="0" pos="0 8 600 272" orientation="top" tabBarDepth="30"
-                   initialTab="0">
+                   explicitFocusOrder="0" lookAndFeel="juce::LookAndFeel_V4" pos="0 8 600 272"
+                   orientation="top" tabBarDepth="30" initialTab="0">
     <TAB name="LookAndFeelV1" colour="ffd3d3d3" useJucerComp="1" contentClassName=""
          constructorParams="" jucerComponentFile="LF1Component.cpp"/>
     <TAB name="LookAndFeelV2" colour="ffd3d3d3" useJucerComp="1" contentClassName=""
@@ -167,15 +249,35 @@ BEGIN_JUCER_METADATA
          constructorParams="" jucerComponentFile="LF4Component.cpp"/>
   </TABBEDCOMPONENT>
   <SLIDER name="new slider" id="680adf010a039988" memberName="juce__slider"
-          virtualName="" explicitFocusOrder="0" pos="64 328 150 24" min="0.0"
+          virtualName="" explicitFocusOrder="0" pos="32 296 150 24" min="0.0"
           max="10.0" int="0.0" style="LinearHorizontal" textBoxPos="TextBoxLeft"
           textBoxEditable="1" textBoxWidth="80" textBoxHeight="20" skewFactor="1.0"
           needsCallback="1" filmstripImage="" filmstripFrames="1" filmstripVertical="1"/>
   <SLIDER name="new slider" id="d4ac44703eba12fe" memberName="juce__slider2"
-          virtualName="" explicitFocusOrder="0" pos="280 304 104 64" min="0.0"
-          max="10.0" int="0.0" style="Rotary" textBoxPos="TextBoxBelow"
-          textBoxEditable="1" textBoxWidth="80" textBoxHeight="20" skewFactor="1.0"
-          needsCallback="1" filmstripImage="" filmstripFrames="1" filmstripVertical="1"/>
+          virtualName="" explicitFocusOrder="0" lookAndFeel="juce::LookAndFeel_V4"
+          pos="280 304 104 64" min="0.0" max="10.0" int="0.0" style="Rotary"
+          textBoxPos="TextBoxBelow" textBoxEditable="1" textBoxWidth="80"
+          textBoxHeight="20" skewFactor="1.0" needsCallback="1" filmstripImage=""
+          filmstripFrames="1" filmstripVertical="1"/>
+  <TEXTBUTTON name="new button" id="eb5b3e849ff39904" memberName="juce__textButton"
+              virtualName="" explicitFocusOrder="0" lookAndFeel="juce::LookAndFeel_V4"
+              pos="432 288 150 24" buttonText="new button" connectedEdges="0"
+              needsCallback="1" radioGroupId="0"/>
+  <TEXTBUTTON name="new button" id="ed3969c82ea9b2ec" memberName="juce__textButton2"
+              virtualName="" explicitFocusOrder="0" lookAndFeel="juce::LookAndFeel_V1"
+              pos="432 320 150 24" buttonText="new button" connectedEdges="0"
+              needsCallback="1" radioGroupId="0"/>
+  <TEXTBUTTON name="new button" id="11833261c347256a" memberName="juce__textButton3"
+              virtualName="" explicitFocusOrder="0" lookAndFeel="juce::LookAndFeel_V2"
+              pos="432 352 150 24" buttonText="new button" connectedEdges="0"
+              needsCallback="1" radioGroupId="0"/>
+  <TOGGLEBUTTON name="new toggle button" id="1ef1fe3512c5be1a" memberName="juce__toggleButton"
+                virtualName="" explicitFocusOrder="0" pos="225 144 150 24" buttonText="new toggle button"
+                connectedEdges="0" needsCallback="1" radioGroupId="0" state="0"/>
+  <TOGGLEBUTTON name="new toggle button" id="4b8a9d781bc09652" memberName="juce__toggleButton2"
+                virtualName="" explicitFocusOrder="0" lookAndFeel="juce::LookAndFeel_V4"
+                pos="24 336 150 24" txtcol="ffb72a2a" buttonText="new toggle button"
+                connectedEdges="0" needsCallback="1" radioGroupId="0" state="0"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA

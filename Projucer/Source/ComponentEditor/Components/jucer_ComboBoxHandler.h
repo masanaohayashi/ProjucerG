@@ -96,6 +96,7 @@ public:
             props.add (new ComboJustificationProperty (c, document));
             props.add (new ComboTextWhenNoneSelectedProperty (c, document));
             props.add (new ComboTextWhenNoItemsProperty (c, document));
+            addLookAndFeelProperty (c, document, props);
         }
     }
 

@@ -108,6 +108,7 @@ public:
             props.add (new TextEditorCaretProperty (t, document));
             props.add (new TextEditorPopupMenuProperty (t, document));
 
+            addLookAndFeelProperty (t, document, props);
             addColourProperties (t, document, props);
         }
     }

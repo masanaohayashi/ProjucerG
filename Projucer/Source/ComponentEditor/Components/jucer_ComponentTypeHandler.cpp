@@ -32,7 +32,72 @@
 #include "jucer_ComponentNameProperty.h"
 #include "../Properties/jucer_PositionPropertyBase.h"
 #include "../Properties/jucer_ComponentColourProperty.h"
+#include "../Properties/jucer_ComponentChoiceProperty.h"
 #include "../UI/jucer_TestComponent.h"
+
+namespace
+{
+    const Identifier componentLookAndFeelProperty ("lookAndFeel");
+
+    bool isBuiltInLookAndFeelType (const String& type)
+    {
+        return type == "juce::LookAndFeel_V1"
+            || type == "juce::LookAndFeel_V2"
+            || type == "juce::LookAndFeel_V3"
+            || type == "juce::LookAndFeel_V4";
+    }
+
+    std::unique_ptr<LookAndFeel> createBuiltInLookAndFeel (const String& type)
+    {
+        if (type == "juce::LookAndFeel_V1") return std::make_unique<LookAndFeel_V1>();
+        if (type == "juce::LookAndFeel_V2") return std::make_unique<LookAndFeel_V2>();
+        if (type == "juce::LookAndFeel_V3") return std::make_unique<LookAndFeel_V3>();
+        if (type == "juce::LookAndFeel_V4") return std::make_unique<LookAndFeel_V4>();
+
+        return {};
+    }
+
+    struct ComponentPreviewLookAndFeel
+    {
+        ComponentPreviewLookAndFeel (Component& componentToUse, std::unique_ptr<LookAndFeel> lookAndFeelToUse)
+            : component (&componentToUse), lookAndFeel (std::move (lookAndFeelToUse))
+        {
+        }
+
+        Component* component = nullptr;
+        std::unique_ptr<LookAndFeel> lookAndFeel;
+    };
+
+    OwnedArray<ComponentPreviewLookAndFeel>& getPreviewLookAndFeels()
+    {
+        static OwnedArray<ComponentPreviewLookAndFeel> lookAndFeels;
+        return lookAndFeels;
+    }
+
+    void applyComponentLookAndFeelToPreview (Component& component, const String& type)
+    {
+        auto& lookAndFeels = getPreviewLookAndFeels();
+
+        component.setLookAndFeel (nullptr);
+
+        for (int i = lookAndFeels.size(); --i >= 0;)
+            if (lookAndFeels.getUnchecked (i)->component == &component)
+                lookAndFeels.remove (i);
+
+        if (! isBuiltInLookAndFeelType (type))
+            return;
+
+        auto lookAndFeel = createBuiltInLookAndFeel (type);
+
+        if (lookAndFeel == nullptr)
+            return;
+
+        auto* rawLookAndFeel = lookAndFeel.get();
+        lookAndFeels.add (new ComponentPreviewLookAndFeel (component, std::move (lookAndFeel)));
+        component.setLookAndFeel (rawLookAndFeel);
+        component.repaint();
+    }
+}
 
 static String getTypeInfoName (const std::type_info& info)
 {
@@ -158,6 +223,10 @@ XmlElement* ComponentTypeHandler::createXmlFor (Component* comp, const Component
     e->setAttribute ("virtualName", comp->getProperties() ["virtualName"].toString());
     e->setAttribute ("explicitFocusOrder", comp->getExplicitFocusOrder());
 
+    if (auto lookAndFeel = getComponentLookAndFeelString (comp);
+        lookAndFeel.isNotEmpty())
+        e->setAttribute ("lookAndFeel", lookAndFeel);
+
     RelativePositionedRectangle pos (getComponentPosition (comp));
     pos.updateFromComponent (*comp, layout);
     pos.applyToXml (*e);
@@ -192,6 +261,7 @@ bool ComponentTypeHandler::restoreFromXml (const XmlElement& xml,
     comp->getProperties().set ("memberName", xml.getStringAttribute ("memberName"));
     comp->getProperties().set ("virtualName", xml.getStringAttribute ("virtualName"));
     comp->setExplicitFocusOrder (xml.getIntAttribute ("explicitFocusOrder"));
+    setComponentLookAndFeelString (comp, xml.getStringAttribute ("lookAndFeel"));
 
     RelativePositionedRectangle currentPos (getComponentPosition (comp));
     currentPos.updateFromComponent (*comp, layout);
@@ -238,6 +308,28 @@ void ComponentTypeHandler::setComponentId (Component* comp, const int64 newID)
     jassert (comp != nullptr);
     if (newID != 0)
         comp->getProperties().set ("jucerCompId", String::toHexString (newID));
+}
+
+String ComponentTypeHandler::getComponentLookAndFeelString (Component* comp)
+{
+    if (comp == nullptr)
+        return {};
+
+    return comp->getProperties() [componentLookAndFeelProperty].toString();
+}
+
+void ComponentTypeHandler::setComponentLookAndFeelString (Component* comp, const String& lookAndFeel)
+{
+    if (comp == nullptr)
+        return;
+
+    comp->getProperties().set (componentLookAndFeelProperty, lookAndFeel);
+
+    if (auto* slider = dynamic_cast<Slider*> (comp))
+        if (slider->getProperties() ["filmstripImage"].toString().isNotEmpty())
+            return;
+
+    applyComponentLookAndFeelToPreview (*comp, lookAndFeel);
 }
 
 RelativePositionedRectangle ComponentTypeHandler::getComponentPosition (Component* comp)
@@ -460,6 +552,66 @@ private:
 };
 
 //==============================================================================
+class ComponentLookAndFeelProperty  : public ComponentChoiceProperty<Component>
+{
+public:
+    ComponentLookAndFeelProperty (Component* comp, JucerDocument& doc)
+        : ComponentChoiceProperty<Component> ("LookAndFeel", comp, doc),
+          values (Project::getDefaultLookAndFeelVars())
+    {
+        choices = Project::getDefaultLookAndFeelStrings();
+    }
+
+    void setIndex (int newIndex) override
+    {
+        if (isPositiveAndBelow (newIndex, values.size()))
+        {
+            document.perform (new SetLookAndFeelAction (component, *document.getComponentLayout(),
+                                                        values.getReference (newIndex)),
+                              "Change component LookAndFeel");
+        }
+    }
+
+    int getIndex() const override
+    {
+        auto index = values.indexOf (ComponentTypeHandler::getComponentLookAndFeelString (component));
+        return index >= 0 ? index : 0;
+    }
+
+private:
+    StringArray values;
+
+    class SetLookAndFeelAction  : public ComponentUndoableAction<Component>
+    {
+    public:
+        SetLookAndFeelAction (Component* const comp, ComponentLayout& l, const String& newValue_)
+            : ComponentUndoableAction<Component> (comp, l),
+              newValue (newValue_)
+        {
+            oldValue = ComponentTypeHandler::getComponentLookAndFeelString (comp);
+        }
+
+        bool perform() override
+        {
+            showCorrectTab();
+            ComponentTypeHandler::setComponentLookAndFeelString (getComponent(), newValue);
+            changed();
+            return true;
+        }
+
+        bool undo() override
+        {
+            showCorrectTab();
+            ComponentTypeHandler::setComponentLookAndFeelString (getComponent(), oldValue);
+            changed();
+            return true;
+        }
+
+        String newValue, oldValue;
+    };
+};
+
+//==============================================================================
 void ComponentTypeHandler::getEditableProperties (Component* component,
                                                   JucerDocument& document,
                                                   Array<PropertyComponent*>& props,
@@ -517,6 +669,13 @@ void ComponentTypeHandler::addColourProperties (Component* component,
                                                   true));
 }
 
+void ComponentTypeHandler::addLookAndFeelProperty (Component* component,
+                                                   JucerDocument& document,
+                                                   Array<PropertyComponent*>& props)
+{
+    props.add (new ComponentLookAndFeelProperty (component, document));
+}
+
 String ComponentTypeHandler::getColourIntialisationCode (Component* component,
                                                          const String& objectName)
 {
@@ -556,6 +715,11 @@ void ComponentTypeHandler::fillInMemberVariableDeclarations (GeneratedCode& code
         clsName = build_tools::makeValidIdentifier (clsName, false, false, true);
     else
         clsName = getClassName (component);
+
+    if (auto lookAndFeel = getComponentLookAndFeelString (component);
+        shouldGenerateLookAndFeelCode (component) && isBuiltInLookAndFeelType (lookAndFeel))
+        code.privateMemberDeclarations
+            << lookAndFeel << " " << memberVariableName << "LookAndFeel;\n";
 
     code.privateMemberDeclarations
         << "std::unique_ptr<" << clsName << "> " << memberVariableName << ";\n";
@@ -632,12 +796,26 @@ void ComponentTypeHandler::fillInCreationCode (GeneratedCode& code, Component* c
           << component->getExplicitFocusOrder()
           << ");\n";
 
+    if (auto lookAndFeel = getComponentLookAndFeelString (component);
+        shouldGenerateLookAndFeelCode (component) && isBuiltInLookAndFeelType (lookAndFeel))
+        s << memberVariableName << "->setLookAndFeel (&" << memberVariableName << "LookAndFeel);\n";
+
     code.constructorCode += s;
 }
 
-void ComponentTypeHandler::fillInDeletionCode (GeneratedCode& code, Component*,
+void ComponentTypeHandler::fillInDeletionCode (GeneratedCode& code, Component* component,
                                                const String& memberVariableName)
 {
+    if (auto lookAndFeel = getComponentLookAndFeelString (component);
+        shouldGenerateLookAndFeelCode (component) && isBuiltInLookAndFeelType (lookAndFeel))
+        code.destructorCode
+            << memberVariableName << "->setLookAndFeel (nullptr);\n";
+
     code.destructorCode
         << memberVariableName << " = nullptr;\n";
+}
+
+bool ComponentTypeHandler::shouldGenerateLookAndFeelCode (Component*) const
+{
+    return true;
 }
