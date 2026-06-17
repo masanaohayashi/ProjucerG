@@ -1267,24 +1267,24 @@ void Project::requestDefaultLookAndFeelChange (const String& newLookAndFeel, std
                                                                           TRANS ("Later"),
                                                                           TRANS ("Cancel"));
 
-    pendingMessageBoxCallback = [this, newLookAndFeel, onCompletion = std::move (onCompletion)] (int result) mutable
+    pendingMessageBoxCallback = [this, newLookAndFeel, completion = std::move (onCompletion)] (int result) mutable
     {
         messageBoxQueueListenerScope.reset();
 
         if (result == 1)
         {
             defaultLookAndFeelValue = newLookAndFeel;
-            NullCheckedInvocation::invoke (onCompletion, true);
+            NullCheckedInvocation::invoke (completion, true);
             resaveGUIEditorFiles();
         }
         else if (result == 2)
         {
             defaultLookAndFeelValue = newLookAndFeel;
-            NullCheckedInvocation::invoke (onCompletion, true);
+            NullCheckedInvocation::invoke (completion, true);
         }
         else
         {
-            NullCheckedInvocation::invoke (onCompletion, false);
+            NullCheckedInvocation::invoke (completion, false);
         }
     };
 

@@ -92,6 +92,9 @@ public:
     String getVariableInitialisers() const                                  { return variableInitialisers; }
     void setVariableInitialisers (const String& newInitlialisers);
 
+    String getLookAndFeelString() const                                     { return lookAndFeel; }
+    void setLookAndFeelString (const String& newLookAndFeel);
+
     void setFixedSize (bool isFixed);
     bool isFixedSize() const noexcept                                       { return fixedSize; }
 
@@ -150,7 +153,7 @@ protected:
     SourceCodeDocument* cpp;
 
     String className, componentName, templateFile;
-    String parentClasses, constructorParams, variableInitialisers;
+    String parentClasses, constructorParams, variableInitialisers, lookAndFeel;
 
     bool fixedSize = false;
     int initialWidth = 600, initialHeight = 400;

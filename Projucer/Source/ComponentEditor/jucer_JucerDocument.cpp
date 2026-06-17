@@ -60,17 +60,29 @@ namespace PreviewLookAndFeel
     std::unique_ptr<LookAndFeel> createForDocument (const JucerDocument* document)
     {
         if (document != nullptr)
+        {
+            auto type = document->getLookAndFeelString();
+
+            if (isBuiltInLookAndFeelType (type))
+                return createBuiltInLookAndFeel (type);
+
             if (auto* project = document->getCppDocument().getProject())
                 return createBuiltInLookAndFeel (project->getDefaultLookAndFeelString());
+        }
 
         return createBuiltInLookAndFeel ({});
     }
 
     String getGeneratedLookAndFeelType (const JucerDocument& document)
     {
+        auto type = document.getLookAndFeelString();
+
+        if (isBuiltInLookAndFeelType (type))
+            return type;
+
         if (auto* project = document.getCppDocument().getProject())
         {
-            auto type = project->getDefaultLookAndFeelString();
+            type = project->getDefaultLookAndFeelString();
 
             if (isBuiltInLookAndFeelType (type))
                 return type;
@@ -234,6 +246,15 @@ void JucerDocument::setVariableInitialisers (const String& newInitlialisers)
     }
 }
 
+void JucerDocument::setLookAndFeelString (const String& newLookAndFeel)
+{
+    if (lookAndFeel != newLookAndFeel)
+    {
+        lookAndFeel = newLookAndFeel;
+        changed();
+    }
+}
+
 void JucerDocument::setFixedSize (const bool isFixed)
 {
     if (fixedSize != isFixed)
@@ -379,6 +400,10 @@ std::unique_ptr<XmlElement> JucerDocument::createXml() const
     doc->setAttribute ("parentClasses", parentClasses);
     doc->setAttribute ("constructorParams", constructorParams);
     doc->setAttribute ("variableInitialisers", variableInitialisers);
+
+    if (lookAndFeel.isNotEmpty())
+        doc->setAttribute ("lookAndFeel", lookAndFeel);
+
     doc->setAttribute ("snapPixels", snapGridPixels);
     doc->setAttribute ("snapActive", snapActive);
     doc->setAttribute ("snapShown", snapShown);
@@ -414,6 +439,7 @@ bool JucerDocument::loadFromXml (const XmlElement& xml)
         parentClasses = xml.getStringAttribute ("parentClasses", defaultParentClasses);
         constructorParams = xml.getStringAttribute ("constructorParams", String());
         variableInitialisers = xml.getStringAttribute ("variableInitialisers", String());
+        lookAndFeel = xml.getStringAttribute ("lookAndFeel", String());
 
         fixedSize = xml.getBoolAttribute ("fixedSize", false);
         initialWidth = xml.getIntAttribute ("initialWidth", 300);

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT id="EhGOB3" name="LookAndFeel" projectType="guiapp" useAppConfig="0"
+              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" defaultLookAndFeel="juce::LookAndFeel_V1">
+  <MAINGROUP id="V3oSKz" name="LookAndFeel">
+    <GROUP id="{AC3DAF89-611E-1B92-2B85-2B9213B93B6D}" name="Source">
+      <FILE id="uU6sDj" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
+      <FILE id="FtrRMl" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
+      <FILE id="SyjTW0" name="MainComponent.cpp" compile="1" resource="0"
+            file="Source/MainComponent.cpp"/>
+      <FILE id="umtNcA" name="LF1Component.cpp" compile="1" resource="0"
+            file="Source/LF1Component.cpp"/>
+      <FILE id="RvpWOn" name="LF1Component.h" compile="0" resource="0" file="Source/LF1Component.h"/>
+      <FILE id="f81LNO" name="LF2Component.cpp" compile="1" resource="0"
+            file="Source/LF2Component.cpp"/>
+      <FILE id="kgfILN" name="LF2Component.h" compile="0" resource="0" file="Source/LF2Component.h"/>
+      <FILE id="xnEa3K" name="LF3Component.cpp" compile="1" resource="0"
+            file="Source/LF3Component.cpp"/>
+      <FILE id="gszj63" name="LF3Component.h" compile="0" resource="0" file="Source/LF3Component.h"/>
+      <FILE id="FeXCmf" name="LF4Component.cpp" compile="1" resource="0"
+            file="Source/LF4Component.cpp"/>
+      <FILE id="gXA4sj" name="LF4Component.h" compile="0" resource="0" file="Source/LF4Component.h"/>
+    </GROUP>
+  </MAINGROUP>
+  <MODULES>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+  </MODULES>
+  <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1"/>
+  <EXPORTFORMATS>
+    <XCODE_MAC targetFolder="Builds/MacOSX">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="Test16"/>
+        <CONFIGURATION isDebug="0" name="Release" targetName="Test16"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_core" path="../JUCE/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../JUCE/modules"/>
+        <MODULEPATH id="juce_events" path="../JUCE/modules"/>
+        <MODULEPATH id="juce_graphics" path="../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../JUCE/modules"/>
+      </MODULEPATHS>
+    </XCODE_MAC>
+  </EXPORTFORMATS>
+</JUCERPROJECT>

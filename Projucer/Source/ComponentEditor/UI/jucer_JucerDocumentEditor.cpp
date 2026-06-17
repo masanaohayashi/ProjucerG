@@ -153,6 +153,7 @@ public:
         props.add (new ComponentInitialSizeProperty (doc, true));
         props.add (new ComponentInitialSizeProperty (doc, false));
         props.add (new FixedSizeProperty (doc));
+        props.add (new ComponentLookAndFeelProperty (doc));
 
         panel1.addSection ("General class settings", props);
 
@@ -296,6 +297,33 @@ private:
 
         void setIndex (int newIndex) override        { document.setFixedSize (newIndex != 0); }
         int getIndex() const override                { return document.isFixedSize() ? 1 : 0; }
+    };
+
+    //==============================================================================
+    class ComponentLookAndFeelProperty    : public ComponentChoiceProperty <Component>
+    {
+    public:
+        explicit ComponentLookAndFeelProperty (JucerDocument& doc)
+            : ComponentChoiceProperty<Component> ("LookAndFeel", nullptr, doc),
+              values (Project::getDefaultLookAndFeelVars())
+        {
+            choices = Project::getDefaultLookAndFeelStrings();
+        }
+
+        void setIndex (int newIndex) override
+        {
+            if (isPositiveAndBelow (newIndex, values.size()))
+                document.setLookAndFeelString (values.getReference (newIndex).toString());
+        }
+
+        int getIndex() const override
+        {
+            auto index = values.indexOf (document.getLookAndFeelString());
+            return index >= 0 ? index : 0;
+        }
+
+    private:
+        Array<var> values;
     };
 
     //==============================================================================
