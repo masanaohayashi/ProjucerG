@@ -101,9 +101,10 @@ class NormalTestComponent   : public Component
 public:
     NormalTestComponent (ComponentDocument* const doc, const bool fillBackground)
         : document (doc),
-          alwaysFillBackground (fillBackground)
+          alwaysFillBackground (fillBackground),
+          previewLookAndFeel (PreviewLookAndFeel::createForDocument (doc))
     {
-        setLookAndFeel (&previewLookAndFeel);
+        setLookAndFeel (previewLookAndFeel.get());
 
         ComponentLayout* const layout = document->getComponentLayout();
 
@@ -161,7 +162,7 @@ public:
 private:
     ComponentDocument* const document;
     const bool alwaysFillBackground;
-    LookAndFeel_V4 previewLookAndFeel;
+    std::unique_ptr<LookAndFeel> previewLookAndFeel;
 };
 
 Component* ComponentDocument::createTestComponent (const bool alwaysFillBackground)

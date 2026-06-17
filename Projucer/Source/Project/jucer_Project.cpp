@@ -36,6 +36,7 @@
 #include "jucer_Project.h"
 #include "../ProjectSaving/jucer_ProjectSaver.h"
 #include "../Application/jucer_Application.h"
+#include "../ComponentEditor/jucer_JucerDocument.h"
 
 static std::map<String, int> getAAXCategoryValues()
 {
@@ -334,6 +335,7 @@ void Project::initialiseProjectValues()
         includeBinaryDataInJuceHeaderValue.referTo (projectRoot, Ids::includeBinaryInJuceHeader, getUndoManager(), true);
 
     binaryDataNamespaceValue.referTo (projectRoot, Ids::binaryDataNamespace, getUndoManager(), "BinaryData");
+    defaultLookAndFeelValue.referTo  (projectRoot, Ids::defaultLookAndFeel,  getUndoManager());
 
     compilerFlagSchemesValue.referTo (projectRoot, Ids::compilerFlagSchemes, getUndoManager(), Array<var>(), ",");
 
@@ -475,7 +477,11 @@ void Project::removeDefunctExporters()
             warningMessage << "\n"
                            << TRANS ("These exporters have been removed from the project. If you save the project they will be also erased from the .jucer file.");
 
-            exporterRemovalMessageBoxOptions = MessageBoxOptions::makeOptionsOk (MessageBoxIconType::WarningIcon, warningTitle, warningMessage);
+            pendingMessageBoxOptions = MessageBoxOptions::makeOptionsOk (MessageBoxIconType::WarningIcon, warningTitle, warningMessage);
+            pendingMessageBoxCallback = [this] (int)
+            {
+                messageBoxQueueListenerScope.reset();
+            };
             messageBoxQueueListenerScope = messageBoxQueue.addListener (*this);
         }
     }
@@ -1204,12 +1210,162 @@ void Project::valueTreeChildAddedOrRemoved (ValueTree& parent, ValueTree& child)
     changed();
 }
 
+static void findGUIEditorCppFiles (Project::Item item, Array<File>& files)
+{
+    if (item.isFile())
+    {
+        auto file = item.getFile();
+
+        if (file.hasFileExtension (".cpp")
+             && file.existsAsFile()
+             && JucerDocument::pullMetaDataFromCppFile (file.loadFileAsString()) != nullptr)
+            files.addIfNotAlreadyThere (file);
+
+        return;
+    }
+
+    for (int i = 0; i < item.getNumChildren(); ++i)
+        findGUIEditorCppFiles (item.getChild (i), files);
+}
+
+static bool isOpenDocument (OpenDocumentManager& odm, const File& file)
+{
+    for (int i = 0; i < odm.getNumOpenDocuments(); ++i)
+        if (auto* document = odm.getOpenDocument (i))
+            if (document->isForFile (file))
+                return true;
+
+    return false;
+}
+
+void Project::requestDefaultLookAndFeelChange (const String& newLookAndFeel, std::function<void (bool)> onCompletion)
+{
+    if (ProjucerApplication::getApp().isRunningCommandLine)
+    {
+        defaultLookAndFeelValue = newLookAndFeel;
+        NullCheckedInvocation::invoke (onCompletion, true);
+        return;
+    }
+
+    Array<File> files;
+    findGUIEditorCppFiles (getMainGroup(), files);
+
+    if (files.isEmpty())
+    {
+        defaultLookAndFeelValue = newLookAndFeel;
+        NullCheckedInvocation::invoke (onCompletion, true);
+        return;
+    }
+
+    pendingMessageBoxOptions = MessageBoxOptions::makeOptionsYesNoCancel (MessageBoxIconType::QuestionIcon,
+                                                                          TRANS ("Resave GUI editor files?"),
+                                                                          TRANS ("The Project default LookAndFeel has changed. "
+                                                                                 "To apply this to built applications, Projucer needs to regenerate the GUI editor files in this project.")
+                                                                                + "\n\n"
+                                                                                + TRANS ("Resave GUI editor files now?"),
+                                                                          TRANS ("Resave"),
+                                                                          TRANS ("Later"),
+                                                                          TRANS ("Cancel"));
+
+    pendingMessageBoxCallback = [this, newLookAndFeel, onCompletion = std::move (onCompletion)] (int result) mutable
+    {
+        messageBoxQueueListenerScope.reset();
+
+        if (result == 1)
+        {
+            defaultLookAndFeelValue = newLookAndFeel;
+            NullCheckedInvocation::invoke (onCompletion, true);
+            resaveGUIEditorFiles();
+        }
+        else if (result == 2)
+        {
+            defaultLookAndFeelValue = newLookAndFeel;
+            NullCheckedInvocation::invoke (onCompletion, true);
+        }
+        else
+        {
+            NullCheckedInvocation::invoke (onCompletion, false);
+        }
+    };
+
+    messageBoxQueueListenerScope = messageBoxQueue.addListener (*this);
+}
+
+void Project::resaveGUIEditorFiles()
+{
+    Array<File> files;
+    findGUIEditorCppFiles (getMainGroup(), files);
+
+    auto& odm = ProjucerApplication::getApp().openDocumentManager;
+    StringArray failedFiles;
+
+    for (const auto& cppFile : files)
+    {
+        const auto headerFile = cppFile.withFileExtension (".h");
+        const auto cppWasOpen = isOpenDocument (odm, cppFile);
+        const auto headerWasOpen = isOpenDocument (odm, headerFile);
+
+        std::unique_ptr<JucerDocument> document (JucerDocument::createForCppFile (this, cppFile));
+
+        if (document == nullptr)
+        {
+            failedFiles.add (cppFile.getFullPathName());
+            continue;
+        }
+
+        if (! document->flushChangesToDocuments (this, false))
+        {
+            failedFiles.add (cppFile.getFullPathName());
+            continue;
+        }
+
+        document.reset();
+
+        if (auto* cppDocument = odm.openFile (this, cppFile))
+        {
+            if (! cppDocument->saveSyncWithoutAsking())
+                failedFiles.add (cppFile.getFullPathName());
+
+            if (! cppWasOpen)
+                odm.closeFileWithoutSaving (cppFile);
+        }
+
+        if (auto* headerDocument = odm.openFile (this, headerFile))
+        {
+            if (! headerDocument->saveSyncWithoutAsking())
+                failedFiles.add (headerFile.getFullPathName());
+
+            if (! headerWasOpen)
+                odm.closeFileWithoutSaving (headerFile);
+        }
+    }
+
+    if (! failedFiles.isEmpty())
+    {
+        pendingMessageBoxOptions = MessageBoxOptions::makeOptionsOk (MessageBoxIconType::WarningIcon,
+                                                                     TRANS ("GUI editor resave failed"),
+                                                                     TRANS ("Projucer could not resave these GUI editor files:")
+                                                                        + "\n\n"
+                                                                        + failedFiles.joinIntoString ("\n"));
+
+        pendingMessageBoxCallback = [this] (int)
+        {
+            messageBoxQueueListenerScope.reset();
+        };
+
+        messageBoxQueueListenerScope = messageBoxQueue.addListener (*this);
+    }
+}
+
 void Project::canCreateMessageBox (CreatorFunction f)
 {
-    messageBox = f (*exporterRemovalMessageBoxOptions, [this] (auto)
-                                                       {
-                                                           messageBoxQueueListenerScope.reset();
-                                                       });
+    if (! pendingMessageBoxOptions.has_value())
+        return;
+
+    messageBox = f (*pendingMessageBoxOptions, [this] (int result)
+    {
+        NullCheckedInvocation::invoke (pendingMessageBoxCallback, result);
+    });
 }
 
 void Project::valueTreeChildAdded (ValueTree& parent, ValueTree& child)
@@ -1403,6 +1559,57 @@ build_tools::ProjectType::Target::Type Project::getTargetTypeFromFilePath (const
 }
 
 //==============================================================================
+class DefaultLookAndFeelProperty final : public ChoicePropertyComponent
+{
+public:
+    explicit DefaultLookAndFeelProperty (Project& p)
+        : ChoicePropertyComponent ("Default LookAndFeel"),
+          project (&p),
+          values (Project::getDefaultLookAndFeelVars())
+    {
+        choices = Project::getDefaultLookAndFeelStrings();
+        refresh();
+    }
+
+    int getIndex() const override
+    {
+        if (project == nullptr)
+            return 0;
+
+        auto index = values.indexOf (project->getDefaultLookAndFeelString());
+        return index >= 0 ? index : 0;
+    }
+
+    void setIndex (int newIndex) override
+    {
+        if (project == nullptr || ! isPositiveAndBelow (newIndex, values.size()))
+        {
+            refresh();
+            return;
+        }
+
+        auto newLookAndFeel = values.getReference (newIndex).toString();
+
+        if (newLookAndFeel == project->getDefaultLookAndFeelString())
+        {
+            refresh();
+            return;
+        }
+
+        project->requestDefaultLookAndFeelChange (newLookAndFeel,
+                                                  [safeThis = SafePointer<DefaultLookAndFeelProperty> (this)] (bool)
+                                                  {
+                                                      if (safeThis != nullptr)
+                                                          safeThis->refresh();
+                                                  });
+    }
+
+private:
+    WeakReference<Project> project;
+    Array<var> values;
+};
+
+//==============================================================================
 void Project::createPropertyEditors (PropertyListBuilder& props)
 {
     props.add (new TextPropertyComponent (projectNameValue, "Project Name", 256, false),
@@ -1485,6 +1692,9 @@ void Project::createPropertyEditors (PropertyListBuilder& props)
 
     props.add (new TextPropertyComponent (binaryDataNamespaceValue, "BinaryData Namespace", 256, false),
                                           "The namespace containing the binary assets.");
+
+    props.add (new DefaultLookAndFeelProperty (*this),
+               "The built-in LookAndFeel used by the GUI editor preview. <None> uses the editor's default preview LookAndFeel.");
 
     props.add (new ChoicePropertyComponent (cppStandardValue, "C++ Language Standard",
                                             getCppStandardStrings(),

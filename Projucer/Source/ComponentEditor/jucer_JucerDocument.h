@@ -33,6 +33,15 @@
 #include "jucer_BinaryResources.h"
 
 //==============================================================================
+class JucerDocument;
+
+namespace PreviewLookAndFeel
+{
+    std::unique_ptr<LookAndFeel> createForDocument (const JucerDocument*);
+    String getGeneratedLookAndFeelType (const JucerDocument&);
+}
+
+//==============================================================================
 class JucerDocument  : public ChangeBroadcaster,
                        private Timer,
                        private CodeDocument::Listener

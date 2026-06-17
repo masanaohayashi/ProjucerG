@@ -38,6 +38,49 @@ const char* const defaultClassName = "NewComponent";
 const char* const defaultParentClasses = "public juce::Component";
 
 //==============================================================================
+namespace PreviewLookAndFeel
+{
+    static bool isBuiltInLookAndFeelType (const String& type)
+    {
+        return type == "juce::LookAndFeel_V1"
+            || type == "juce::LookAndFeel_V2"
+            || type == "juce::LookAndFeel_V3"
+            || type == "juce::LookAndFeel_V4";
+    }
+
+    static std::unique_ptr<LookAndFeel> createBuiltInLookAndFeel (const String& type)
+    {
+        if (type == "juce::LookAndFeel_V1") return std::make_unique<LookAndFeel_V1>();
+        if (type == "juce::LookAndFeel_V2") return std::make_unique<LookAndFeel_V2>();
+        if (type == "juce::LookAndFeel_V3") return std::make_unique<LookAndFeel_V3>();
+
+        return std::make_unique<LookAndFeel_V4>();
+    }
+
+    std::unique_ptr<LookAndFeel> createForDocument (const JucerDocument* document)
+    {
+        if (document != nullptr)
+            if (auto* project = document->getCppDocument().getProject())
+                return createBuiltInLookAndFeel (project->getDefaultLookAndFeelString());
+
+        return createBuiltInLookAndFeel ({});
+    }
+
+    String getGeneratedLookAndFeelType (const JucerDocument& document)
+    {
+        if (auto* project = document.getCppDocument().getProject())
+        {
+            auto type = project->getDefaultLookAndFeelString();
+
+            if (isBuiltInLookAndFeelType (type))
+                return type;
+        }
+
+        return {};
+    }
+}
+
+//==============================================================================
 JucerDocument::JucerDocument (SourceCodeDocument* c)
     : cpp (c),
       className (defaultClassName),
@@ -411,6 +454,14 @@ void JucerDocument::fillInGeneratedCode (GeneratedCode& code) const
 
     if (! componentName.isEmpty())
         code.constructorCode << "setName (" + quotedString (componentName, false) + ");\n";
+
+    if (auto lookAndFeelType = PreviewLookAndFeel::getGeneratedLookAndFeelType (*this);
+        lookAndFeelType.isNotEmpty())
+    {
+        code.privateMemberDeclarations << lookAndFeelType << " projectDefaultLookAndFeel;\n";
+        code.constructorCode << "setLookAndFeel (&projectDefaultLookAndFeel);\n";
+        code.destructorCode << "setLookAndFeel (nullptr);\n";
+    }
 
     // call these now, just to make sure they're the first two methods in the list.
     code.getCallbackCode (String(), "void", "paint (juce::Graphics& g)", false)

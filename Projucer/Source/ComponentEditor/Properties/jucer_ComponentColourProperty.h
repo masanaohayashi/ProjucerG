@@ -71,7 +71,8 @@ public:
                                const String& name,
                                const bool canResetToDefault)
         : ComponentColourProperty <Component> (name, comp, doc, canResetToDefault),
-          colourId (colourId_)
+          colourId (colourId_),
+          previewLookAndFeel (PreviewLookAndFeel::createForDocument (&doc))
     {
     }
 
@@ -79,7 +80,7 @@ public:
     Colour getColour() const override
     {
         return component->isColourSpecified (colourId) ? component->findColour (colourId)
-                                                       : previewLookAndFeel.findColour (colourId);
+                                                       : previewLookAndFeel->findColour (colourId);
     }
 
     void setColour (Colour newColour) override
@@ -111,7 +112,7 @@ public:
 
 private:
     const int colourId;
-    LookAndFeel_V4 previewLookAndFeel;
+    std::unique_ptr<LookAndFeel> previewLookAndFeel;
 
     class ColourChangeAction  : public ComponentUndoableAction <Component>
     {

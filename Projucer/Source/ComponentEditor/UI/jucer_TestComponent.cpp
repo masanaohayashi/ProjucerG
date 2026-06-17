@@ -37,11 +37,12 @@ TestComponent::TestComponent (JucerDocument* const doc,
       loadedDocument (loaded),
       alwaysFillBackground (alwaysFill)
 {
+    previewLookAndFeel = PreviewLookAndFeel::createForDocument (ownerDocument != nullptr ? ownerDocument : loadedDocument.get());
+    setLookAndFeel (previewLookAndFeel.get());
+
     setToInitialSize();
     updateContents();
     testComponents.add (this);
-
-    setLookAndFeel (&previewLookAndFeel);
 }
 
 TestComponent::~TestComponent()

@@ -40,12 +40,13 @@ public:
     SubComponentHolderComp (JucerDocument& doc,
                             SnapGridPainter& g)
        : document (doc), grid (g),
-         dontFillBackground (false)
+         dontFillBackground (false),
+         previewLookAndFeel (PreviewLookAndFeel::createForDocument (&doc))
     {
         setInterceptsMouseClicks (false, false);
         setWantsKeyboardFocus (false);
         setFocusContainerType (FocusContainerType::keyboardFocusContainer);
-        setLookAndFeel (&previewLookAndFeel);
+        setLookAndFeel (previewLookAndFeel.get());
     }
 
     ~SubComponentHolderComp() override
@@ -113,7 +114,7 @@ public:
     SnapGridPainter& grid;
 
     bool dontFillBackground;
-    LookAndFeel_V4 previewLookAndFeel;
+    std::unique_ptr<LookAndFeel> previewLookAndFeel;
 };
 
 //==============================================================================

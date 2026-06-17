@@ -216,6 +216,7 @@ public:
     void saveAndMoveTemporaryProject (bool openInIDE);
     Result saveResourcesOnly();
     void openProjectInIDE (ProjectExporter& exporterToOpen);
+    void requestDefaultLookAndFeelChange (const String& newLookAndFeel, std::function<void (bool)> onCompletion);
 
     File getLastDocumentOpened() override;
     void setLastDocumentOpened (const File& file) override;
@@ -300,6 +301,9 @@ public:
     static StringArray getCppStandardStrings()           { return { "C++17", "C++20", "Use Latest" }; }
     static Array<var> getCppStandardVars()               { return { "17",    "20",    "latest" }; }
 
+    static StringArray getDefaultLookAndFeelStrings()     { return { "<None>", "LookAndFeel_V1", "LookAndFeel_V2", "LookAndFeel_V3", "LookAndFeel_V4" }; }
+    static Array<var> getDefaultLookAndFeelVars()         { return { "",       "juce::LookAndFeel_V1", "juce::LookAndFeel_V2", "juce::LookAndFeel_V3", "juce::LookAndFeel_V4" }; }
+
     static String getLatestNumberedCppStandardString()
     {
         auto cppStandardVars = getCppStandardVars();
@@ -307,6 +311,7 @@ public:
     }
 
     String getCppStandardString() const                  { return cppStandardValue.get(); }
+    String getDefaultLookAndFeelString() const           { return defaultLookAndFeelValue.get(); }
 
     StringArray getCompilerFlagSchemes() const;
     void addCompilerFlagScheme (const String&);
@@ -648,6 +653,7 @@ private:
 
     //==============================================================================
     void canCreateMessageBox (CreatorFunction) override;
+    void resaveGUIEditorFiles();
 
     //==============================================================================
     template <typename This>
@@ -675,7 +681,7 @@ private:
 
     ValueTreePropertyWithDefault projectNameValue, projectUIDValue, projectLineFeedValue, projectTypeValue, versionValue, bundleIdentifierValue, companyNameValue,
                                  companyCopyrightValue, companyWebsiteValue, companyEmailValue, cppStandardValue, headerSearchPathsValue, preprocessorDefsValue,
-                                 userNotesValue, maxBinaryFileSizeValue, includeBinaryDataInJuceHeaderValue, binaryDataNamespaceValue, compilerFlagSchemesValue,
+                                 userNotesValue, maxBinaryFileSizeValue, includeBinaryDataInJuceHeaderValue, binaryDataNamespaceValue, defaultLookAndFeelValue, compilerFlagSchemesValue,
                                  postExportShellCommandPosixValue, postExportShellCommandWinValue, useAppConfigValue, addUsingNamespaceToJuceHeader;
 
     ValueTreePropertyWithDefault pluginFormatsValue, pluginNameValue, pluginDescriptionValue, pluginManufacturerValue, pluginManufacturerCodeValue,
@@ -759,7 +765,8 @@ private:
     std::unique_ptr<FileChooser> chooser;
     std::unique_ptr<ProjectSaver> saver;
 
-    std::optional<MessageBoxOptions> exporterRemovalMessageBoxOptions;
+    std::optional<MessageBoxOptions> pendingMessageBoxOptions;
+    std::function<void (int)> pendingMessageBoxCallback;
     ErasedScopeGuard messageBoxQueueListenerScope;
     ScopedMessageBox messageBox;
 
