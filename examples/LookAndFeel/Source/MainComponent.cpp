@@ -37,8 +37,9 @@ MainComponent::MainComponent ()
     //[/Constructor_pre]
 
     setLookAndFeel (&projectDefaultLookAndFeel);
+    addAndMakeVisible (contentComponent);
     tabbedComponent.reset (new juce::TabbedComponent (juce::TabbedButtonBar::TabsAtTop));
-    addAndMakeVisible (tabbedComponent.get());
+    contentComponent.addAndMakeVisible (tabbedComponent.get());
     tabbedComponent->setLookAndFeel (&tabbedComponentLookAndFeel);
     tabbedComponent->setTabBarDepth (30);
     tabbedComponent->addTab (TRANS ("LookAndFeelV1"), juce::Colours::lightgrey, new LF1Component(), true);
@@ -50,7 +51,7 @@ MainComponent::MainComponent ()
     tabbedComponent->setBounds (0, 8, 600, 272);
 
     juce__slider.reset (new juce::Slider ("new slider"));
-    addAndMakeVisible (juce__slider.get());
+    contentComponent.addAndMakeVisible (juce__slider.get());
     juce__slider->setRange (0, 10, 0);
     juce__slider->setSliderStyle (juce::Slider::LinearHorizontal);
     juce__slider->setTextBoxStyle (juce::Slider::TextBoxLeft, false, 80, 20);
@@ -59,7 +60,7 @@ MainComponent::MainComponent ()
     juce__slider->setBounds (32, 296, 150, 24);
 
     juce__slider2.reset (new juce::Slider ("new slider"));
-    addAndMakeVisible (juce__slider2.get());
+    contentComponent.addAndMakeVisible (juce__slider2.get());
     juce__slider2->setLookAndFeel (&juce__slider2LookAndFeel);
     juce__slider2->setRange (0, 10, 0);
     juce__slider2->setSliderStyle (juce::Slider::Rotary);
@@ -69,34 +70,34 @@ MainComponent::MainComponent ()
     juce__slider2->setBounds (280, 304, 104, 64);
 
     juce__textButton.reset (new juce::TextButton ("new button"));
-    addAndMakeVisible (juce__textButton.get());
+    contentComponent.addAndMakeVisible (juce__textButton.get());
     juce__textButton->setLookAndFeel (&juce__textButtonLookAndFeel);
     juce__textButton->addListener (this);
 
     juce__textButton->setBounds (432, 288, 150, 24);
 
     juce__textButton2.reset (new juce::TextButton ("new button"));
-    addAndMakeVisible (juce__textButton2.get());
+    contentComponent.addAndMakeVisible (juce__textButton2.get());
     juce__textButton2->setLookAndFeel (&juce__textButton2LookAndFeel);
     juce__textButton2->addListener (this);
 
     juce__textButton2->setBounds (432, 320, 150, 24);
 
     juce__textButton3.reset (new juce::TextButton ("new button"));
-    addAndMakeVisible (juce__textButton3.get());
+    contentComponent.addAndMakeVisible (juce__textButton3.get());
     juce__textButton3->setLookAndFeel (&juce__textButton3LookAndFeel);
     juce__textButton3->addListener (this);
 
     juce__textButton3->setBounds (432, 352, 150, 24);
 
     juce__toggleButton.reset (new juce::ToggleButton ("new toggle button"));
-    addAndMakeVisible (juce__toggleButton.get());
+    contentComponent.addAndMakeVisible (juce__toggleButton.get());
     juce__toggleButton->addListener (this);
 
     juce__toggleButton->setBounds (225, 144, 150, 24);
 
     juce__toggleButton2.reset (new juce::ToggleButton ("new toggle button"));
-    addAndMakeVisible (juce__toggleButton2.get());
+    contentComponent.addAndMakeVisible (juce__toggleButton2.get());
     juce__toggleButton2->setLookAndFeel (&juce__toggleButton2LookAndFeel);
     juce__toggleButton2->addListener (this);
     juce__toggleButton2->setColour (juce::ToggleButton::textColourId, juce::Colour (0xffb72a2a));
@@ -146,6 +147,11 @@ void MainComponent::paint (juce::Graphics& g)
     //[UserPrePaint] Add your own custom painting code here..
     //[/UserPrePaint]
 
+    juce::Graphics::ScopedSaveState scaledContentState (g);
+    auto scaleX = getWidth() / 600.0f;
+    auto scaleY = getHeight() / 400.0f;
+    g.addTransform (juce::AffineTransform::scale (scaleX, scaleY));
+
     g.fillAll (juce::Colour (0xff323e44));
 
     //[UserPaint] Add your own custom painting code here..
@@ -156,6 +162,11 @@ void MainComponent::resized()
 {
     //[UserPreResize] Add your own custom resize code here..
     //[/UserPreResize]
+
+    contentComponent.setBounds (0, 0, 600, 400);
+    auto scaleX = getWidth() / 600.0f;
+    auto scaleY = getHeight() / 400.0f;
+    contentComponent.setTransform (juce::AffineTransform::scale (scaleX, scaleY));
 
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
@@ -233,8 +244,9 @@ BEGIN_JUCER_METADATA
 
 <JUCER_COMPONENT documentType="Component" className="MainComponent" componentName=""
                  parentClasses="public juce::Component" constructorParams="" variableInitialisers=""
-                 snapPixels="8" snapActive="1" snapShown="1" overlayOpacity="0.330"
-                 fixedSize="1" initialWidth="600" initialHeight="400">
+                 scaleOnResize="1" scaleMode="stretch" snapPixels="8" snapActive="1"
+                 snapShown="1" overlayOpacity="0.330" fixedSize="1" initialWidth="600"
+                 initialHeight="400">
   <BACKGROUND backgroundColour="ff323e44"/>
   <TABBEDCOMPONENT name="" id="7438dfa499ef687a" memberName="tabbedComponent" virtualName=""
                    explicitFocusOrder="0" lookAndFeel="juce::LookAndFeel_V4" pos="0 8 600 272"

@@ -59,6 +59,7 @@ private:
 
     //==============================================================================
     juce::LookAndFeel_V1 projectDefaultLookAndFeel;
+    juce::Component contentComponent;
     juce::LookAndFeel_V4 tabbedComponentLookAndFeel;
     std::unique_ptr<juce::TabbedComponent> tabbedComponent;
     std::unique_ptr<juce::Slider> juce__slider;

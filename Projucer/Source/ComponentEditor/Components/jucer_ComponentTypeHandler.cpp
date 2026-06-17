@@ -778,7 +778,7 @@ void ComponentTypeHandler::fillInCreationCode (GeneratedCode& code, Component* c
         s << " (" << params << "));\n";
     }
 
-    s << "addAndMakeVisible (" << memberVariableName << ".get());\n";
+    s << code.componentParentAccessor << "addAndMakeVisible (" << memberVariableName << ".get());\n";
 
 
     if (auto* ttc = dynamic_cast<SettableTooltipClient*> (component))

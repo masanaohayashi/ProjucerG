@@ -55,6 +55,7 @@ public:
     String privateMemberDeclarations;
     String publicMemberDeclarations;
     Array<File> includeFilesH, includeFilesCPP;
+    String componentParentAccessor;
     String constructorCode;
     String destructorCode;
     String staticMemberDefinitions;

@@ -95,6 +95,12 @@ public:
     String getLookAndFeelString() const                                     { return lookAndFeel; }
     void setLookAndFeelString (const String& newLookAndFeel);
 
+    bool isContentScalingEnabled() const noexcept                           { return contentScalingEnabled; }
+    void setContentScalingEnabled (bool shouldScale);
+
+    String getContentScaleModeString() const                                { return contentScaleMode; }
+    void setContentScaleModeString (const String& newMode);
+
     void setFixedSize (bool isFixed);
     bool isFixedSize() const noexcept                                       { return fixedSize; }
 
@@ -153,9 +159,10 @@ protected:
     SourceCodeDocument* cpp;
 
     String className, componentName, templateFile;
-    String parentClasses, constructorParams, variableInitialisers, lookAndFeel;
+    String parentClasses, constructorParams, variableInitialisers, lookAndFeel, contentScaleMode;
 
     bool fixedSize = false;
+    bool contentScalingEnabled = false;
     int initialWidth = 600, initialHeight = 400;
 
     BinaryResources resources;

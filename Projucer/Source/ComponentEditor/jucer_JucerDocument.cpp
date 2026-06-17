@@ -255,6 +255,24 @@ void JucerDocument::setLookAndFeelString (const String& newLookAndFeel)
     }
 }
 
+void JucerDocument::setContentScalingEnabled (const bool shouldScale)
+{
+    if (contentScalingEnabled != shouldScale)
+    {
+        contentScalingEnabled = shouldScale;
+        changed();
+    }
+}
+
+void JucerDocument::setContentScaleModeString (const String& newMode)
+{
+    if (contentScaleMode != newMode)
+    {
+        contentScaleMode = newMode;
+        changed();
+    }
+}
+
 void JucerDocument::setFixedSize (const bool isFixed)
 {
     if (fixedSize != isFixed)
@@ -404,6 +422,12 @@ std::unique_ptr<XmlElement> JucerDocument::createXml() const
     if (lookAndFeel.isNotEmpty())
         doc->setAttribute ("lookAndFeel", lookAndFeel);
 
+    if (contentScalingEnabled)
+    {
+        doc->setAttribute ("scaleOnResize", contentScalingEnabled);
+        doc->setAttribute ("scaleMode", contentScaleMode.isNotEmpty() ? contentScaleMode : "stretch");
+    }
+
     doc->setAttribute ("snapPixels", snapGridPixels);
     doc->setAttribute ("snapActive", snapActive);
     doc->setAttribute ("snapShown", snapShown);
@@ -440,6 +464,8 @@ bool JucerDocument::loadFromXml (const XmlElement& xml)
         constructorParams = xml.getStringAttribute ("constructorParams", String());
         variableInitialisers = xml.getStringAttribute ("variableInitialisers", String());
         lookAndFeel = xml.getStringAttribute ("lookAndFeel", String());
+        contentScalingEnabled = xml.getBoolAttribute ("scaleOnResize", false);
+        contentScaleMode = xml.getStringAttribute ("scaleMode", "stretch");
 
         fixedSize = xml.getBoolAttribute ("fixedSize", false);
         initialWidth = xml.getIntAttribute ("initialWidth", 300);
@@ -489,12 +515,60 @@ void JucerDocument::fillInGeneratedCode (GeneratedCode& code) const
         code.destructorCode << "setLookAndFeel (nullptr);\n";
     }
 
+    if (contentScalingEnabled)
+    {
+        code.privateMemberDeclarations << "juce::Component contentComponent;\n";
+        code.constructorCode << "addAndMakeVisible (contentComponent);\n";
+        code.componentParentAccessor = "contentComponent.";
+    }
+
     // call these now, just to make sure they're the first two methods in the list.
     code.getCallbackCode (String(), "void", "paint (juce::Graphics& g)", false)
         << "//[UserPrePaint] Add your own custom painting code here..\n//[/UserPrePaint]\n\n";
 
     code.getCallbackCode (String(), "void", "resized()", false)
         << "//[UserPreResize] Add your own custom resize code here..\n//[/UserPreResize]\n\n";
+
+    if (contentScalingEnabled)
+    {
+        auto& paintCode = code.getCallbackCode (String(), "void", "paint (juce::Graphics& g)", false);
+        paintCode
+            << "juce::Graphics::ScopedSaveState scaledContentState (g);\n"
+            << "auto scaleX = getWidth() / " << initialWidth << ".0f;\n"
+            << "auto scaleY = getHeight() / " << initialHeight << ".0f;\n";
+
+        if (contentScaleMode == "keepAspect")
+        {
+            paintCode
+                << "auto scale = juce::jmin (scaleX, scaleY);\n"
+                << "g.addTransform (juce::AffineTransform::scale (scale)\n"
+                << "                    .translated ((getWidth() - " << initialWidth << " * scale) * 0.5f,\n"
+                << "                                 (getHeight() - " << initialHeight << " * scale) * 0.5f));\n\n";
+        }
+        else
+        {
+            paintCode << "g.addTransform (juce::AffineTransform::scale (scaleX, scaleY));\n\n";
+        }
+
+        auto& resizedCode = code.getCallbackCode (String(), "void", "resized()", false);
+        resizedCode
+            << "contentComponent.setBounds (0, 0, " << initialWidth << ", " << initialHeight << ");\n"
+            << "auto scaleX = getWidth() / " << initialWidth << ".0f;\n"
+            << "auto scaleY = getHeight() / " << initialHeight << ".0f;\n";
+
+        if (contentScaleMode == "keepAspect")
+        {
+            resizedCode
+                << "auto scale = juce::jmin (scaleX, scaleY);\n"
+                << "contentComponent.setTransform (juce::AffineTransform::scale (scale)\n"
+                << "                                   .translated ((getWidth() - " << initialWidth << " * scale) * 0.5f,\n"
+                << "                                                (getHeight() - " << initialHeight << " * scale) * 0.5f));\n\n";
+        }
+        else
+        {
+            resizedCode << "contentComponent.setTransform (juce::AffineTransform::scale (scaleX, scaleY));\n\n";
+        }
+    }
 
     if (ComponentLayout* l = getComponentLayout())
         l->fillInGeneratedCode (code);

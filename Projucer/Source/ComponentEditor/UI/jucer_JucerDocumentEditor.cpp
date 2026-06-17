@@ -154,6 +154,8 @@ public:
         props.add (new ComponentInitialSizeProperty (doc, false));
         props.add (new FixedSizeProperty (doc));
         props.add (new ComponentLookAndFeelProperty (doc));
+        props.add (new ComponentScaleOnResizeProperty (doc));
+        props.add (new ComponentScaleModeProperty (doc));
 
         panel1.addSection ("General class settings", props);
 
@@ -324,6 +326,43 @@ private:
 
     private:
         Array<var> values;
+    };
+
+    //==============================================================================
+    class ComponentScaleOnResizeProperty    : public ComponentChoiceProperty <Component>
+    {
+    public:
+        explicit ComponentScaleOnResizeProperty (JucerDocument& doc)
+            : ComponentChoiceProperty<Component> ("Scale on resize", nullptr, doc)
+        {
+            choices.add ("Off");
+            choices.add ("On");
+        }
+
+        void setIndex (int newIndex) override        { document.setContentScalingEnabled (newIndex != 0); }
+        int getIndex() const override                { return document.isContentScalingEnabled() ? 1 : 0; }
+    };
+
+    //==============================================================================
+    class ComponentScaleModeProperty    : public ComponentChoiceProperty <Component>
+    {
+    public:
+        explicit ComponentScaleModeProperty (JucerDocument& doc)
+            : ComponentChoiceProperty<Component> ("Scale mode", nullptr, doc)
+        {
+            choices.add ("Scale to fit");
+            choices.add ("Keep aspect ratio");
+        }
+
+        void setIndex (int newIndex) override
+        {
+            document.setContentScaleModeString (newIndex == 1 ? "keepAspect" : "stretch");
+        }
+
+        int getIndex() const override
+        {
+            return document.getContentScaleModeString() == "keepAspect" ? 1 : 0;
+        }
     };
 
     //==============================================================================
