@@ -45,6 +45,12 @@ public:
         setInterceptsMouseClicks (false, false);
         setWantsKeyboardFocus (false);
         setFocusContainerType (FocusContainerType::keyboardFocusContainer);
+        setLookAndFeel (&previewLookAndFeel);
+    }
+
+    ~SubComponentHolderComp() override
+    {
+        setLookAndFeel (nullptr);
     }
 
     void paint (Graphics& g) override
@@ -107,6 +113,7 @@ public:
     SnapGridPainter& grid;
 
     bool dontFillBackground;
+    LookAndFeel_V4 previewLookAndFeel;
 };
 
 //==============================================================================

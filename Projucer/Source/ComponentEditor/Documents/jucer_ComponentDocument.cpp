@@ -103,6 +103,8 @@ public:
         : document (doc),
           alwaysFillBackground (fillBackground)
     {
+        setLookAndFeel (&previewLookAndFeel);
+
         ComponentLayout* const layout = document->getComponentLayout();
 
         for (int i = 0; i < layout->getNumComponents(); ++i)
@@ -111,6 +113,8 @@ public:
 
     ~NormalTestComponent() override
     {
+        setLookAndFeel (nullptr);
+
         for (int i = getNumChildComponents(); --i >= 0;)
             removeChildComponent (i);
     }
@@ -157,6 +161,7 @@ public:
 private:
     ComponentDocument* const document;
     const bool alwaysFillBackground;
+    LookAndFeel_V4 previewLookAndFeel;
 };
 
 Component* ComponentDocument::createTestComponent (const bool alwaysFillBackground)

@@ -69,6 +69,7 @@ private:
     String filename, constructorParams;
     Time lastModificationTime;
     const bool alwaysFillBackground;
+    LookAndFeel_V4 previewLookAndFeel;
 
     void updateContents();
     void reload();

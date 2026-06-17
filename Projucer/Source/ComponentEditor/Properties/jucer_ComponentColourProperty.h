@@ -78,12 +78,13 @@ public:
     //==============================================================================
     Colour getColour() const override
     {
-        return component->findColour (colourId);
+        return component->isColourSpecified (colourId) ? component->findColour (colourId)
+                                                       : previewLookAndFeel.findColour (colourId);
     }
 
     void setColour (Colour newColour) override
     {
-        if (component->findColour (colourId) != newColour)
+        if (getColour() != newColour)
         {
             document.getUndoManager().undoCurrentTransactionOnly();
 
@@ -110,6 +111,7 @@ public:
 
 private:
     const int colourId;
+    LookAndFeel_V4 previewLookAndFeel;
 
     class ColourChangeAction  : public ComponentUndoableAction <Component>
     {

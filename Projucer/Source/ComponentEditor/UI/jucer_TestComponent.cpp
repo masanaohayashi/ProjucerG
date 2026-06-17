@@ -41,12 +41,13 @@ TestComponent::TestComponent (JucerDocument* const doc,
     updateContents();
     testComponents.add (this);
 
-    setLookAndFeel (&getLookAndFeel());
+    setLookAndFeel (&previewLookAndFeel);
 }
 
 TestComponent::~TestComponent()
 {
     testComponents.removeFirstMatchingValue (this);
+    setLookAndFeel (nullptr);
     deleteAllChildren();
 }
 

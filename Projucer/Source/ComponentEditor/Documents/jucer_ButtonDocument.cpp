@@ -277,7 +277,13 @@ public:
           document (doc),
           alwaysFillBackground (fillBackground)
     {
+        setLookAndFeel (&previewLookAndFeel);
         setClickingTogglesState (true);
+    }
+
+    ~ButtonTestComponent() override
+    {
+        setLookAndFeel (nullptr);
     }
 
     void paintButton (Graphics& g, bool isMouseOverButton, bool isButtonDown) override
@@ -304,6 +310,7 @@ public:
 private:
     ButtonDocument* const document;
     const bool alwaysFillBackground;
+    LookAndFeel_V4 previewLookAndFeel;
 };
 
 Component* ButtonDocument::createTestComponent (const bool alwaysFillBackground)
