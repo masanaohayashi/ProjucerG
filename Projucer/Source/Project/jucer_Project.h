@@ -303,6 +303,8 @@ public:
 
     static StringArray getDefaultLookAndFeelStrings()     { return { "<None>", "LookAndFeel_V1", "LookAndFeel_V2", "LookAndFeel_V3", "LookAndFeel_V4" }; }
     static Array<var> getDefaultLookAndFeelVars()         { return { "",       "juce::LookAndFeel_V1", "juce::LookAndFeel_V2", "juce::LookAndFeel_V3", "juce::LookAndFeel_V4" }; }
+    StringArray getLookAndFeelChoiceStrings() const;
+    Array<var> getLookAndFeelChoiceVars() const;
 
     static String getLatestNumberedCppStandardString()
     {
@@ -312,6 +314,9 @@ public:
 
     String getCppStandardString() const                  { return cppStandardValue.get(); }
     String getDefaultLookAndFeelString() const           { return defaultLookAndFeelValue.get(); }
+    String getCustomLookAndFeelClassString() const       { return customLookAndFeelValue.get(); }
+    bool isCustomLookAndFeelType (const String& type) const;
+    File getCustomLookAndFeelHeaderFile() const;
 
     StringArray getCompilerFlagSchemes() const;
     void addCompilerFlagScheme (const String&);
@@ -681,7 +686,8 @@ private:
 
     ValueTreePropertyWithDefault projectNameValue, projectUIDValue, projectLineFeedValue, projectTypeValue, versionValue, bundleIdentifierValue, companyNameValue,
                                  companyCopyrightValue, companyWebsiteValue, companyEmailValue, cppStandardValue, headerSearchPathsValue, preprocessorDefsValue,
-                                 userNotesValue, maxBinaryFileSizeValue, includeBinaryDataInJuceHeaderValue, binaryDataNamespaceValue, defaultLookAndFeelValue, compilerFlagSchemesValue,
+                                 userNotesValue, maxBinaryFileSizeValue, includeBinaryDataInJuceHeaderValue, binaryDataNamespaceValue, defaultLookAndFeelValue,
+                                 customLookAndFeelValue, compilerFlagSchemesValue,
                                  postExportShellCommandPosixValue, postExportShellCommandWinValue, useAppConfigValue, addUsingNamespaceToJuceHeader;
 
     ValueTreePropertyWithDefault pluginFormatsValue, pluginNameValue, pluginDescriptionValue, pluginManufacturerValue, pluginManufacturerCodeValue,

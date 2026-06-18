@@ -33,6 +33,7 @@
 */
 
 #include "jucer_ProjectSaver.h"
+#include "../Project/jucer_CustomLookAndFeels.h"
 #include "../Application/jucer_Application.h"
 
 static constexpr const char* generatedGroupID = "__jucelibfiles";
@@ -94,6 +95,7 @@ void ProjectSaver::saveBasicProjectItems (const OwnedArray<LibraryModule>& modul
     writeAppConfigFile (modules, appConfigUserContent);
     writeBinaryDataFiles();
     writeAppHeader (modules);
+    writeCustomLookAndFeelFile();
     writeModuleCppWrappers (modules);
 }
 
@@ -566,6 +568,29 @@ void ProjectSaver::writeAppHeader (const OwnedArray<LibraryModule>& modules)
 
     writeAppHeader (mem, modules);
     saveGeneratedFile (Project::getJuceSourceHFilename(), mem);
+}
+
+void ProjectSaver::writeCustomLookAndFeelFile()
+{
+    auto* info = findCustomLookAndFeel (project.getCustomLookAndFeelClassString());
+
+    if (info == nullptr)
+        return;
+
+    int dataSize = 0;
+    auto* data = BinaryData::getNamedResource (info->binaryDataResourceName.toUTF8(), dataSize);
+
+    if (data == nullptr)
+    {
+        jassertfalse;
+        return;
+    }
+
+    MemoryOutputStream mem;
+    mem.setNewLineString (projectLineFeed);
+    mem.write (data, (size_t) dataSize);
+
+    saveGeneratedFile (info->headerFileName, mem);
 }
 
 void ProjectSaver::writeModuleCppWrappers (const OwnedArray<LibraryModule>& modules)

@@ -34,6 +34,7 @@
 
 #include "../Application/jucer_Headers.h"
 #include "jucer_Project.h"
+#include "jucer_CustomLookAndFeels.h"
 #include "../ProjectSaving/jucer_ProjectSaver.h"
 #include "../Application/jucer_Application.h"
 #include "../ComponentEditor/jucer_JucerDocument.h"
@@ -336,11 +337,45 @@ void Project::initialiseProjectValues()
 
     binaryDataNamespaceValue.referTo (projectRoot, Ids::binaryDataNamespace, getUndoManager(), "BinaryData");
     defaultLookAndFeelValue.referTo  (projectRoot, Ids::defaultLookAndFeel,  getUndoManager());
+    customLookAndFeelValue.referTo (projectRoot, Ids::customLookAndFeel, getUndoManager());
 
     compilerFlagSchemesValue.referTo (projectRoot, Ids::compilerFlagSchemes, getUndoManager(), Array<var>(), ",");
 
     postExportShellCommandPosixValue.referTo (projectRoot, Ids::postExportShellCommandPosix, getUndoManager());
     postExportShellCommandWinValue.referTo   (projectRoot, Ids::postExportShellCommandWin,   getUndoManager());
+}
+
+StringArray Project::getLookAndFeelChoiceStrings() const
+{
+    auto strings = getDefaultLookAndFeelStrings();
+
+    if (getCustomLookAndFeelClassString().isNotEmpty())
+        strings.add (getCustomLookAndFeelClassString());
+
+    return strings;
+}
+
+Array<var> Project::getLookAndFeelChoiceVars() const
+{
+    auto values = getDefaultLookAndFeelVars();
+
+    if (getCustomLookAndFeelClassString().isNotEmpty())
+        values.add (getCustomLookAndFeelClassString());
+
+    return values;
+}
+
+bool Project::isCustomLookAndFeelType (const String& type) const
+{
+    return type.isNotEmpty() && type == getCustomLookAndFeelClassString();
+}
+
+File Project::getCustomLookAndFeelHeaderFile() const
+{
+    if (auto* info = findCustomLookAndFeel (getCustomLookAndFeelClassString()))
+        return getGeneratedCodeFolder().getChildFile (info->headerFileName);
+
+    return {};
 }
 
 void Project::initialiseAudioPluginValues()
@@ -1565,9 +1600,9 @@ public:
     explicit DefaultLookAndFeelProperty (Project& p)
         : ChoicePropertyComponent ("Default LookAndFeel"),
           project (&p),
-          values (Project::getDefaultLookAndFeelVars())
+          values (p.getLookAndFeelChoiceVars())
     {
-        choices = Project::getDefaultLookAndFeelStrings();
+        choices = p.getLookAndFeelChoiceStrings();
         refresh();
     }
 
@@ -1692,6 +1727,20 @@ void Project::createPropertyEditors (PropertyListBuilder& props)
 
     props.add (new TextPropertyComponent (binaryDataNamespaceValue, "BinaryData Namespace", 256, false),
                                           "The namespace containing the binary assets.");
+
+    {
+        StringArray customLookAndFeelChoices { "<None>" };
+        Array<var> customLookAndFeelVars { var ("") };
+
+        for (auto& info : getCustomLookAndFeelRegistry())
+        {
+            customLookAndFeelChoices.add (info.className);
+            customLookAndFeelVars.add (info.className);
+        }
+
+        props.add (new ChoicePropertyComponent (customLookAndFeelValue, "Custom LookAndFeel", customLookAndFeelChoices, customLookAndFeelVars),
+                   "A LookAndFeel bundled with Projucer. Projucer copies its header into JuceLibraryCode for any project that selects it here.");
+    }
 
     props.add (new DefaultLookAndFeelProperty (*this),
                "The built-in LookAndFeel used by the GUI editor preview. <None> uses the editor's default preview LookAndFeel.");

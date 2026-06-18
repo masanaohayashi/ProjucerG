@@ -101,6 +101,7 @@ namespace Ids
     DECLARE_ID (optimisation);
     DECLARE_ID (defines);
     DECLARE_ID (defaultLookAndFeel);
+    DECLARE_ID (customLookAndFeel);
     DECLARE_ID (guiEditorEnabled);
     DECLARE_ID (headerPath);
     DECLARE_ID (systemHeaderPath);

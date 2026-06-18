@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <JUCERPROJECT id="EhGOB3" name="LookAndFeel" projectType="guiapp" useAppConfig="0"
-              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" defaultLookAndFeel="juce::LookAndFeel_V1">
+              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" defaultLookAndFeel="juce::LookAndFeel_V1"
+              customLookAndFeel="IfwTabbedLookAndFeel">
   <MAINGROUP id="V3oSKz" name="LookAndFeel">
     <GROUP id="{AC3DAF89-611E-1B92-2B85-2B9213B93B6D}" name="Source">
       <FILE id="uU6sDj" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>

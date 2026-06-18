@@ -33,6 +33,8 @@
 #include "jucer_UtilityFunctions.h"
 #include "Documents/jucer_ComponentDocument.h"
 #include "Documents/jucer_ButtonDocument.h"
+#include "../Project/jucer_CustomLookAndFeels.h"
+#include "../BinaryData/Templates/IfwTabbedLookAndFeel.h"
 
 const char* const defaultClassName = "NewComponent";
 const char* const defaultParentClasses = "public juce::Component";
@@ -57,6 +59,17 @@ namespace PreviewLookAndFeel
         return std::make_unique<LookAndFeel_V4>();
     }
 
+    static std::unique_ptr<LookAndFeel> createCustomLookAndFeel (const String& type, const Project& project)
+    {
+        if (! project.isCustomLookAndFeelType (type) || findCustomLookAndFeel (type) == nullptr)
+            return {};
+
+        if (type == "IfwTabbedLookAndFeel")
+            return std::make_unique<IfwTabbedLookAndFeel>();
+
+        return {};
+    }
+
     std::unique_ptr<LookAndFeel> createForDocument (const JucerDocument* document)
     {
         if (document != nullptr)
@@ -67,7 +80,18 @@ namespace PreviewLookAndFeel
                 return createBuiltInLookAndFeel (type);
 
             if (auto* project = document->getCppDocument().getProject())
-                return createBuiltInLookAndFeel (project->getDefaultLookAndFeelString());
+            {
+                if (auto customLookAndFeel = createCustomLookAndFeel (type, *project))
+                    return customLookAndFeel;
+
+                type = project->getDefaultLookAndFeelString();
+
+                if (isBuiltInLookAndFeelType (type))
+                    return createBuiltInLookAndFeel (type);
+
+                if (auto customLookAndFeel = createCustomLookAndFeel (type, *project))
+                    return customLookAndFeel;
+            }
         }
 
         return createBuiltInLookAndFeel ({});
@@ -82,10 +106,32 @@ namespace PreviewLookAndFeel
 
         if (auto* project = document.getCppDocument().getProject())
         {
+            if (project->isCustomLookAndFeelType (type))
+                return type;
+
             type = project->getDefaultLookAndFeelString();
 
             if (isBuiltInLookAndFeelType (type))
                 return type;
+
+            if (project->isCustomLookAndFeelType (type))
+                return type;
+        }
+
+        return {};
+    }
+
+    static File getGeneratedLookAndFeelHeader (const JucerDocument& document)
+    {
+        if (auto* project = document.getCppDocument().getProject())
+        {
+            auto type = document.getLookAndFeelString();
+
+            if (type.isEmpty())
+                type = project->getDefaultLookAndFeelString();
+
+            if (project->isCustomLookAndFeelType (type))
+                return project->getCustomLookAndFeelHeaderFile();
         }
 
         return {};
@@ -510,6 +556,10 @@ void JucerDocument::fillInGeneratedCode (GeneratedCode& code) const
     if (auto lookAndFeelType = PreviewLookAndFeel::getGeneratedLookAndFeelType (*this);
         lookAndFeelType.isNotEmpty())
     {
+        if (auto header = PreviewLookAndFeel::getGeneratedLookAndFeelHeader (*this);
+            header != File())
+            code.includeFilesH.addIfNotAlreadyThere (header);
+
         code.privateMemberDeclarations << lookAndFeelType << " projectDefaultLookAndFeel;\n";
         code.constructorCode << "setLookAndFeel (&projectDefaultLookAndFeel);\n";
         code.destructorCode << "setLookAndFeel (nullptr);\n";

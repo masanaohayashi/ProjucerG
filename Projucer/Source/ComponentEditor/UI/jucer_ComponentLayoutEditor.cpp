@@ -54,6 +54,15 @@ public:
         setLookAndFeel (nullptr);
     }
 
+    void updatePreviewLookAndFeel()
+    {
+        setLookAndFeel (nullptr);
+        previewLookAndFeel = PreviewLookAndFeel::createForDocument (&document);
+        setLookAndFeel (previewLookAndFeel.get());
+        sendLookAndFeelChange();
+        repaint();
+    }
+
     void paint (Graphics& g) override
     {
         if (! dontFillBackground)
@@ -146,6 +155,7 @@ void ComponentLayoutEditor::visibilityChanged()
 
     if (isVisible())
     {
+        ((SubComponentHolderComp*) subCompHolder)->updatePreviewLookAndFeel();
         refreshAllComponents();
         document.addChangeListener (this);
     }
@@ -171,6 +181,7 @@ void ComponentLayoutEditor::handleAsyncUpdate()
         return;
     }
 
+    ((SubComponentHolderComp*) subCompHolder)->updatePreviewLookAndFeel();
     refreshAllComponents();
 }
 

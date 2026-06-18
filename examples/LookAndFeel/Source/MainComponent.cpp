@@ -40,7 +40,6 @@ MainComponent::MainComponent ()
     addAndMakeVisible (contentComponent);
     tabbedComponent.reset (new juce::TabbedComponent (juce::TabbedButtonBar::TabsAtTop));
     contentComponent.addAndMakeVisible (tabbedComponent.get());
-    tabbedComponent->setLookAndFeel (&tabbedComponentLookAndFeel);
     tabbedComponent->setTabBarDepth (30);
     tabbedComponent->addTab (TRANS ("LookAndFeelV1"), juce::Colours::lightgrey, new LF1Component(), true);
     tabbedComponent->addTab (TRANS ("LookAndFeelV2"), juce::Colours::lightgrey, new LF2Component(), true);
@@ -48,7 +47,7 @@ MainComponent::MainComponent ()
     tabbedComponent->addTab (TRANS ("LookAndFeel V4"), juce::Colours::lightgrey, new LF4Component(), true);
     tabbedComponent->setCurrentTabIndex (0);
 
-    tabbedComponent->setBounds (0, 8, 600, 272);
+    tabbedComponent->setBounds (0, 0, 600, 272);
 
     juce__slider.reset (new juce::Slider ("new slider"));
     contentComponent.addAndMakeVisible (juce__slider.get());
@@ -121,7 +120,6 @@ MainComponent::~MainComponent()
     //[/Destructor_pre]
 
     setLookAndFeel (nullptr);
-    tabbedComponent->setLookAndFeel (nullptr);
     tabbedComponent = nullptr;
     juce__slider = nullptr;
     juce__slider2->setLookAndFeel (nullptr);
@@ -244,13 +242,13 @@ BEGIN_JUCER_METADATA
 
 <JUCER_COMPONENT documentType="Component" className="MainComponent" componentName=""
                  parentClasses="public juce::Component" constructorParams="" variableInitialisers=""
-                 scaleOnResize="1" scaleMode="stretch" snapPixels="8" snapActive="1"
-                 snapShown="1" overlayOpacity="0.330" fixedSize="1" initialWidth="600"
-                 initialHeight="400">
+                 lookAndFeel="IfwTabbedLookAndFeel" scaleOnResize="1" scaleMode="stretch"
+                 snapPixels="8" snapActive="1" snapShown="1" overlayOpacity="0.330"
+                 fixedSize="1" initialWidth="600" initialHeight="400">
   <BACKGROUND backgroundColour="ff323e44"/>
   <TABBEDCOMPONENT name="" id="7438dfa499ef687a" memberName="tabbedComponent" virtualName=""
-                   explicitFocusOrder="0" lookAndFeel="juce::LookAndFeel_V4" pos="0 8 600 272"
-                   orientation="top" tabBarDepth="30" initialTab="0">
+                   explicitFocusOrder="0" pos="0 0 600 272" orientation="top" tabBarDepth="30"
+                   initialTab="0">
     <TAB name="LookAndFeelV1" colour="ffd3d3d3" useJucerComp="1" contentClassName=""
          constructorParams="" jucerComponentFile="LF1Component.cpp"/>
     <TAB name="LookAndFeelV2" colour="ffd3d3d3" useJucerComp="1" contentClassName=""

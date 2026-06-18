@@ -307,9 +307,11 @@ private:
     public:
         explicit ComponentLookAndFeelProperty (JucerDocument& doc)
             : ComponentChoiceProperty<Component> ("LookAndFeel", nullptr, doc),
-              values (Project::getDefaultLookAndFeelVars())
+              values (doc.getCppDocument().getProject() != nullptr ? doc.getCppDocument().getProject()->getLookAndFeelChoiceVars()
+                                                                   : Project::getDefaultLookAndFeelVars())
         {
-            choices = Project::getDefaultLookAndFeelStrings();
+            choices = doc.getCppDocument().getProject() != nullptr ? doc.getCppDocument().getProject()->getLookAndFeelChoiceStrings()
+                                                                   : Project::getDefaultLookAndFeelStrings();
         }
 
         void setIndex (int newIndex) override

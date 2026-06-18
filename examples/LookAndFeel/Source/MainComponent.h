@@ -23,6 +23,7 @@
 #include <JuceHeader.h>
 //[/Headers]
 
+#include "../JuceLibraryCode/IfwTabbedLookAndFeel.h"
 
 
 //==============================================================================
@@ -58,9 +59,8 @@ private:
     //[/UserVariables]
 
     //==============================================================================
-    juce::LookAndFeel_V1 projectDefaultLookAndFeel;
+    IfwTabbedLookAndFeel projectDefaultLookAndFeel;
     juce::Component contentComponent;
-    juce::LookAndFeel_V4 tabbedComponentLookAndFeel;
     std::unique_ptr<juce::TabbedComponent> tabbedComponent;
     std::unique_ptr<juce::Slider> juce__slider;
     juce::LookAndFeel_V4 juce__slider2LookAndFeel;

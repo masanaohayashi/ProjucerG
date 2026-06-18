@@ -2058,6 +2058,7 @@
     <ClInclude Include="..\..\Source\Application\jucer_CommonHeaders.h"/>
     <ClInclude Include="..\..\Source\Application\jucer_Headers.h"/>
     <ClInclude Include="..\..\Source\Application\jucer_MainWindow.h"/>
+    <ClInclude Include="..\..\Source\BinaryData\Templates\IfwTabbedLookAndFeel.h"/>
     <ClInclude Include="..\..\Source\BinaryData\Templates\jucer_AnimatedComponentSimpleTemplate.h"/>
     <ClInclude Include="..\..\Source\BinaryData\Templates\jucer_AnimatedComponentTemplate.h"/>
     <ClInclude Include="..\..\Source\BinaryData\Templates\jucer_AudioComponentSimpleTemplate.h"/>

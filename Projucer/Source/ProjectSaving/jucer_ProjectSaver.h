@@ -118,6 +118,7 @@ private:
     void writeAppConfig (MemoryOutputStream& outStream, const OwnedArray<LibraryModule>& modules, const String& userContent);
     void writeAppHeader (MemoryOutputStream& outStream, const OwnedArray<LibraryModule>& modules);
     void writeAppHeader (const OwnedArray<LibraryModule>& modules);
+    void writeCustomLookAndFeelFile();
     void writeModuleCppWrappers (const OwnedArray<LibraryModule>& modules);
     void writeBinaryDataFiles();
     void writeReadmeFile();

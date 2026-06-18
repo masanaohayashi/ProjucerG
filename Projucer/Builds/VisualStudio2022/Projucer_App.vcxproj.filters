@@ -2592,6 +2592,9 @@
     <ClInclude Include="..\..\Source\Application\jucer_MainWindow.h">
       <Filter>Projucer\Application</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\Source\BinaryData\Templates\IfwTabbedLookAndFeel.h">
+      <Filter>Projucer\BinaryData\Templates</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\Source\BinaryData\Templates\jucer_AnimatedComponentSimpleTemplate.h">
       <Filter>Projucer\BinaryData\Templates</Filter>
     </ClInclude>

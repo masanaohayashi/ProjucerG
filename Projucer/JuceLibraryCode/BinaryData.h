@@ -92,6 +92,9 @@ namespace BinaryData
     extern const char*   wizard_StaticLibrary_svg;
     const int            wizard_StaticLibrary_svgSize = 7488;
 
+    extern const char*   IfwTabbedLookAndFeel_h;
+    const int            IfwTabbedLookAndFeel_hSize = 1544;
+
     extern const char*   jucer_AnimatedComponentSimpleTemplate_h;
     const int            jucer_AnimatedComponentSimpleTemplate_hSize = 1898;
 
@@ -216,7 +219,7 @@ namespace BinaryData
     const int            juce_SimpleBinaryBuilder_cppSize = 12997;
 
     // Number of elements in the namedResourceList and originalFileNames arrays.
-    const int namedResourceListSize = 69;
+    const int namedResourceListSize = 70;
 
     // Points to the start of a list of resource names.
     extern const char* namedResourceList[];
