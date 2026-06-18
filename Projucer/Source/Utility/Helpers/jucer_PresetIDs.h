@@ -284,6 +284,13 @@ namespace Ids
     DECLARE_ID (iosPushNotifications);
     DECLARE_ID (iosAppGroups);
     DECLARE_ID (iCloudPermissions);
+    DECLARE_ID (iCloudContainerIds);
+    DECLARE_ID (iCloudContainerName);
+    DECLARE_ID (iCloudPublicDocuments);
+    DECLARE_ID (iCloudSupportedFolderLevels);
+    DECLARE_ID (sharedPreferenceReadWriteDomains);
+    DECLARE_ID (supportsOpeningDocumentsInPlace);
+    DECLARE_ID (usesNonExemptEncryption);
     DECLARE_ID (networkingMulticast);
     DECLARE_ID (iosDevelopmentTeamID);
     DECLARE_ID (iosAppGroupsId);

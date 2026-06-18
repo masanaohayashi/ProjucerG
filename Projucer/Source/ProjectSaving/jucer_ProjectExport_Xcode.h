@@ -249,6 +249,13 @@ public:
           iosPushNotificationsValue                    (settings, Ids::iosPushNotifications,                    getUndoManager()),
           iosAppGroupsValue                            (settings, Ids::iosAppGroups,                            getUndoManager()),
           iCloudPermissionsValue                       (settings, Ids::iCloudPermissions,                       getUndoManager()),
+          iCloudContainerIdsValue                      (settings, Ids::iCloudContainerIds,                      getUndoManager()),
+          iCloudContainerNameValue                     (settings, Ids::iCloudContainerName,                     getUndoManager(), "$(PRODUCT_NAME)"),
+          iCloudPublicDocumentsValue                   (settings, Ids::iCloudPublicDocuments,                   getUndoManager()),
+          iCloudSupportedFolderLevelsValue             (settings, Ids::iCloudSupportedFolderLevels,             getUndoManager(), "Any"),
+          sharedPreferenceReadWriteDomainsValue        (settings, Ids::sharedPreferenceReadWriteDomains,        getUndoManager()),
+          supportsOpeningDocumentsInPlaceValue         (settings, Ids::supportsOpeningDocumentsInPlace,         getUndoManager()),
+          usesNonExemptEncryptionValue                 (settings, Ids::usesNonExemptEncryption,                 getUndoManager()),
           networkingMulticastValue                     (settings, Ids::networkingMulticast,                     getUndoManager()),
           iosDevelopmentTeamIDValue                    (settings, Ids::iosDevelopmentTeamID,                    getUndoManager()),
           iosAppGroupsIDValue                          (settings, Ids::iosAppGroupsId,                          getUndoManager()),
@@ -384,6 +391,15 @@ public:
     bool isPushNotificationsEnabled() const                 { return iosPushNotificationsValue.get(); }
     bool isAppGroupsEnabled() const                         { return iosAppGroupsValue.get(); }
     bool isiCloudPermissionsEnabled() const                 { return iCloudPermissionsValue.get(); }
+    String getiCloudContainerIdsString() const              { return iCloudContainerIdsValue.get(); }
+    StringArray getiCloudContainerIds() const               { return getCommaOrWhitespaceSeparatedItems (getiCloudContainerIdsString().replace (";", ",")); }
+    String getiCloudContainerNameString() const             { return iCloudContainerNameValue.get(); }
+    bool isiCloudPublicDocumentsEnabled() const             { return iCloudPublicDocumentsValue.get(); }
+    String getiCloudSupportedFolderLevelsString() const     { return iCloudSupportedFolderLevelsValue.get(); }
+    String getSharedPreferenceReadWriteDomainsString() const { return sharedPreferenceReadWriteDomainsValue.get(); }
+    StringArray getSharedPreferenceReadWriteDomains() const { return getCommaOrWhitespaceSeparatedItems (getSharedPreferenceReadWriteDomainsString().replace (";", ",")); }
+    bool supportsOpeningDocumentsInPlace() const            { return supportsOpeningDocumentsInPlaceValue.get(); }
+    bool usesNonExemptEncryption() const                    { return usesNonExemptEncryptionValue.get(); }
     bool isNetworkingMulticastEnabled() const               { return networkingMulticastValue.get(); }
     bool isFileSharingEnabled() const                       { return uiFileSharingEnabledValue.get(); }
     bool isDocumentBrowserEnabled() const                   { return uiSupportsDocumentBrowserValue.get(); }
@@ -811,13 +827,32 @@ public:
             props.add (new ChoicePropertyComponent (iosBackgroundBleValue, "Bluetooth MIDI Background Capability"),
                        "Enable this to grant your app the capability to connect to Bluetooth LE devices when in background mode.");
 
-            props.add (new ChoicePropertyComponent (iosAppGroupsValue, "App Groups Capability"),
-                       "Enable this to grant your app the capability to share resources between apps using the same app group ID.");
-
-            props.add (new ChoicePropertyComponent (iCloudPermissionsValue, "iCloud Permissions"),
-                       "Enable this to grant your app the capability to use native file load/save browser windows on iOS.");
-
         }
+
+        props.add (new ChoicePropertyComponent (iosAppGroupsValue, "App Groups Capability"),
+                   "Enable this to grant your app the capability to share resources between apps using the same app group ID.");
+
+        props.add (new ChoicePropertyComponent (iCloudPermissionsValue, "iCloud Documents Capability"),
+                   "Enable this to grant your app the capability to use iCloud Documents.");
+
+        props.add (new TextPropertyComponentWithEnablement (iCloudContainerIdsValue, iCloudPermissionsValue, "iCloud Container IDs", 2048, false),
+                   "The iCloud container identifiers to add to the entitlements and Info.plist. Multiple IDs can be separated by commas, semicolons, or whitespace. "
+                   "If empty, iCloud.$(CFBundleIdentifier) will be used.");
+
+        props.add (new TextPropertyComponentWithEnablement (iCloudContainerNameValue, iCloudPermissionsValue, "iCloud Container Name", 256, false),
+                   "The display name used in NSUbiquitousContainers. If empty, $(PRODUCT_NAME) will be used.");
+
+        props.add (new ChoicePropertyComponentWithEnablement (iCloudPublicDocumentsValue, iCloudPermissionsValue, "iCloud Public Documents"),
+                   "Enable this to set NSUbiquitousContainerIsDocumentScopePublic for each configured iCloud container.");
+
+        props.add (new TextPropertyComponentWithEnablement (iCloudSupportedFolderLevelsValue, iCloudPermissionsValue, "iCloud Folder Levels", 64, false),
+                   "The NSUbiquitousContainerSupportedFolderLevels value, for example Any, One, or None.");
+
+        props.add (new ChoicePropertyComponent (supportsOpeningDocumentsInPlaceValue, "Supports Opening Documents In Place"),
+                   "Enable this to add LSSupportsOpeningDocumentsInPlace to the generated Info.plist.");
+
+        props.add (new ChoicePropertyComponent (usesNonExemptEncryptionValue, "Uses Non-Exempt Encryption"),
+                   "Enable this if the app uses non-exempt encryption. Disabled writes ITSAppUsesNonExemptEncryption=false.");
 
         props.add (new ChoicePropertyComponent (networkingMulticastValue, "Networking Multicast Capability"),
                    "Your app must have this entitlement to send or receive IP multicast or broadcast. "
@@ -884,10 +919,12 @@ public:
                    "This is a ten-character string (for example \"S7B6T5XJ2Q\") that can be found under the \"Organisational Unit\" "
                    "field of your developer certificate in Keychain Access or in the membership page of your account on developer.apple.com.");
 
-        if (iOS)
-            props.add (new TextPropertyComponentWithEnablement (iosAppGroupsIDValue, iosAppGroupsValue, "App Group ID", 256, false),
-                       "The App Group ID to be used for allowing multiple apps to access a shared resource folder. Multiple IDs can be "
-                       "added separated by a semicolon. The App Groups Capability setting must be enabled for this setting to have any effect.");
+        props.add (new TextPropertyComponentWithEnablement (iosAppGroupsIDValue, iosAppGroupsValue, "App Group ID", 256, false),
+                   "The App Group ID to be used for allowing multiple apps to access a shared resource folder. Multiple IDs can be "
+                   "added separated by a semicolon. The App Groups Capability setting must be enabled for this setting to have any effect.");
+
+        props.add (new TextPropertyComponent (sharedPreferenceReadWriteDomainsValue, "Shared Preference Read/Write Domains", 2048, false),
+                   "Temporary exception shared-preference read/write domains to add to the entitlements. Multiple domains can be separated by commas, semicolons, or whitespace.");
 
         props.add (new ChoicePropertyComponent (keepCustomXcodeSchemesValue, "Keep Custom Xcode Schemes"),
                    "Enable this to keep any Xcode schemes you have created for debugging or running, e.g. to launch a plug-in in "
@@ -1274,6 +1311,163 @@ public:
         return fallback;
     }
 
+    static XmlElement* getPlistDict (XmlElement& plist)
+    {
+        auto* dict = plist.getChildByName ("dict");
+
+        if (dict == nullptr)
+            dict = plist.createNewChildElement ("dict");
+
+        return dict;
+    }
+
+    static bool plistHasKey (const XmlElement& dict, const String& key)
+    {
+        for (auto* element : dict.getChildIterator())
+            if (element->hasTagName ("key") && element->getAllSubText() == key)
+                return true;
+
+        return false;
+    }
+
+    static bool addPlistKeyIfMissing (XmlElement& dict, const String& key)
+    {
+        if (plistHasKey (dict, key))
+            return false;
+
+        dict.createNewChildElement ("key")->addTextElement (key);
+        return true;
+    }
+
+    static void removePlistKeyAndValue (XmlElement& dict, const String& key)
+    {
+        for (auto* element : dict.getChildIterator())
+        {
+            if (element->hasTagName ("key") && element->getAllSubText() == key)
+            {
+                if (auto* value = element->getNextElement())
+                    dict.removeChildElement (value, true);
+
+                dict.removeChildElement (element, true);
+                return;
+            }
+        }
+    }
+
+    static void addPlistStringKeyIfMissing (XmlElement& dict, const String& key, const String& value)
+    {
+        if (addPlistKeyIfMissing (dict, key))
+            dict.createNewChildElement ("string")->addTextElement (value);
+    }
+
+    static void addPlistBoolKeyIfMissing (XmlElement& dict, const String& key, const bool value)
+    {
+        if (addPlistKeyIfMissing (dict, key))
+            dict.createNewChildElement (value ? "true" : "false");
+    }
+
+    static void addPlistStringArrayKeyIfMissing (XmlElement& dict, const String& key, const StringArray& values)
+    {
+        if (! addPlistKeyIfMissing (dict, key))
+            return;
+
+        auto* array = dict.createNewChildElement ("array");
+
+        for (auto value : values)
+            if (value.trim().isNotEmpty())
+                array->createNewChildElement ("string")->addTextElement (value.trim());
+    }
+
+    static void setPlistStringArrayKey (XmlElement& dict, const String& key, const StringArray& values)
+    {
+        removePlistKeyAndValue (dict, key);
+        dict.createNewChildElement ("key")->addTextElement (key);
+        auto* array = dict.createNewChildElement ("array");
+
+        for (auto value : values)
+            if (value.trim().isNotEmpty())
+                array->createNewChildElement ("string")->addTextElement (value.trim());
+    }
+
+    StringArray getiCloudContainerIdsWithDefault() const
+    {
+        auto containers = getiCloudContainerIds();
+
+        if (containers.isEmpty())
+            containers.add ("iCloud.$(CFBundleIdentifier)");
+
+        containers.trim();
+        containers.removeEmptyStrings (true);
+        return containers;
+    }
+
+    static String plistXmlToString (const XmlElement& plist)
+    {
+        MemoryOutputStream output;
+        XmlElement::TextFormat format;
+        format.dtd = "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">";
+        plist.writeTo (output, format);
+        return output.toString();
+    }
+
+    void addAppleCloudPlistOptions (const File& plistFile) const
+    {
+        auto plist = parseXML (plistFile);
+
+        if (plist == nullptr || ! plist->hasTagName ("plist"))
+            return;
+
+        auto* dict = getPlistDict (*plist);
+
+        addPlistBoolKeyIfMissing (*dict, "ITSAppUsesNonExemptEncryption", usesNonExemptEncryption());
+
+        if (supportsOpeningDocumentsInPlace())
+            addPlistBoolKeyIfMissing (*dict, "LSSupportsOpeningDocumentsInPlace", true);
+
+        if (isiCloudPermissionsEnabled() && addPlistKeyIfMissing (*dict, "NSUbiquitousContainers"))
+        {
+            auto* containersDict = dict->createNewChildElement ("dict");
+            const auto containerName = getiCloudContainerNameString().isNotEmpty() ? getiCloudContainerNameString() : "$(PRODUCT_NAME)";
+            const auto folderLevels = getiCloudSupportedFolderLevelsString().isNotEmpty() ? getiCloudSupportedFolderLevelsString() : "Any";
+
+            for (const auto& container : getiCloudContainerIdsWithDefault())
+            {
+                containersDict->createNewChildElement ("key")->addTextElement (container);
+                auto* containerDict = containersDict->createNewChildElement ("dict");
+
+                addPlistBoolKeyIfMissing (*containerDict, "NSUbiquitousContainerIsDocumentScopePublic", isiCloudPublicDocumentsEnabled());
+                addPlistStringKeyIfMissing (*containerDict, "NSUbiquitousContainerSupportedFolderLevels", folderLevels);
+                addPlistStringKeyIfMissing (*containerDict, "NSUbiquitousContainerName", containerName);
+            }
+        }
+
+        build_tools::overwriteFileIfDifferentOrThrow (plistFile, plistXmlToString (*plist));
+    }
+
+    String getAppleCloudEntitlementsContent (const String& generatedContent) const
+    {
+        auto plist = parseXML (generatedContent);
+
+        if (plist == nullptr || ! plist->hasTagName ("plist"))
+            return generatedContent;
+
+        auto* dict = getPlistDict (*plist);
+
+        if (isiCloudPermissionsEnabled())
+        {
+            auto containers = getiCloudContainerIdsWithDefault();
+            setPlistStringArrayKey (*dict, "com.apple.developer.icloud-container-identifiers", containers);
+            setPlistStringArrayKey (*dict, "com.apple.developer.icloud-services", StringArray { "CloudDocuments" });
+            setPlistStringArrayKey (*dict, "com.apple.developer.ubiquity-container-identifiers", containers);
+        }
+
+        if (! getSharedPreferenceReadWriteDomains().isEmpty())
+            addPlistStringArrayKeyIfMissing (*dict, "com.apple.security.temporary-exception.shared-preference.read-write",
+                                             getSharedPreferenceReadWriteDomains());
+
+        return plistXmlToString (*plist);
+    }
+
     //==============================================================================
     struct XcodeTarget final : build_tools::ProjectType::Target
     {
@@ -1585,7 +1779,7 @@ public:
 
             std::map<String, bool> capabilities;
 
-            capabilities["ApplicationGroups.iOS"] = owner.iOS && owner.isAppGroupsEnabled();
+            capabilities["ApplicationGroups.iOS"] = owner.isAppGroupsEnabled();
             capabilities["InAppPurchase"]         = owner.isInAppPurchasesEnabled();
             capabilities["InterAppAudio"]         = owner.iOS && ((type == Target::StandalonePlugIn
                                                                    && owner.getProject().shouldEnableIAA())
@@ -1594,7 +1788,7 @@ public:
             capabilities["Sandbox"]               = shouldUseAppSandbox();
             capabilities["HardenedRuntime"]       = shouldUseHardenedRuntime();
 
-            if (owner.iOS && owner.isiCloudPermissionsEnabled())
+            if (owner.isiCloudPermissionsEnabled())
                 capabilities["com.apple.iCloud"] = true;
 
             StringArray capabilitiesStrings;
@@ -1650,7 +1844,7 @@ public:
              || shouldUseAppSandbox()
              || shouldUseHardenedRuntime()
              || owner.isNetworkingMulticastEnabled()
-             || (owner.isiOS() && owner.isiCloudPermissionsEnabled())
+             || owner.isiCloudPermissionsEnabled()
              || (owner.isiOS() && owner.getProject().isAUPluginHost()))
                 return true;
 
@@ -2217,6 +2411,7 @@ public:
             options.isPluginARAEffect               = owner.project.shouldEnableARA();
 
             options.write (infoPlistFile);
+            owner.addAppleCloudPlistOptions (infoPlistFile);
         }
 
         //==============================================================================
@@ -3843,7 +4038,8 @@ private:
         options.appSandboxTemporaryPaths        = getAppSandboxTemporaryPaths();
         options.appSandboxExceptionIOKit        = getAppSandboxExceptionIOKitClasses();
 
-        build_tools::overwriteFileIfDifferentOrThrow (target.getEntitlementsFile(), options.getEntitlementsFileContent());
+        build_tools::overwriteFileIfDifferentOrThrow (target.getEntitlementsFile(),
+                                                      getAppleCloudEntitlementsContent (options.getEntitlementsFileContent()));
 
         build_tools::RelativePath entitlementsPath (target.getEntitlementsFile(), getTargetFolder(), build_tools::RelativePath::buildTargetFolder);
         addFile (FileOptions().withRelativePath (entitlementsPath));
@@ -4351,6 +4547,8 @@ private:
                                  localNetworkPermissionNeededValue, localNetworkPermissionTextValue,
                                  uiFileSharingEnabledValue, uiSupportsDocumentBrowserValue, uiStatusBarHiddenValue, uiRequiresFullScreenValue, documentExtensionsValue, iosInAppPurchasesValue,
                                  iosContentSharingValue, iosBackgroundAudioValue, iosBackgroundBleValue, iosPushNotificationsValue, iosAppGroupsValue, iCloudPermissionsValue,
+                                 iCloudContainerIdsValue, iCloudContainerNameValue, iCloudPublicDocumentsValue, iCloudSupportedFolderLevelsValue,
+                                 sharedPreferenceReadWriteDomainsValue, supportsOpeningDocumentsInPlaceValue, usesNonExemptEncryptionValue,
                                  networkingMulticastValue, iosDevelopmentTeamIDValue, iosAppGroupsIDValue, keepCustomXcodeSchemesValue, useHeaderMapValue, customLaunchStoryboardValue,
                                  exporterBundleIdentifierValue, suppressPlistResourceUsageValue, useLegacyBuildSystemValue, buildNumber;
 
