@@ -36,6 +36,12 @@ components and workflows that are limited or missing in the original Projucer.
   - automatic generated-code includes,
   - project save/export integration.
 
+## Apple Exporter Support
+
+- Added Xcode exporter support for App Groups, iCloud Documents, shared
+  preference read/write domains, `LSApplicationCategoryType`, and related
+  `Info.plist` / entitlements generation.
+
 ## Examples
 
 - Added and updated example projects used to verify GUI editor behaviour,
