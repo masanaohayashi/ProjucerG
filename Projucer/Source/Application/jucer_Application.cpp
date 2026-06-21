@@ -37,6 +37,8 @@ PopupMenu createGUIEditorMenu();
 void handleGUIEditorMenuCommand (int);
 void registerGUIEditorCommands();
 
+#include "../ComponentEditor/jucer_ObjectTypes.h"
+
 //==============================================================================
 struct ProjucerApplication::MainMenuModel final : public MenuBarModel
 {
@@ -185,6 +187,7 @@ void ProjucerApplication::shutdown()
 
     mainWindowList.forceCloseAllWindows();
     openDocumentManager.clear();
+    ObjectTypes::clearPreviewLookAndFeels();
 
    #if JUCE_MAC
     MenuBarModel::setMacMainMenu (nullptr);

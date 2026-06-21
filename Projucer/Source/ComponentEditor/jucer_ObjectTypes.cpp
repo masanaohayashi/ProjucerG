@@ -82,6 +82,12 @@ static const char* const elementNames[] =
 const char* const* const elementTypeNames = (const char* const*) elementNames;
 const int numElementTypes = (sizeof (elementNames) / sizeof (elementNames[0])) - 1;
 
+void clearPreviewLookAndFeels()
+{
+    ComponentTypeHandler::clearPreviewLookAndFeels();
+    SliderHandler::clearPreviewLookAndFeels();
+}
+
 PaintElement* createNewElement (const int index, PaintRoutine* owner)
 {
     switch (index)

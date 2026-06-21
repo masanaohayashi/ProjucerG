@@ -230,6 +230,17 @@ struct SliderHandler  : public ComponentTypeHandler
         return true;
     }
 
+    static void clearPreviewLookAndFeels()
+    {
+        auto& lookAndFeels = getPreviewLookAndFeels();
+
+        for (auto* lookAndFeel : lookAndFeels)
+            if (lookAndFeel->owner != nullptr)
+                lookAndFeel->owner->setLookAndFeel (nullptr);
+
+        lookAndFeels.clear();
+    }
+
 private:
     static Identifier filmstripImageProperty()     { return "filmstripImage"; }
     static Identifier filmstripFramesProperty()    { return "filmstripFrames"; }

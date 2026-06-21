@@ -360,6 +360,17 @@ void ComponentTypeHandler::setComponentLookAndFeelString (Component* comp, const
     applyComponentLookAndFeelToPreview (*comp, lookAndFeel, nullptr);
 }
 
+void ComponentTypeHandler::clearPreviewLookAndFeels()
+{
+    auto& lookAndFeels = getPreviewLookAndFeels();
+
+    for (auto* previewLookAndFeel : lookAndFeels)
+        if (previewLookAndFeel->component != nullptr)
+            previewLookAndFeel->component->setLookAndFeel (nullptr);
+
+    lookAndFeels.clear();
+}
+
 RelativePositionedRectangle ComponentTypeHandler::getComponentPosition (Component* comp)
 {
     RelativePositionedRectangle rp;

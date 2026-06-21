@@ -36,6 +36,8 @@ namespace ObjectTypes
     extern ComponentTypeHandler* const* const componentTypeHandlers;
     extern const int numComponentTypes;
 
+    void clearPreviewLookAndFeels();
+
     //==============================================================================
     // Element types
     extern const char* const* const elementTypeNames;

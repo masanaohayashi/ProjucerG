@@ -97,6 +97,7 @@ public:
 
     static String getComponentLookAndFeelString (Component* component);
     static void setComponentLookAndFeelString (Component* component, const String& lookAndFeel);
+    static void clearPreviewLookAndFeels();
 
     //==============================================================================
     virtual Component* createNewComponent (JucerDocument*) = 0;
