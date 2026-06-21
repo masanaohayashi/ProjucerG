@@ -45,8 +45,8 @@ public:
         : item (group),
           header (item.getName(), { getIcons().openFolder, Colours::transparentBlack })
     {
-        list.setHeaderComponent (std::make_unique<ListBoxHeader> (Array<String> { "File", "Binary Resource", "Xcode Resource", "Compile", "Skip PCH", "Compiler Flag Scheme" },
-                                                                  Array<float>  {  0.25f,  0.125f,            0.125f,           0.125f,    0.125f,     0.25f }));
+        list.setHeaderComponent (std::make_unique<ListBoxHeader> (Array<String> { "File", "Binary Resource", "Xcode Resource", "Compile", "Skip PCH", "Compiler Flag Scheme", "Excluded Exporters" },
+                                                                  Array<float>  {  0.22f,  0.11f,             0.11f,            0.10f,     0.10f,      0.18f,                   0.18f }));
         list.setModel (this);
         list.setColour (ListBox::backgroundColourId, Colours::transparentBlack);
         addAndMakeVisible (list);
@@ -80,7 +80,7 @@ public:
 
     void parentSizeChanged() override
     {
-        setSize (jmax (550, getParentWidth()), getParentHeight());
+        setSize (jmax (760, getParentWidth()), getParentHeight());
     }
 
     int getNumRows() override
@@ -160,6 +160,10 @@ private:
                 addAndMakeVisible (xcodeResourceButton);
                 xcodeResourceButton.getToggleStateValue().referTo (item.getShouldAddToXcodeResourcesValue());
 
+                addAndMakeVisible (excludedExportersButton);
+                excludedExportersButton.onClick = [this] { showExcludedExportersMenu(); };
+                updateExcludedExportersButton();
+
                 if (isSourceFile)
                 {
                     addChildComponent (skipPCHButton);
@@ -205,6 +209,7 @@ private:
                 compileButton.setBounds              (bounds.removeFromLeft (roundToInt (header->getProportionAtIndex (3) * width)));
                 skipPCHButton.setBounds              (bounds.removeFromLeft (roundToInt (header->getProportionAtIndex (4) * width)));
                 compilerFlagSchemeSelector.setBounds (bounds.removeFromLeft (roundToInt (header->getProportionAtIndex (5) * width)));
+                excludedExportersButton.setBounds    (bounds.removeFromLeft (roundToInt (header->getProportionAtIndex (6) * width)).reduced (4, 3));
             }
         }
 
@@ -361,10 +366,94 @@ private:
             compilerFlagSchemeSelector.setVisible (shouldBeCompiled);
         }
 
+        String getExporterDisplayName (const Identifier& exporterIdentifier) const
+        {
+            auto exporterInfo = ProjectExporter::getTypeInfoForExporter (exporterIdentifier);
+
+            return exporterInfo.displayName.isNotEmpty() ? exporterInfo.displayName
+                                                         : exporterIdentifier.toString();
+        }
+
+        void updateExcludedExportersButton()
+        {
+            auto excludedExporters = item.getExcludedExporters();
+
+            if (excludedExporters.isEmpty())
+            {
+                excludedExportersButton.setButtonText ("None");
+                return;
+            }
+
+            if (excludedExporters.size() == 1)
+            {
+                excludedExportersButton.setButtonText (getExporterDisplayName (excludedExporters[0]));
+                return;
+            }
+
+            excludedExportersButton.setButtonText (String (excludedExporters.size()) + " exporters");
+        }
+
+        void showExcludedExportersMenu()
+        {
+            PopupMenu menu;
+            Array<Identifier> exporterIdentifiers;
+            int menuItemID = 1;
+
+            for (Project::ExporterIterator exporter (item.project); exporter.next();)
+            {
+                auto exporterIdentifier = exporter->getExporterIdentifier();
+                exporterIdentifiers.add (exporterIdentifier);
+
+                menu.addItem (menuItemID++,
+                              exporter->getUniqueName(),
+                              true,
+                              item.getExcludedExporters().contains (exporterIdentifier.toString()));
+            }
+
+            if (exporterIdentifiers.isEmpty())
+            {
+                menu.addItem (1, "No exporters", false, false);
+            }
+            else
+            {
+                menu.addSeparator();
+                menu.addItem (10000, "Clear", true, false);
+            }
+
+            Component::SafePointer<FileOptionComponent> safeThis (this);
+
+            menu.showMenuAsync (PopupMenu::Options().withTargetComponent (excludedExportersButton),
+                                [safeThis, exporterIdentifiers] (int result)
+                                {
+                                    if (safeThis == nullptr || result == 0)
+                                        return;
+
+                                    if (result == 10000)
+                                    {
+                                        for (auto exporterIdentifier : exporterIdentifiers)
+                                            safeThis->item.setExcludedFromExporter (exporterIdentifier, false);
+
+                                        safeThis->updateExcludedExportersButton();
+                                        return;
+                                    }
+
+                                    auto index = result - 1;
+
+                                    if (isPositiveAndBelow (index, exporterIdentifiers.size()))
+                                    {
+                                        auto exporterIdentifier = exporterIdentifiers.getReference (index);
+                                        safeThis->item.setExcludedFromExporter (exporterIdentifier,
+                                                                               ! safeThis->item.getExcludedExporters().contains (exporterIdentifier.toString()));
+                                        safeThis->updateExcludedExportersButton();
+                                    }
+                                });
+        }
+
         //==============================================================================
         ListBoxHeader* header;
 
         ToggleButton compileButton, binaryResourceButton, xcodeResourceButton, skipPCHButton;
+        TextButton excludedExportersButton;
         CompilerFlagSchemeSelector compilerFlagSchemeSelector;
     };
 

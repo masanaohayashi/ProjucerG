@@ -42,6 +42,11 @@ components and workflows that are limited or missing in the original Projucer.
   preference read/write domains, `LSApplicationCategoryType`, and related
   `Info.plist` / entitlements generation.
 
+## Exporter Support
+
+- Added per-file exporter exclusions, allowing individual project files to be
+  omitted from selected exporters while remaining available to others.
+
 ## Examples
 
 - Added and updated example projects used to verify GUI editor behaviour,

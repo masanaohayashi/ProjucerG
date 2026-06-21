@@ -1028,7 +1028,7 @@ private:
         }
         else
         {
-            if (projectItem.shouldBeCompiled())
+            if (projectItem.shouldBeAddedToTargetExporter (*this) && projectItem.shouldBeCompiled())
             {
                 auto f = projectItem.getFile();
 

@@ -2026,10 +2026,43 @@ bool Project::Item::shouldBeAddedToTargetProject() const    { return isFile(); }
 
 bool Project::Item::shouldBeAddedToTargetExporter (const ProjectExporter& exporter) const
 {
+    if (isExcludedFromExporter (exporter))
+        return false;
+
     if (shouldBeAddedToXcodeResources())
         return exporter.isXcode() || shouldBeCompiled();
 
     return true;
+}
+
+StringArray Project::Item::getExcludedExporters() const
+{
+    StringArray exporters;
+    exporters.addTokens (state [Ids::excludedExporters].toString(), ",", {});
+    exporters.trim();
+    exporters.removeEmptyStrings();
+    return exporters;
+}
+
+bool Project::Item::isExcludedFromExporter (const ProjectExporter& exporter) const
+{
+    return getExcludedExporters().contains (exporter.getExporterIdentifier().toString());
+}
+
+void Project::Item::setExcludedFromExporter (const Identifier& exporterIdentifier, bool shouldExclude)
+{
+    auto exporters = getExcludedExporters();
+    const auto exporterString = exporterIdentifier.toString();
+
+    if (shouldExclude)
+        exporters.addIfNotAlreadyThere (exporterString);
+    else
+        exporters.removeString (exporterString);
+
+    if (exporters.isEmpty())
+        state.removeProperty (Ids::excludedExporters, getUndoManager());
+    else
+        state.setProperty (Ids::excludedExporters, exporters.joinIntoString (","), getUndoManager());
 }
 
 Value Project::Item::getShouldCompileValue()                { return state.getPropertyAsValue (Ids::compile, getUndoManager()); }

@@ -492,6 +492,9 @@ public:
 
         bool shouldBeAddedToTargetProject() const;
         bool shouldBeAddedToTargetExporter (const ProjectExporter&) const;
+        StringArray getExcludedExporters() const;
+        bool isExcludedFromExporter (const ProjectExporter&) const;
+        void setExcludedFromExporter (const Identifier& exporterIdentifier, bool shouldExclude);
         bool shouldBeCompiled() const;
         Value getShouldCompileValue();
 

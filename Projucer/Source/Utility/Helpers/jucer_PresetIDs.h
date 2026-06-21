@@ -180,6 +180,7 @@ namespace Ids
     DECLARE_ID (skipPCH);
     DECLARE_ID (resource);
     DECLARE_ID (xcodeResource);
+    DECLARE_ID (excludedExporters);
     DECLARE_ID (xcodeValidArchs);
     DECLARE_ID (className);
     DECLARE_ID (classDesc);
