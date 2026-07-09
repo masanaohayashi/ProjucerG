@@ -105,7 +105,10 @@ StringArray GeneratedCode::getExtraParentClasses() const
     for (int i = 0; i < callbacks.size(); ++i)
     {
         CallbackMethod* const cm = callbacks.getUnchecked (i);
-        s.add (cm->requiredParentClass);
+
+        // Multiple callbacks can share one Listener base (e.g. MidiKeyboardState::Listener).
+        if (cm->requiredParentClass.isNotEmpty())
+            s.addIfNotAlreadyThere (cm->requiredParentClass);
     }
 
     return s;
