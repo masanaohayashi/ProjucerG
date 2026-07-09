@@ -93,7 +93,7 @@ namespace BinaryData
     const int            wizard_StaticLibrary_svgSize = 7488;
 
     extern const char*   IfwTabbedLookAndFeel_h;
-    const int            IfwTabbedLookAndFeel_hSize = 1544;
+    const int            IfwTabbedLookAndFeel_hSize = 1591;
 
     extern const char*   jucer_AnimatedComponentSimpleTemplate_h;
     const int            jucer_AnimatedComponentSimpleTemplate_hSize = 1898;

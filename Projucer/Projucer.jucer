@@ -16,6 +16,12 @@
                        linkTimeOptimisation="0" recommendedWarnings="LLVM"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../JUCE-8.0.13/modules"/>
         <MODULEPATH id="juce_gui_extra" path="../JUCE-8.0.13/modules"/>
         <MODULEPATH id="juce_gui_basics" path="../JUCE-8.0.13/modules"/>
         <MODULEPATH id="juce_graphics" path="../JUCE-8.0.13/modules"/>
@@ -34,6 +40,12 @@
                        useRuntimeLibDLL="0" linkTimeOptimisation="0"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../JUCE-8.0.13/modules"/>
         <MODULEPATH id="juce_gui_extra" path="../JUCE-8.0.13/modules"/>
         <MODULEPATH id="juce_gui_basics" path="../JUCE-8.0.13/modules"/>
         <MODULEPATH id="juce_graphics" path="../JUCE-8.0.13/modules"/>
@@ -52,6 +64,12 @@
                        useRuntimeLibDLL="0" linkTimeOptimisation="0"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../JUCE-8.0.13/modules"/>
         <MODULEPATH id="juce_gui_extra" path="../JUCE-8.0.13/modules"/>
         <MODULEPATH id="juce_gui_basics" path="../JUCE-8.0.13/modules"/>
         <MODULEPATH id="juce_graphics" path="../JUCE-8.0.13/modules"/>
@@ -70,6 +88,12 @@
                        useRuntimeLibDLL="0" linkTimeOptimisation="0"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../JUCE-8.0.13/modules"/>
         <MODULEPATH id="juce_gui_extra" path="../JUCE-8.0.13/modules"/>
         <MODULEPATH id="juce_gui_basics" path="../JUCE-8.0.13/modules"/>
         <MODULEPATH id="juce_graphics" path="../JUCE-8.0.13/modules"/>
@@ -86,6 +110,12 @@
         <CONFIGURATION name="Release" isDebug="0" targetName="Projucer"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../JUCE-8.0.13/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../JUCE-8.0.13/modules"/>
         <MODULEPATH id="juce_gui_extra" path="../JUCE-8.0.13/modules"/>
         <MODULEPATH id="juce_gui_basics" path="../JUCE-8.0.13/modules"/>
         <MODULEPATH id="juce_graphics" path="../JUCE-8.0.13/modules"/>
@@ -659,6 +689,12 @@
                JUCE_STRICT_REFCOUNTEDPOINTER="1" JUCE_LOAD_CURL_SYMBOLS_LAZILY="1"
                JUCE_WEB_BROWSER="0"/>
   <MODULES>
+    <MODULE id="juce_audio_basics" showAllCode="1" useGlobalPath="1"/>
+    <MODULE id="juce_audio_devices" showAllCode="1" useGlobalPath="1"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useGlobalPath="1"/>
+    <MODULE id="juce_audio_processors" showAllCode="1" useGlobalPath="1"/>
+    <MODULE id="juce_audio_processors_headless" showAllCode="1" useGlobalPath="1"/>
+    <MODULE id="juce_audio_utils" showAllCode="1" useGlobalPath="1"/>
     <MODULE id="juce_build_tools" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_core" showAllCode="1" useGlobalPath="1"/>
     <MODULE id="juce_cryptography" showAllCode="1" useGlobalPath="1"/>

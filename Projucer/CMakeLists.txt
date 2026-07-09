@@ -158,6 +158,7 @@ target_link_libraries(Projucer PRIVATE
     juce::juce_build_tools
     juce::juce_cryptography
     juce::juce_gui_extra
+    juce::juce_audio_utils
     juce::juce_recommended_config_flags
     juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags)

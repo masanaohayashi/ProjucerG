@@ -27,245 +27,42 @@
 
 
 //==============================================================================
-/** Editor-side stand-in for juce::MidiKeyboardComponent.
+/** Holds MidiKeyboardState so it is constructed before MidiKeyboardComponent. */
+struct MidiKeyboardStateHolder
+{
+    juce::MidiKeyboardState keyboardState;
+};
 
-    Projucer itself does not link juce_audio_utils, so the live layout uses this
-    lightweight preview while generated code still emits the real
-    juce::MidiKeyboardComponent + a paired juce::MidiKeyboardState member named
-    "{memberVariableName}State".
+/** Editor-side MidiKeyboardComponent with its own MidiKeyboardState.
+
+    Same idea as DemoTreeView: the live layout uses a real component, while
+    generated code still emits juce::MidiKeyboardComponent plus a separate
+    "{memberVariableName}State" member.
 */
-class MidiKeyboardComponentPreview  : public Component
+class MidiKeyboardComponentPreview  : private MidiKeyboardStateHolder,
+                                      public juce::MidiKeyboardComponent
 {
 public:
-    enum Orientation
-    {
-        horizontalKeyboard = 0,
-        verticalKeyboardFacingLeft,
-        verticalKeyboardFacingRight
-    };
-
-    // Match juce::MidiKeyboardComponent::ColourIds so colour property XML/codegen stay compatible.
-    enum ColourIds
-    {
-        whiteNoteColourId           = 0x1005000,
-        blackNoteColourId           = 0x1005001,
-        keySeparatorLineColourId    = 0x1005002,
-        mouseOverKeyOverlayColourId = 0x1005003,
-        keyDownOverlayColourId      = 0x1005004,
-        textLabelColourId           = 0x1005005,
-        shadowColourId              = 0x1005006
-    };
-
     MidiKeyboardComponentPreview()
-        : Component ("new midi keyboard")
+        : juce::MidiKeyboardComponent (keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard)
     {
-        setOpaque (true);
+        setName ("new midi keyboard");
     }
 
-    Orientation getKeyboardOrientation() const noexcept   { return orientation; }
-    void setKeyboardOrientation (Orientation o) noexcept  { orientation = o; repaint(); }
+    float getVelocitySetting() const noexcept                   { return velocitySetting; }
+    bool getUseMousePositionForVelocity() const noexcept        { return useMousePositionForVelocitySetting; }
 
-    int getMidiChannel() const noexcept                   { return midiChannel; }
-    void setMidiChannel (int channel) noexcept
+    void setVelocitySetting (float v, bool useMousePos) noexcept
     {
-        midiChannel = jlimit (1, 16, channel);
-    }
-
-    int getMidiChannelsToDisplay() const noexcept         { return midiChannelsToDisplay; }
-    void setMidiChannelsToDisplay (int mask) noexcept     { midiChannelsToDisplay = mask; }
-
-    float getVelocity() const noexcept                    { return velocity; }
-    bool getUseMousePositionForVelocity() const noexcept  { return useMousePositionForVelocity; }
-    void setVelocity (float v, bool useMousePos) noexcept
-    {
-        velocity = jlimit (0.0f, 1.0f, v);
-        useMousePositionForVelocity = useMousePos;
-    }
-
-    int getRangeStart() const noexcept                    { return rangeStart; }
-    int getRangeEnd() const noexcept                      { return rangeEnd; }
-    void setAvailableRange (int lowest, int highest) noexcept
-    {
-        rangeStart = jlimit (0, 127, lowest);
-        rangeEnd   = jlimit (rangeStart, 127, highest);
-        repaint();
-    }
-
-    float getKeyWidth() const noexcept                    { return keyWidth; }
-    void setKeyWidth (float width) noexcept
-    {
-        keyWidth = jmax (4.0f, width);
-        repaint();
-    }
-
-    void paint (Graphics& g) override
-    {
-        // Approximate juce::KeyboardComponentBase / MidiKeyboardComponent geometry so that
-        // orientation, keyWidth and available range are visible in the editor preview.
-        const auto whiteCol = isColourSpecified (whiteNoteColourId) ? findColour (whiteNoteColourId) : Colours::white;
-        const auto blackCol = isColourSpecified (blackNoteColourId) ? findColour (blackNoteColourId) : Colours::black;
-        const auto lineCol  = isColourSpecified (keySeparatorLineColourId) ? findColour (keySeparatorLineColourId)
-                                                                            : Colours::grey.withAlpha (0.7f);
-        const auto shadowCol = isColourSpecified (shadowColourId) ? findColour (shadowColourId)
-                                                                  : Colours::black.withAlpha (0.15f);
-
-        g.setColour (whiteCol);
-        g.fillAll();
-
-        static constexpr int whiteNoteOffsets[] = { 0, 2, 4, 5, 7, 9, 11 };
-        static constexpr int blackNoteOffsets[] = { 1, 3, 6, 8, 10 };
-
-        auto drawKey = [&g] (Rectangle<float> area, Colour fill, Colour outline, bool isBlack)
-        {
-            if (area.getWidth() <= 0.5f || area.getHeight() <= 0.5f)
-                return;
-
-            g.setColour (fill);
-            g.fillRect (area);
-
-            g.setColour (outline);
-            if (isBlack)
-                g.drawRect (area, 0.5f);
-            else
-                g.drawLine (area.getRight(), area.getY(), area.getRight(), area.getBottom(), 1.0f);
-        };
-
-        // White keys first, then black keys on top (same order as KeyboardComponentBase::paint).
-        for (int octaveBase = 0; octaveBase < 128; octaveBase += 12)
-        {
-            for (auto noteOffset : whiteNoteOffsets)
-            {
-                const int note = octaveBase + noteOffset;
-                if (note < rangeStart || note > rangeEnd)
-                    continue;
-
-                drawKey (getRectangleForKey (note), whiteCol, lineCol, false);
-            }
-        }
-
-        for (int octaveBase = 0; octaveBase < 128; octaveBase += 12)
-        {
-            for (auto noteOffset : blackNoteOffsets)
-            {
-                const int note = octaveBase + noteOffset;
-                if (note < rangeStart || note > rangeEnd)
-                    continue;
-
-                drawKey (getRectangleForKey (note), blackCol, blackCol.brighter (0.15f), true);
-            }
-        }
-
-        // Light edge shadow like MidiKeyboardComponent::drawKeyboardBackground.
-        if (! shadowCol.isTransparent())
-        {
-            const float keyboardExtent = getKeyPos (rangeEnd).getEnd();
-
-            switch (orientation)
-            {
-                case horizontalKeyboard:
-                    g.setGradientFill ({ shadowCol, 0.0f, 0.0f,
-                                         shadowCol.withAlpha (0.0f), 0.0f, 5.0f, false });
-                    g.fillRect (0.0f, 0.0f, keyboardExtent, 5.0f);
-                    break;
-
-                case verticalKeyboardFacingLeft:
-                    g.setGradientFill ({ shadowCol, (float) getWidth(), 0.0f,
-                                         shadowCol.withAlpha (0.0f), (float) getWidth() - 5.0f, 0.0f, false });
-                    g.fillRect ((float) getWidth() - 5.0f, 0.0f, 5.0f, keyboardExtent);
-                    break;
-
-                case verticalKeyboardFacingRight:
-                    g.setGradientFill ({ shadowCol, 0.0f, 0.0f,
-                                         shadowCol.withAlpha (0.0f), 5.0f, 0.0f, false });
-                    g.fillRect (0.0f, 0.0f, 5.0f, keyboardExtent);
-                    break;
-            }
-        }
-
-        g.setColour (lineCol);
-        g.drawRect (getLocalBounds().toFloat(), 1.0f);
+        velocitySetting = jlimit (0.0f, 1.0f, v);
+        useMousePositionForVelocitySetting = useMousePos;
+        setVelocity (velocitySetting, useMousePositionForVelocitySetting);
     }
 
 private:
-    static bool isBlackNote (int midiNoteNumber) noexcept
-    {
-        const int n = midiNoteNumber % 12;
-        return n == 1 || n == 3 || n == 6 || n == 8 || n == 10;
-    }
-
-    /** Mirrors KeyboardComponentBase::getKeyPosition (default blackNoteWidthRatio = 0.7). */
-    Range<float> getKeyPosition (int midiNoteNumber, float targetKeyWidth) const
-    {
-        constexpr float blackNoteWidthRatio = 0.7f;
-        static const float notePos[] = { 0.0f, 1 - blackNoteWidthRatio * 0.6f,
-                                         1.0f, 2 - blackNoteWidthRatio * 0.4f,
-                                         2.0f,
-                                         3.0f, 4 - blackNoteWidthRatio * 0.7f,
-                                         4.0f, 5 - blackNoteWidthRatio * 0.5f,
-                                         5.0f, 6 - blackNoteWidthRatio * 0.3f,
-                                         6.0f };
-
-        const int octave = midiNoteNumber / 12;
-        const int note   = midiNoteNumber % 12;
-        const float start = (float) octave * 7.0f * targetKeyWidth + notePos[note] * targetKeyWidth;
-        const float width = isBlackNote (note) ? blackNoteWidthRatio * targetKeyWidth : targetKeyWidth;
-        return { start, start + width };
-    }
-
-    Range<float> getKeyPos (int midiNoteNumber) const
-    {
-        return getKeyPosition (midiNoteNumber, keyWidth)
-                 - getKeyPosition (rangeStart, keyWidth).getStart();
-    }
-
-    /** Mirrors KeyboardComponentBase::getRectangleForKey for the three orientations. */
-    Rectangle<float> getRectangleForKey (int note) const
-    {
-        const auto pos = getKeyPos (note);
-        const float x = pos.getStart();
-        const float w = pos.getLength();
-        constexpr float blackNoteLengthRatio = 0.7f;
-
-        if (isBlackNote (note))
-        {
-            const float blackNoteLength = (orientation == horizontalKeyboard
-                                               ? (float) getHeight()
-                                               : (float) getWidth()) * blackNoteLengthRatio;
-
-            switch (orientation)
-            {
-                case horizontalKeyboard:
-                    return { x, 0.0f, w, blackNoteLength };
-                case verticalKeyboardFacingLeft:
-                    return { (float) getWidth() - blackNoteLength, x, blackNoteLength, w };
-                case verticalKeyboardFacingRight:
-                    return { 0.0f, (float) getHeight() - x - w, blackNoteLength, w };
-            }
-        }
-        else
-        {
-            switch (orientation)
-            {
-                case horizontalKeyboard:
-                    return { x, 0.0f, w, (float) getHeight() };
-                case verticalKeyboardFacingLeft:
-                    return { 0.0f, x, (float) getWidth(), w };
-                case verticalKeyboardFacingRight:
-                    return { 0.0f, (float) getHeight() - x - w, (float) getWidth(), w };
-            }
-        }
-
-        return {};
-    }
-
-    Orientation orientation = horizontalKeyboard;
-    int midiChannel = 1;
-    int midiChannelsToDisplay = 0xffff;
-    float velocity = 1.0f;
-    bool useMousePositionForVelocity = true;
-    int rangeStart = 0;
-    int rangeEnd = 127;
-    float keyWidth = 16.0f;
+    // MidiKeyboardComponent does not expose getters for these; keep copies for XML/codegen.
+    float velocitySetting = 1.0f;
+    bool useMousePositionForVelocitySetting = true;
 };
 
 
@@ -277,13 +74,13 @@ public:
         : ComponentTypeHandler ("Midi Keyboard", "juce::MidiKeyboardComponent",
                                 typeid (MidiKeyboardComponentPreview), 600, 80)
     {
-        registerColour (MidiKeyboardComponentPreview::whiteNoteColourId,           "white notes",     "whiteNoteCol");
-        registerColour (MidiKeyboardComponentPreview::blackNoteColourId,           "black notes",     "blackNoteCol");
-        registerColour (MidiKeyboardComponentPreview::keySeparatorLineColourId,    "key separator",   "keySeparatorCol");
-        registerColour (MidiKeyboardComponentPreview::mouseOverKeyOverlayColourId, "mouse over",      "mouseOverCol");
-        registerColour (MidiKeyboardComponentPreview::keyDownOverlayColourId,      "key down",        "keyDownCol");
-        registerColour (MidiKeyboardComponentPreview::textLabelColourId,           "text label",      "textLabelCol");
-        registerColour (MidiKeyboardComponentPreview::shadowColourId,              "shadow",          "shadowCol");
+        registerColour (juce::MidiKeyboardComponent::whiteNoteColourId,           "white notes",     "whiteNoteCol");
+        registerColour (juce::MidiKeyboardComponent::blackNoteColourId,           "black notes",     "blackNoteCol");
+        registerColour (juce::MidiKeyboardComponent::keySeparatorLineColourId,    "key separator",   "keySeparatorCol");
+        registerColour (juce::MidiKeyboardComponent::mouseOverKeyOverlayColourId, "mouse over",      "mouseOverCol");
+        registerColour (juce::MidiKeyboardComponent::keyDownOverlayColourId,      "key down",        "keyDownCol");
+        registerColour (juce::MidiKeyboardComponent::textLabelColourId,           "text label",      "textLabelCol");
+        registerColour (juce::MidiKeyboardComponent::shadowColourId,              "shadow",          "shadowCol");
     }
 
     Component* createNewComponent (JucerDocument*) override
@@ -299,10 +96,10 @@ public:
         if (k == nullptr || e == nullptr)
             return e;
 
-        e->setAttribute ("orientation", orientationToString (k->getKeyboardOrientation()));
+        e->setAttribute ("orientation", orientationToString (k->getOrientation()));
         e->setAttribute ("midiChannel", k->getMidiChannel());
         e->setAttribute ("midiChannelsToDisplay", k->getMidiChannelsToDisplay());
-        e->setAttribute ("velocity", (double) k->getVelocity());
+        e->setAttribute ("velocity", (double) k->getVelocitySetting());
         e->setAttribute ("useMousePositionForVelocity", k->getUseMousePositionForVelocity());
         e->setAttribute ("rangeStart", k->getRangeStart());
         e->setAttribute ("rangeEnd", k->getRangeEnd());
@@ -321,11 +118,11 @@ public:
         if (k == nullptr)
             return false;
 
-        k->setKeyboardOrientation (stringToOrientation (xml.getStringAttribute ("orientation", "horizontalKeyboard")));
+        k->setOrientation (stringToOrientation (xml.getStringAttribute ("orientation", "horizontalKeyboard")));
         k->setMidiChannel (xml.getIntAttribute ("midiChannel", 1));
         k->setMidiChannelsToDisplay (xml.getIntAttribute ("midiChannelsToDisplay", 0xffff));
-        k->setVelocity ((float) xml.getDoubleAttribute ("velocity", 1.0),
-                        xml.getBoolAttribute ("useMousePositionForVelocity", true));
+        k->setVelocitySetting ((float) xml.getDoubleAttribute ("velocity", 1.0),
+                               xml.getBoolAttribute ("useMousePositionForVelocity", true));
         k->setAvailableRange (xml.getIntAttribute ("rangeStart", 0),
                               xml.getIntAttribute ("rangeEnd", 127));
         k->setKeyWidth ((float) xml.getDoubleAttribute ("keyWidth", 16.0));
@@ -372,7 +169,7 @@ public:
         const String memberVariableName (code.document->getComponentLayout()->getComponentMemberVariableName (component));
         const String stateName (getStateMemberName (memberVariableName));
 
-        return stateName + ",\njuce::MidiKeyboardComponent::" + orientationToCode (k->getKeyboardOrientation());
+        return stateName + ",\njuce::MidiKeyboardComponent::" + orientationToCode (k->getOrientation());
     }
 
     void fillInMemberVariableDeclarations (GeneratedCode& code, Component* component,
@@ -402,9 +199,9 @@ public:
             r << memberVariableName << "->setMidiChannelsToDisplay ("
               << k->getMidiChannelsToDisplay() << ");\n";
 
-        if (! approximatelyEqual (k->getVelocity(), 1.0f) || ! k->getUseMousePositionForVelocity())
+        if (! approximatelyEqual (k->getVelocitySetting(), 1.0f) || ! k->getUseMousePositionForVelocity())
             r << memberVariableName << "->setVelocity ("
-              << CodeHelpers::floatLiteral (k->getVelocity(), 3) << ", "
+              << CodeHelpers::floatLiteral (k->getVelocitySetting(), 3) << ", "
               << CodeHelpers::boolLiteral (k->getUseMousePositionForVelocity()) << ");\n";
 
         if (k->getRangeStart() != 0 || k->getRangeEnd() != 127)
@@ -487,27 +284,29 @@ public:
     }
 
 private:
-    static String orientationToString (MidiKeyboardComponentPreview::Orientation o)
+    using Orientation = juce::MidiKeyboardComponent::Orientation;
+
+    static String orientationToString (Orientation o)
     {
         switch (o)
         {
-            case MidiKeyboardComponentPreview::verticalKeyboardFacingLeft:  return "verticalKeyboardFacingLeft";
-            case MidiKeyboardComponentPreview::verticalKeyboardFacingRight: return "verticalKeyboardFacingRight";
-            case MidiKeyboardComponentPreview::horizontalKeyboard:
-            default:                                                        return "horizontalKeyboard";
+            case juce::MidiKeyboardComponent::verticalKeyboardFacingLeft:  return "verticalKeyboardFacingLeft";
+            case juce::MidiKeyboardComponent::verticalKeyboardFacingRight: return "verticalKeyboardFacingRight";
+            case juce::MidiKeyboardComponent::horizontalKeyboard:
+            default:                                                       return "horizontalKeyboard";
         }
     }
 
-    static String orientationToCode (MidiKeyboardComponentPreview::Orientation o)
+    static String orientationToCode (Orientation o)
     {
         return orientationToString (o);
     }
 
-    static MidiKeyboardComponentPreview::Orientation stringToOrientation (const String& s)
+    static Orientation stringToOrientation (const String& s)
     {
-        if (s == "verticalKeyboardFacingLeft")  return MidiKeyboardComponentPreview::verticalKeyboardFacingLeft;
-        if (s == "verticalKeyboardFacingRight") return MidiKeyboardComponentPreview::verticalKeyboardFacingRight;
-        return MidiKeyboardComponentPreview::horizontalKeyboard;
+        if (s == "verticalKeyboardFacingLeft")  return juce::MidiKeyboardComponent::verticalKeyboardFacingLeft;
+        if (s == "verticalKeyboardFacingRight") return juce::MidiKeyboardComponent::verticalKeyboardFacingRight;
+        return juce::MidiKeyboardComponent::horizontalKeyboard;
     }
 
     //==============================================================================
@@ -523,9 +322,9 @@ private:
 
         void setIndex (int newIndex) override
         {
-            auto o = MidiKeyboardComponentPreview::horizontalKeyboard;
-            if (newIndex == 1) o = MidiKeyboardComponentPreview::verticalKeyboardFacingLeft;
-            if (newIndex == 2) o = MidiKeyboardComponentPreview::verticalKeyboardFacingRight;
+            auto o = juce::MidiKeyboardComponent::horizontalKeyboard;
+            if (newIndex == 1) o = juce::MidiKeyboardComponent::verticalKeyboardFacingLeft;
+            if (newIndex == 2) o = juce::MidiKeyboardComponent::verticalKeyboardFacingRight;
 
             document.perform (new OrientationChangeAction (component, *document.getComponentLayout(), o),
                               "Change midi keyboard orientation");
@@ -533,22 +332,21 @@ private:
 
         int getIndex() const override
         {
-            return (int) component->getKeyboardOrientation();
+            return (int) component->getOrientation();
         }
 
         struct OrientationChangeAction  : public ComponentUndoableAction<MidiKeyboardComponentPreview>
         {
-            OrientationChangeAction (MidiKeyboardComponentPreview* comp, ComponentLayout& l,
-                                     MidiKeyboardComponentPreview::Orientation newState_)
+            OrientationChangeAction (MidiKeyboardComponentPreview* comp, ComponentLayout& l, Orientation newState_)
                 : ComponentUndoableAction<MidiKeyboardComponentPreview> (comp, l),
                   newState (newState_),
-                  oldState (comp->getKeyboardOrientation())
+                  oldState (comp->getOrientation())
             {}
 
             bool perform() override
             {
                 showCorrectTab();
-                getComponent()->setKeyboardOrientation (newState);
+                getComponent()->setOrientation (newState);
                 changed();
                 return true;
             }
@@ -556,12 +354,12 @@ private:
             bool undo() override
             {
                 showCorrectTab();
-                getComponent()->setKeyboardOrientation (oldState);
+                getComponent()->setOrientation (oldState);
                 changed();
                 return true;
             }
 
-            MidiKeyboardComponentPreview::Orientation newState, oldState;
+            Orientation newState, oldState;
         };
     };
 
@@ -676,7 +474,7 @@ private:
 
         String getText() const override
         {
-            return String (component->getVelocity(), 3);
+            return String (component->getVelocitySetting(), 3);
         }
 
         struct VelocityChangeAction  : public ComponentUndoableAction<MidiKeyboardComponentPreview>
@@ -684,13 +482,13 @@ private:
             VelocityChangeAction (MidiKeyboardComponentPreview* comp, ComponentLayout& l, float newState_)
                 : ComponentUndoableAction<MidiKeyboardComponentPreview> (comp, l),
                   newState (newState_),
-                  oldState (comp->getVelocity())
+                  oldState (comp->getVelocitySetting())
             {}
 
             bool perform() override
             {
                 showCorrectTab();
-                getComponent()->setVelocity (newState, getComponent()->getUseMousePositionForVelocity());
+                getComponent()->setVelocitySetting (newState, getComponent()->getUseMousePositionForVelocity());
                 changed();
                 return true;
             }
@@ -698,7 +496,7 @@ private:
             bool undo() override
             {
                 showCorrectTab();
-                getComponent()->setVelocity (oldState, getComponent()->getUseMousePositionForVelocity());
+                getComponent()->setVelocitySetting (oldState, getComponent()->getUseMousePositionForVelocity());
                 changed();
                 return true;
             }
@@ -739,7 +537,7 @@ private:
             bool perform() override
             {
                 showCorrectTab();
-                getComponent()->setVelocity (getComponent()->getVelocity(), newState);
+                getComponent()->setVelocitySetting (getComponent()->getVelocitySetting(), newState);
                 changed();
                 return true;
             }
@@ -747,7 +545,7 @@ private:
             bool undo() override
             {
                 showCorrectTab();
-                getComponent()->setVelocity (getComponent()->getVelocity(), oldState);
+                getComponent()->setVelocitySetting (getComponent()->getVelocitySetting(), oldState);
                 changed();
                 return true;
             }
@@ -846,7 +644,7 @@ private:
             bool perform() override
             {
                 showCorrectTab();
-                getComponent()->setKeyWidth (newState);
+                getComponent()->setKeyWidth (jmax (4.0f, newState));
                 changed();
                 return true;
             }
