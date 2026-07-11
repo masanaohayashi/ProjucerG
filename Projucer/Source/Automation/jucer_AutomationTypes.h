@@ -35,6 +35,21 @@ struct ComponentPlacement
     Point<int> size { 120, 120 };
 };
 
+inline Rectangle<int> resolveComponentPlacementBounds (const ComponentPlacement& placement,
+                                                       const Rectangle<int>& componentBounds)
+{
+    Point<int> anchorPoint;
+
+    switch (placement.anchor)
+    {
+        case PlacementAnchor::componentCentre:
+            anchorPoint = componentBounds.getCentre();
+            break;
+    }
+
+    return Rectangle<int> (placement.size.x, placement.size.y).withCentre (anchorPoint + placement.offset);
+}
+
 struct SliderDraft
 {
     String name;

@@ -146,16 +146,7 @@ Result GuiDocumentAdapter::undoCurrentAiTransaction()
 
 Rectangle<int> GuiDocumentAdapter::resolveBounds (const ComponentPlacement& placement) const
 {
-    const Rectangle<int> componentBounds { 0, 0, document.getInitialWidth(), document.getInitialHeight() };
-    Point<int> anchorPoint;
-
-    switch (placement.anchor)
-    {
-        case PlacementAnchor::componentCentre:
-            anchorPoint = componentBounds.getCentre();
-            break;
-    }
-
-    return Rectangle<int> (placement.size.x, placement.size.y).withCentre (anchorPoint + placement.offset);
+    return resolveComponentPlacementBounds (placement,
+                                            { 0, 0, document.getInitialWidth(), document.getInitialHeight() });
 }
 }

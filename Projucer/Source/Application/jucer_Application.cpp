@@ -1139,7 +1139,8 @@ void ProjucerApplication::addPrototypeLowpassSlider()
                            "- Range: 20 to 20000 Hz\n"
                            "- Style: Rotary HorizontalVerticalDrag\n"
                            "- Text box: None\n\n"
-                           "The change will not be saved automatically and can be removed with one Undo.";
+                           "A live preview will be shown first. Use the on-screen buttons to confirm, pause, or cancel.\n"
+                           "The change will not be saved automatically and can be removed with one Undo after it is applied.";
 
     auto options = MessageBoxOptions::makeOptionsOkCancel (MessageBoxIconType::QuestionIcon,
                                                             "Confirm AI edit target",
@@ -1184,19 +1185,17 @@ void ProjucerApplication::addPrototypeLowpassSlider()
         draft.placement.offset = { -80, 70 };
         draft.placement.size = { 120, 120 };
 
-        ProjucerAutomation::GuiDocumentAdapter adapter (activeDocument);
-        const auto applyResult = adapter.addSlider (draft, "AI Edit - Add Lowpass Filter Slider");
+        targetEditor->showLayout();
 
-        if (applyResult.wasApplied())
+        if (auto* panel = targetEditor->getCurrentLayoutPanel(); panel != nullptr)
         {
-            targetEditor->showLayout();
-            targetEditor->refreshPropertiesPanel();
+            panel->showLiveEditPreview (draft);
         }
         else
         {
             auto failure = MessageBoxOptions::makeOptionsOk (MessageBoxIconType::WarningIcon,
                                                              "AI edit failed",
-                                                             applyResult.status.getErrorMessage());
+                                                             "The active editor does not have a visible component layout panel.");
             parent->messageBox = AlertWindow::showScopedAsync (failure, nullptr);
         }
     });

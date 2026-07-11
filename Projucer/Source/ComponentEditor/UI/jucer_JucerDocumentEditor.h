@@ -48,6 +48,7 @@ public:
     void showLayout();
     void showGraphics (PaintRoutine* routine);
 
+    ComponentLayoutPanel* getCurrentLayoutPanel() const;
     void setViewportToLastPos (Viewport* vp, EditingPanelBase& editor);
     void storeLastViewportPos (Viewport* vp, EditingPanelBase& editor);
 

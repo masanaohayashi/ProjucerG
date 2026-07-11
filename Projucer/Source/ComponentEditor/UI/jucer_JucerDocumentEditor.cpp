@@ -532,6 +532,11 @@ ComponentLayout* JucerDocumentEditor::getCurrentLayout() const
     return nullptr;
 }
 
+ComponentLayoutPanel* JucerDocumentEditor::getCurrentLayoutPanel() const
+{
+    return dynamic_cast<ComponentLayoutPanel*> (tabbedComponent.getCurrentContentComponent());
+}
+
 PaintRoutine* JucerDocumentEditor::getCurrentPaintRoutine() const
 {
     if (PaintRoutinePanel* panel = dynamic_cast<PaintRoutinePanel*> (tabbedComponent.getCurrentContentComponent()))
@@ -1273,6 +1278,15 @@ bool JucerDocumentEditor::keyPressed (const KeyPress& key)
     {
         ProjucerApplication::getCommandManager().invokeDirectly (StandardApplicationCommandIDs::del, true);
         return true;
+    }
+
+    if (key.isKeyCode (KeyPress::escapeKey))
+    {
+        if (auto* panel = getCurrentLayoutPanel(); panel != nullptr && panel->isLiveEditPreviewVisible())
+        {
+            panel->cancelLiveEditPreview();
+            return true;
+        }
     }
 
     return false;
