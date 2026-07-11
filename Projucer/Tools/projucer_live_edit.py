@@ -7,6 +7,7 @@ import json
 import socket
 import struct
 import sys
+import time
 from pathlib import Path
 
 
@@ -89,9 +90,14 @@ def build_parser() -> argparse.ArgumentParser:
     batch_parser.add_argument("spec", type=Path,
                               help="JSON file containing a sliders array with absolute x/y bounds")
 
-    for command in ("apply", "cancel"):
+    for command in ("apply", "cancel", "status"):
         command_parser = subparsers.add_parser(command)
         command_parser.add_argument("document", type=Path)
+
+    wait_parser = subparsers.add_parser("wait")
+    wait_parser.add_argument("document", type=Path)
+    wait_parser.add_argument("--timeout", type=float, default=300.0)
+    wait_parser.add_argument("--interval", type=float, default=0.2)
 
     return parser
 
@@ -106,6 +112,21 @@ def main() -> int:
         raise RuntimeError(f"Document does not exist: {document}")
     if project is not None and not project.is_file():
         raise RuntimeError(f"Project does not exist: {project}")
+
+    if args.command == "wait":
+        if args.timeout <= 0.0 or args.interval <= 0.0:
+            raise ValueError("--timeout and --interval must be positive.")
+
+        deadline = time.monotonic() + args.timeout
+        while True:
+            response = send_request("session.status", {}, document, project)
+            result = response.get("result", {})
+            if result.get("state") in {"cancelled", "applied", "failed"}:
+                print(json.dumps(response, ensure_ascii=False, indent=2))
+                return 1 if result.get("state") in {"cancelled", "failed"} else 0
+            if time.monotonic() >= deadline:
+                raise RuntimeError("Timed out waiting for the live-edit session to finish.")
+            time.sleep(args.interval)
 
     if args.command == "list-components":
         method, params = "project.inspect", {}
@@ -131,6 +152,8 @@ def main() -> int:
         params = json.loads(args.spec.read_text(encoding="utf-8"))
     elif args.command == "apply":
         method, params = "edit.apply", {}
+    elif args.command == "status":
+        method, params = "session.status", {}
     else:
         method, params = "session.cancel", {}
 

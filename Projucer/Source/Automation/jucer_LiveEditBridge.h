@@ -70,6 +70,7 @@ private:
     void handlePreviewSliders (Connection&, int id, const DynamicObject&, const File& documentFile);
     void handleApply (Connection&, int id, const File& documentFile);
     void handleCancel (Connection&, int id, const File& documentFile);
+    void handleStatus (Connection&, int id, const File& documentFile);
 
     static String readStringProperty (const DynamicObject&, const String& name, const String& defaultValue = {});
     static double readDoubleProperty (const DynamicObject&, const String& name, double defaultValue = 0.0);

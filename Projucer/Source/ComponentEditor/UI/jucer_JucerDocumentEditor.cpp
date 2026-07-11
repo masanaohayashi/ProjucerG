@@ -1282,9 +1282,9 @@ bool JucerDocumentEditor::keyPressed (const KeyPress& key)
 
     if (key.isKeyCode (KeyPress::escapeKey))
     {
-        if (auto* panel = getCurrentLayoutPanel(); panel != nullptr && panel->isLiveEditPreviewVisible())
+        if (auto* panel = getCurrentLayoutPanel(); panel != nullptr && panel->canCancelLiveEditPreview())
         {
-            panel->cancelLiveEditPreview();
+            panel->cancelLiveEditPreviewFromEscape();
             return true;
         }
     }

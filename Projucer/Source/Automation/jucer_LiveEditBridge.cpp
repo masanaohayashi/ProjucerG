@@ -303,6 +303,12 @@ void LiveEditBridge::handleRequest (Connection& connection, const var& request)
         return;
     }
 
+    if (method == "session.status")
+    {
+        handleStatus (connection, requestId, documentFile);
+        return;
+    }
+
     connection.sendError (requestId, -32601, "Unknown method: " + method);
 }
 
@@ -711,10 +717,29 @@ void LiveEditBridge::handleCancel (Connection& connection, int id, const File& d
         return;
     }
 
-    panel->cancelLiveEditPreview();
+    const auto cancelled = panel->cancelLiveEditPreview ("client_cancel");
 
     auto response = std::make_unique<DynamicObject>();
-    response->setProperty ("cancelled", true);
+    response->setProperty ("cancelled", cancelled);
+    connection.sendResponse (makeResultResponse (id, var (response.release())));
+}
+
+void LiveEditBridge::handleStatus (Connection& connection, int id, const File& documentFile)
+{
+    auto* panel = findLayoutPanel (documentFile);
+
+    if (panel == nullptr)
+    {
+        connection.sendError (id, -32002, "Requested document is not open.");
+        return;
+    }
+
+    auto response = std::make_unique<DynamicObject>();
+    response->setProperty ("state", panel->getLiveEditState());
+    response->setProperty ("reason", panel->getLiveEditCompletionReason());
+    response->setProperty ("previewVisible", panel->isLiveEditPreviewVisible());
+    response->setProperty ("paused", panel->isLiveEditPaused());
+    response->setProperty ("applied", panel->isLiveEditApplied());
     connection.sendResponse (makeResultResponse (id, var (response.release())));
 }
 } // namespace ProjucerAutomation

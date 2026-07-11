@@ -81,6 +81,8 @@ public:
         liveEditPreviewVisible = true;
         liveEditPaused = false;
         liveEditApplied = false;
+        liveEditState = "previewing";
+        liveEditCompletionReason.clear();
         liveEditStatusText = "AI editing: previewing " + String (liveEditDrafts.size()) + " Slider(s)";
         refreshLiveEditPreviewImages();
 
@@ -97,12 +99,17 @@ public:
         repaint();
     }
 
-    void cancelLiveEditPreview()
+    bool cancelLiveEditPreview (String reason)
     {
+        if (! liveEditPreviewVisible || liveEditApplied)
+            return false;
+
         liveEditPreviewVisible = false;
         liveEditPaused = false;
         liveEditApplied = false;
         liveEditStatusText = "AI edit cancelled";
+        liveEditState = "cancelled";
+        liveEditCompletionReason = std::move (reason);
         liveEditDrafts.clear();
         liveEditResult = { Result::ok(), {} };
         liveEditPreviewImages.clear();
@@ -111,6 +118,17 @@ public:
             liveEditOverlay->syncFromState();
 
         repaint();
+        return true;
+    }
+
+    void cancelLiveEditPreviewFromEscape()
+    {
+        cancelLiveEditPreview ("user_escape");
+    }
+
+    bool canCancelLiveEditPreview() const noexcept
+    {
+        return liveEditPreviewVisible && ! liveEditApplied;
     }
 
     void toggleLiveEditPause()
@@ -119,6 +137,8 @@ public:
             return;
 
         liveEditPaused = ! liveEditPaused;
+        liveEditState = liveEditPaused ? "paused" : "previewing";
+        liveEditCompletionReason.clear();
         liveEditStatusText = liveEditPaused ? "AI editing: paused"
                                             : "AI editing: previewing " + String (liveEditDrafts.size()) + " Slider(s)";
 
@@ -143,6 +163,8 @@ public:
         if (liveEditApplied)
         {
             liveEditStatusText = "AI editing: applied - undo available";
+            liveEditState = "applied";
+            liveEditCompletionReason = "applied";
             layout.getSelectedSet().deselectAll();
 
             for (int i = 0; i < layout.getNumComponents(); ++i)
@@ -156,6 +178,8 @@ public:
         else
         {
             liveEditStatusText = "AI editing failed: " + liveEditResult.status.getErrorMessage();
+            liveEditState = "failed";
+            liveEditCompletionReason = "apply_failed";
         }
 
         if (liveEditOverlay != nullptr)
@@ -173,9 +197,10 @@ public:
         {
             ProjucerAutomation::GuiDocumentAdapter adapter (document);
             adapter.undoCurrentAiTransaction();
+            liveEditApplied = false;
         }
 
-        cancelLiveEditPreview();
+        cancelLiveEditPreview ("user_undo");
     }
 
     bool isLiveEditPreviewVisible() const noexcept
@@ -191,6 +216,16 @@ public:
     bool isLiveEditApplied() const noexcept
     {
         return liveEditApplied;
+    }
+
+    String getLiveEditState() const
+    {
+        return liveEditState;
+    }
+
+    String getLiveEditCompletionReason() const
+    {
+        return liveEditCompletionReason;
     }
 
     String getLiveEditStatusText() const
@@ -244,7 +279,7 @@ private:
             pauseButton.onClick = [this] { panel.toggleLiveEditPause(); };
             applyButton.onClick = [this] { panel.applyLiveEditPreview(); };
             undoButton.onClick = [this] { panel.undoLiveEditPreview(); };
-            cancelButton.onClick = [this] { panel.cancelLiveEditPreview(); };
+            cancelButton.onClick = [this] { panel.cancelLiveEditPreview ("user_cancel"); };
 
             addAndMakeVisible (pauseButton);
             addAndMakeVisible (applyButton);
@@ -310,9 +345,9 @@ private:
 
         bool keyPressed (const KeyPress& key) override
         {
-            if (key.isKeyCode (KeyPress::escapeKey))
+            if (key.isKeyCode (KeyPress::escapeKey) && panel.canCancelLiveEditPreview())
             {
-                panel.cancelLiveEditPreview();
+                panel.cancelLiveEditPreviewFromEscape();
                 return true;
             }
 
@@ -420,6 +455,8 @@ private:
     bool liveEditPreviewVisible = false;
     bool liveEditPaused = false;
     bool liveEditApplied = false;
+    String liveEditState = "idle";
+    String liveEditCompletionReason;
     ProjucerAutomation::BatchApplyResult liveEditResult { Result::ok(), {} };
     String liveEditStatusText = "AI編集は停止中";
     std::vector<Image> liveEditPreviewImages;
