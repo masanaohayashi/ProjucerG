@@ -196,7 +196,21 @@ public:
         if (liveEditApplied)
         {
             ProjucerAutomation::GuiDocumentAdapter adapter (document);
-            adapter.undoCurrentAiTransaction();
+            const auto result = adapter.removeComponents (liveEditResult.components);
+
+            if (result.failed())
+            {
+                liveEditStatusText = "AI undo failed: " + result.getErrorMessage();
+                liveEditState = "failed";
+                liveEditCompletionReason = "undo_failed";
+
+                if (liveEditOverlay != nullptr)
+                    liveEditOverlay->syncFromState();
+
+                repaint();
+                return;
+            }
+
             liveEditApplied = false;
         }
 

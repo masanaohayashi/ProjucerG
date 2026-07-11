@@ -27,6 +27,7 @@ public:
     ApplyResult addSlider (const SliderDraft&, const String& transactionName);
     BatchApplyResult addSliders (const std::vector<SliderDraft>&, const String& transactionName);
     Result undoCurrentAiTransaction();
+    Result removeComponents (const std::vector<ApplyResult>&);
 
 private:
     ApplyResult addSliderWithoutStartingTransaction (const SliderDraft&);

@@ -238,6 +238,36 @@ Result GuiDocumentAdapter::undoCurrentAiTransaction()
     return Result::fail ("There is no current AI edit transaction to undo.");
 }
 
+Result GuiDocumentAdapter::removeComponents (const std::vector<ApplyResult>& components)
+{
+    auto* layout = document.getComponentLayout();
+
+    if (layout == nullptr)
+        return Result::fail ("The GUI document has no component layout.");
+
+    layout->getSelectedSet().deselectAll();
+
+    for (const auto& result : components)
+    {
+        Component* componentToRemove = nullptr;
+
+        for (int i = 0; i < layout->getNumComponents(); ++i)
+            if (auto* component = layout->getComponent (i))
+                if (ComponentTypeHandler::getComponentId (component) == result.componentId)
+                {
+                    componentToRemove = component;
+                    break;
+                }
+
+        if (componentToRemove == nullptr)
+            return Result::fail ("An applied AI component could not be found.");
+
+        layout->removeComponent (componentToRemove, false);
+    }
+
+    return Result::ok();
+}
+
 Rectangle<int> GuiDocumentAdapter::resolveBounds (const ComponentPlacement& placement) const
 {
     return resolveComponentPlacementBounds (placement,
