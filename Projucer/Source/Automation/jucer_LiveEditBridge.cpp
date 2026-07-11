@@ -168,6 +168,7 @@ LiveEditBridge::Connection::Connection (LiveEditBridge& bridgeToUse)
 
 LiveEditBridge::Connection::~Connection()
 {
+    cancelPendingUpdate();
     disconnect();
 }
 
@@ -202,7 +203,25 @@ void LiveEditBridge::Connection::messageReceived (const MemoryBlock& message)
         return;
     }
 
-    bridge.handleRequest (*this, request);
+    {
+        const ScopedLock lock (pendingRequestsLock);
+        pendingRequests.add (request);
+    }
+
+    triggerAsyncUpdate();
+}
+
+void LiveEditBridge::Connection::handleAsyncUpdate()
+{
+    Array<var> requests;
+
+    {
+        const ScopedLock lock (pendingRequestsLock);
+        requests.swapWith (pendingRequests);
+    }
+
+    for (const auto& request : requests)
+        bridge.handleRequest (*this, request);
 }
 
 void LiveEditBridge::handleRequest (Connection& connection, const var& request)
@@ -240,6 +259,19 @@ void LiveEditBridge::handleRequest (Connection& connection, const var& request)
     }
 
     const auto documentFile = extractDocumentFile (*object);
+    const auto projectFile = extractProjectFile (*object);
+
+    if (method == "project.inspect")
+    {
+        handleProjectInspect (connection, requestId, projectFile);
+        return;
+    }
+
+    if (method == "document.open")
+    {
+        handleDocumentOpen (connection, requestId, documentFile, projectFile);
+        return;
+    }
 
     if (method == "document.inspect")
     {
@@ -321,6 +353,114 @@ File LiveEditBridge::extractDocumentFile (const DynamicObject& object)
     }
 
     return {};
+}
+
+File LiveEditBridge::extractProjectFile (const DynamicObject& object)
+{
+    if (object.hasProperty ("projectFile"))
+        return File (object.getProperty ("projectFile").toString());
+
+    if (auto* params = object.getProperty ("params").getDynamicObject())
+        if (params->hasProperty ("projectFile"))
+            return File (params->getProperty ("projectFile").toString());
+
+    return {};
+}
+
+namespace
+{
+    static MainWindow* findProjectWindow (ProjucerApplication& app, const File& projectFile)
+    {
+        if (projectFile != File{})
+            return app.mainWindowList.getMainWindowForFile (projectFile);
+
+        if (auto* project = app.mainWindowList.getFrontmostProject())
+            return app.mainWindowList.getMainWindowForFile (project->getFile());
+
+        return nullptr;
+    }
+
+    static void addGuiDocuments (Project::Item item, Array<var>& documents, const File& activeFile)
+    {
+        if (item.isFile())
+        {
+            const auto file = item.getFile();
+
+            if (JucerDocument::isValidJucerCppFile (file))
+            {
+                auto metadata = JucerDocument::pullMetaDataFromCppFile (file.loadFileAsString());
+                auto document = std::make_unique<DynamicObject>();
+                document->setProperty ("id", item.getID());
+                document->setProperty ("name", item.getName());
+                document->setProperty ("className", metadata != nullptr ? metadata->getStringAttribute ("className") : String());
+                document->setProperty ("documentType", metadata != nullptr ? metadata->getStringAttribute ("documentType", "Component") : String());
+                document->setProperty ("cppFile", file.getFullPathName());
+                document->setProperty ("headerFile", file.withFileExtension (".h").getFullPathName());
+                document->setProperty ("isOpen", file == activeFile);
+                documents.add (var (document.release()));
+            }
+        }
+
+        for (int i = 0; i < item.getNumChildren(); ++i)
+            addGuiDocuments (item.getChild (i), documents, activeFile);
+    }
+}
+
+void LiveEditBridge::handleProjectInspect (Connection& connection, int id, const File& projectFile)
+{
+    auto* window = findProjectWindow (app, projectFile);
+    auto* content = window != nullptr ? window->getProjectContentComponent() : nullptr;
+    auto* project = content != nullptr ? content->getProject() : nullptr;
+
+    if (project == nullptr)
+    {
+        connection.sendError (id, -32003, "Requested project is not open.");
+        return;
+    }
+
+    Array<var> documents;
+    addGuiDocuments (project->getMainGroup(), documents, content->getCurrentFile());
+
+    auto result = std::make_unique<DynamicObject>();
+    result->setProperty ("projectFile", project->getFile().getFullPathName());
+    result->setProperty ("projectName", project->getProjectNameString());
+    result->setProperty ("guiDocuments", var (documents));
+    connection.sendResponse (makeResultResponse (id, var (result.release())));
+}
+
+void LiveEditBridge::handleDocumentOpen (Connection& connection, int id, const File& documentFile, const File& projectFile)
+{
+    auto* window = findProjectWindow (app, projectFile);
+    auto* content = window != nullptr ? window->getProjectContentComponent() : nullptr;
+    auto* project = content != nullptr ? content->getProject() : nullptr;
+
+    if (project == nullptr)
+    {
+        connection.sendError (id, -32003, "Requested project is not open.");
+        return;
+    }
+
+    if (! documentFile.existsAsFile()
+        || ! project->getMainGroup().findItemForFile (documentFile).isValid()
+        || ! JucerDocument::isValidJucerCppFile (documentFile))
+    {
+        connection.sendError (id, -32004, "Requested file is not a GUI Component in this project.");
+        return;
+    }
+
+    window->toFront (true);
+
+    if (! content->showEditorForFile (documentFile, true))
+    {
+        connection.sendError (id, -32005, "Could not open the requested GUI Component.");
+        return;
+    }
+
+    auto result = std::make_unique<DynamicObject>();
+    result->setProperty ("opened", true);
+    result->setProperty ("projectFile", project->getFile().getFullPathName());
+    result->setProperty ("documentFile", documentFile.getFullPathName());
+    connection.sendResponse (makeResultResponse (id, var (result.release())));
 }
 
 JucerDocumentEditor* LiveEditBridge::findEditorInComponent (Component& component)

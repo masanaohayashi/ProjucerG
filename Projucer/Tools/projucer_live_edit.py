@@ -28,7 +28,8 @@ def receive_exact(connection: socket.socket, size: int) -> bytes:
     return b"".join(chunks)
 
 
-def send_request(document_file: Path, method: str, params: dict) -> dict:
+def send_request(method: str, params: dict, document_file: Path | None = None,
+                 project_file: Path | None = None) -> dict:
     if not SESSION_FILE.is_file():
         raise RuntimeError("Projucer live-edit session is not running.")
 
@@ -38,9 +39,12 @@ def send_request(document_file: Path, method: str, params: dict) -> dict:
         "id": 1,
         "method": method,
         "token": session["token"],
-        "documentFile": str(document_file.resolve()),
         "params": params,
     }
+    if document_file is not None:
+        request["documentFile"] = str(document_file.resolve())
+    if project_file is not None:
+        request["projectFile"] = str(project_file.resolve())
     payload = json.dumps(request, ensure_ascii=False).encode("utf-8")
 
     with socket.create_connection(("127.0.0.1", int(session["port"])), timeout=2.0) as connection:
@@ -57,6 +61,13 @@ def send_request(document_file: Path, method: str, params: dict) -> dict:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    project_parser = subparsers.add_parser("list-components")
+    project_parser.add_argument("project", type=Path, nargs="?")
+
+    open_parser = subparsers.add_parser("open")
+    open_parser.add_argument("document", type=Path)
+    open_parser.add_argument("--project", type=Path)
 
     inspect_parser = subparsers.add_parser("inspect")
     inspect_parser.add_argument("document", type=Path)
@@ -83,10 +94,19 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
 
-    if not args.document.is_file():
-        raise RuntimeError(f"Document does not exist: {args.document}")
+    document = getattr(args, "document", None)
+    project = getattr(args, "project", None)
 
-    if args.command == "inspect":
+    if document is not None and not document.is_file():
+        raise RuntimeError(f"Document does not exist: {document}")
+    if project is not None and not project.is_file():
+        raise RuntimeError(f"Project does not exist: {project}")
+
+    if args.command == "list-components":
+        method, params = "project.inspect", {}
+    elif args.command == "open":
+        method, params = "document.open", {}
+    elif args.command == "inspect":
         method, params = "document.inspect", {}
     elif args.command == "preview-slider":
         method = "edit.previewSlider"
@@ -106,7 +126,7 @@ def main() -> int:
     else:
         method, params = "session.cancel", {}
 
-    response = send_request(args.document, method, params)
+    response = send_request(method, params, document, project)
     print(json.dumps(response, ensure_ascii=False, indent=2))
     return 1 if "error" in response else 0
 

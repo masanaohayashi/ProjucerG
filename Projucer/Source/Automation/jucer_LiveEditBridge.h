@@ -38,7 +38,8 @@ public:
     void stop();
 
 private:
-    class Connection final : public InterprocessConnection
+    class Connection final : public InterprocessConnection,
+                             private AsyncUpdater
     {
     public:
         explicit Connection (LiveEditBridge&);
@@ -52,12 +53,18 @@ private:
         void sendError (int id, int code, const String& message);
 
     private:
+        void handleAsyncUpdate() override;
+
         LiveEditBridge& bridge;
+        CriticalSection pendingRequestsLock;
+        Array<var> pendingRequests;
     };
 
     InterprocessConnection* createConnectionObject() override;
 
     void handleRequest (Connection&, const var&);
+    void handleProjectInspect (Connection&, int id, const File& projectFile);
+    void handleDocumentOpen (Connection&, int id, const File& documentFile, const File& projectFile);
     void handleInspect (Connection&, int id, const DynamicObject&, const File& documentFile);
     void handlePreviewSlider (Connection&, int id, const DynamicObject&, const File& documentFile);
     void handleApply (Connection&, int id, const File& documentFile);
@@ -70,6 +77,7 @@ private:
     static bool extractRequestId (const DynamicObject&, int& requestId);
     static bool extractToken (const DynamicObject&, String& token);
     static File extractDocumentFile (const DynamicObject&);
+    static File extractProjectFile (const DynamicObject&);
 
     JucerDocumentEditor* findDocumentEditor (const File&) const;
     ComponentLayoutPanel* findLayoutPanel (const File&) const;
