@@ -16,6 +16,45 @@
 
 namespace ProjucerAutomation
 {
+namespace
+{
+String sliderStyleToString (Slider::SliderStyle style)
+{
+    switch (style)
+    {
+        case Slider::LinearHorizontal:            return "LinearHorizontal";
+        case Slider::LinearVertical:              return "LinearVertical";
+        case Slider::LinearBar:                   return "LinearBar";
+        case Slider::LinearBarVertical:           return "LinearBarVertical";
+        case Slider::Rotary:                      return "Rotary";
+        case Slider::RotaryHorizontalDrag:        return "RotaryHorizontalDrag";
+        case Slider::RotaryVerticalDrag:          return "RotaryVerticalDrag";
+        case Slider::RotaryHorizontalVerticalDrag: return "RotaryHorizontalVerticalDrag";
+        case Slider::IncDecButtons:               return "IncDecButtons";
+        case Slider::TwoValueHorizontal:          return "TwoValueHorizontal";
+        case Slider::TwoValueVertical:            return "TwoValueVertical";
+        case Slider::ThreeValueHorizontal:        return "ThreeValueHorizontal";
+        case Slider::ThreeValueVertical:          return "ThreeValueVertical";
+    }
+
+    return "Unknown";
+}
+
+String textBoxPositionToString (Slider::TextEntryBoxPosition position)
+{
+    switch (position)
+    {
+        case Slider::NoTextBox:    return "NoTextBox";
+        case Slider::TextBoxLeft:  return "TextBoxLeft";
+        case Slider::TextBoxRight: return "TextBoxRight";
+        case Slider::TextBoxAbove: return "TextBoxAbove";
+        case Slider::TextBoxBelow: return "TextBoxBelow";
+    }
+
+    return "Unknown";
+}
+}
+
 GuiDocumentAdapter::GuiDocumentAdapter (JucerDocument& documentToUse)
     : document (documentToUse)
 {
@@ -26,6 +65,9 @@ GuiDocumentSnapshot GuiDocumentAdapter::createSnapshot() const
     GuiDocumentSnapshot snapshot;
     snapshot.guiFile = document.getCppFile();
     snapshot.componentBounds = { 0, 0, document.getInitialWidth(), document.getInitialHeight() };
+    snapshot.snapGridSize = document.getSnappingGridSize();
+    snapshot.snapActive = document.isSnapActive (false);
+    snapshot.snapShown = document.isSnapShown();
 
     if (auto* project = document.getCppDocument().getProject())
         snapshot.projectFile = project->getFile();
@@ -42,11 +84,29 @@ GuiDocumentSnapshot GuiDocumentAdapter::createSnapshot() const
             if (component == nullptr || handler == nullptr)
                 continue;
 
-            snapshot.components.push_back ({ ComponentTypeHandler::getComponentId (component),
-                                             handler->getClassName (component),
-                                             component->getName(),
-                                             layout->getComponentMemberVariableName (component),
-                                             component->getBounds() });
+            ComponentSnapshot componentSnapshot;
+            componentSnapshot.id = ComponentTypeHandler::getComponentId (component);
+            componentSnapshot.type = handler->getClassName (component);
+            componentSnapshot.name = component->getName();
+            componentSnapshot.memberName = layout->getComponentMemberVariableName (component);
+            componentSnapshot.bounds = component->getBounds();
+
+            if (auto* slider = dynamic_cast<Slider*> (component))
+            {
+                componentSnapshot.slider = ComponentSnapshot::SliderProperties {
+                    slider->getMinimum(),
+                    slider->getMaximum(),
+                    slider->getInterval(),
+                    slider->getSkewFactor(),
+                    sliderStyleToString (slider->getSliderStyle()),
+                    textBoxPositionToString (slider->getTextBoxPosition()),
+                    slider->isTextBoxEditable(),
+                    slider->getTextBoxWidth(),
+                    slider->getTextBoxHeight()
+                };
+            }
+
+            snapshot.components.push_back (std::move (componentSnapshot));
         }
     }
 

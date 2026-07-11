@@ -69,6 +69,21 @@ struct ComponentSnapshot
     String name;
     String memberName;
     Rectangle<int> bounds;
+
+    struct SliderProperties
+    {
+        double minimum = 0.0;
+        double maximum = 1.0;
+        double interval = 0.0;
+        double skewFactor = 1.0;
+        String style;
+        String textBoxPosition;
+        bool textBoxEditable = false;
+        int textBoxWidth = 0;
+        int textBoxHeight = 0;
+    };
+
+    std::optional<SliderProperties> slider;
 };
 
 struct GuiDocumentSnapshot
@@ -76,6 +91,9 @@ struct GuiDocumentSnapshot
     File projectFile;
     File guiFile;
     Rectangle<int> componentBounds;
+    int snapGridSize = 8;
+    bool snapActive = true;
+    bool snapShown = true;
     std::vector<ComponentSnapshot> components;
 };
 

@@ -538,12 +538,18 @@ void LiveEditBridge::handleInspect (Connection& connection, int id, const Dynami
     bounds->setProperty ("height", snapshot.componentBounds.getHeight());
     root->setProperty ("componentBounds", var (bounds.release()));
 
+    auto grid = std::make_unique<DynamicObject>();
+    grid->setProperty ("size", snapshot.snapGridSize);
+    grid->setProperty ("active", snapshot.snapActive);
+    grid->setProperty ("shown", snapshot.snapShown);
+    root->setProperty ("grid", var (grid.release()));
+
     Array<var> components;
 
     for (const auto& component : snapshot.components)
     {
         auto item = std::make_unique<DynamicObject>();
-        item->setProperty ("id", (double) component.id);
+        item->setProperty ("id", String::toHexString (component.id));
         item->setProperty ("type", component.type);
         item->setProperty ("name", component.name);
         item->setProperty ("memberName", component.memberName);
@@ -554,6 +560,22 @@ void LiveEditBridge::handleInspect (Connection& connection, int id, const Dynami
         componentBounds->setProperty ("width", component.bounds.getWidth());
         componentBounds->setProperty ("height", component.bounds.getHeight());
         item->setProperty ("bounds", var (componentBounds.release()));
+
+        if (component.slider.has_value())
+        {
+            const auto& source = *component.slider;
+            auto slider = std::make_unique<DynamicObject>();
+            slider->setProperty ("minimum", source.minimum);
+            slider->setProperty ("maximum", source.maximum);
+            slider->setProperty ("interval", source.interval);
+            slider->setProperty ("skewFactor", source.skewFactor);
+            slider->setProperty ("style", source.style);
+            slider->setProperty ("textBoxPosition", source.textBoxPosition);
+            slider->setProperty ("textBoxEditable", source.textBoxEditable);
+            slider->setProperty ("textBoxWidth", source.textBoxWidth);
+            slider->setProperty ("textBoxHeight", source.textBoxHeight);
+            item->setProperty ("slider", var (slider.release()));
+        }
 
         components.add (var (item.release()));
     }
