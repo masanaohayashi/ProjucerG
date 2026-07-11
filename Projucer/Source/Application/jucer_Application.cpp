@@ -39,6 +39,7 @@ void registerGUIEditorCommands();
 
 #include "../ComponentEditor/jucer_ObjectTypes.h"
 #include "../ComponentEditor/UI/jucer_JucerDocumentEditor.h"
+#include "../Automation/jucer_GuiDocumentAdapter.h"
 
 //==============================================================================
 struct ProjucerApplication::MainMenuModel final : public MenuBarModel
@@ -1122,13 +1123,14 @@ void ProjucerApplication::addPrototypeLowpassSlider()
         return;
 
     auto& document = *editor->getDocument();
-    auto* project = document.getCppDocument().getProject();
+    ProjucerAutomation::GuiDocumentAdapter targetAdapter (document);
+    const auto targetSnapshot = targetAdapter.createSnapshot();
 
-    if (project == nullptr || document.getComponentLayout() == nullptr)
+    if (targetSnapshot.projectFile == File() || document.getComponentLayout() == nullptr)
         return;
 
-    const auto projectFile = project->getFile();
-    const auto guiFile = document.getCppFile();
+    const auto projectFile = targetSnapshot.projectFile;
+    const auto guiFile = targetSnapshot.guiFile;
     const auto message = "Add the Phase 0 Lowpass Filter slider to this target?\n\n"
                          ".jucer:\n" + projectFile.getFullPathName()
                          + "\n\nGUI document:\n" + guiFile.getFullPathName()
@@ -1171,15 +1173,31 @@ void ProjucerApplication::addPrototypeLowpassSlider()
             return;
         }
 
-        activeDocument.beginTransaction ("AI Edit - Add Lowpass Filter Slider");
+        ProjucerAutomation::SliderDraft draft;
+        draft.name = "lowpass filter";
+        draft.memberName = "lowpassFilterSlider";
+        draft.minimum = 20.0;
+        draft.maximum = 20000.0;
+        draft.style = ProjucerAutomation::SliderStyle::rotaryHorizontalVerticalDrag;
+        draft.textBoxPosition = ProjucerAutomation::SliderTextBoxPosition::none;
+        draft.placement.anchor = ProjucerAutomation::PlacementAnchor::componentCentre;
+        draft.placement.offset = { -80, 70 };
+        draft.placement.size = { 120, 120 };
 
-        if (auto* added = layout->addPrototypeLowpassSlider ({ 0, 0,
-                                                               activeDocument.getInitialWidth(),
-                                                               activeDocument.getInitialHeight() }))
+        ProjucerAutomation::GuiDocumentAdapter adapter (activeDocument);
+        const auto applyResult = adapter.addSlider (draft, "AI Edit - Add Lowpass Filter Slider");
+
+        if (applyResult.wasApplied())
         {
-            layout->getSelectedSet().selectOnly (added);
             targetEditor->showLayout();
             targetEditor->refreshPropertiesPanel();
+        }
+        else
+        {
+            auto failure = MessageBoxOptions::makeOptionsOk (MessageBoxIconType::WarningIcon,
+                                                             "AI edit failed",
+                                                             applyResult.status.getErrorMessage());
+            parent->messageBox = AlertWindow::showScopedAsync (failure, nullptr);
         }
     });
 }

@@ -56,10 +56,6 @@ public:
     Component* addNewComponent (ComponentTypeHandler* const type, int x, int y);
     Component* addComponentFromXml (const XmlElement& xml, bool undoable);
 
-   #if JUCE_DEBUG
-    Component* addPrototypeLowpassSlider (Rectangle<int> componentBounds);
-   #endif
-
     Component* findComponentWithId (int64 componentId) const;
 
     //==============================================================================

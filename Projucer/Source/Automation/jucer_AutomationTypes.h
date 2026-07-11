@@ -1,0 +1,80 @@
+/*
+  ==============================================================================
+
+   This file is part of the JUCE framework.
+   Copyright (c) Raw Material Software Limited
+
+   See LICENSE.md for the terms that apply to this repository.
+
+  ==============================================================================
+*/
+
+#pragma once
+
+namespace ProjucerAutomation
+{
+enum class PlacementAnchor
+{
+    componentCentre
+};
+
+enum class SliderStyle
+{
+    rotaryHorizontalVerticalDrag
+};
+
+enum class SliderTextBoxPosition
+{
+    none
+};
+
+struct ComponentPlacement
+{
+    PlacementAnchor anchor = PlacementAnchor::componentCentre;
+    Point<int> offset;
+    Point<int> size { 120, 120 };
+};
+
+struct SliderDraft
+{
+    String name;
+    String memberName;
+    double minimum = 0.0;
+    double maximum = 1.0;
+    double interval = 0.0;
+    SliderStyle style = SliderStyle::rotaryHorizontalVerticalDrag;
+    SliderTextBoxPosition textBoxPosition = SliderTextBoxPosition::none;
+    ComponentPlacement placement;
+};
+
+struct ComponentSnapshot
+{
+    int64 id = 0;
+    String type;
+    String name;
+    String memberName;
+    Rectangle<int> bounds;
+};
+
+struct GuiDocumentSnapshot
+{
+    File projectFile;
+    File guiFile;
+    Rectangle<int> componentBounds;
+    std::vector<ComponentSnapshot> components;
+};
+
+struct ApplyResult
+{
+    ApplyResult (Result statusToUse, int64 componentIdToUse = 0, Rectangle<int> boundsToUse = {})
+        : status (std::move (statusToUse)), componentId (componentIdToUse), bounds (boundsToUse)
+    {
+    }
+
+    Result status;
+    int64 componentId = 0;
+    Rectangle<int> bounds;
+
+    bool wasApplied() const { return status.wasOk() && componentId != 0; }
+};
+}

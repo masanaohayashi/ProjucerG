@@ -186,6 +186,14 @@
       <FILE id="HmkREh" name="jucer_MainWindow.h" compile="0" resource="0"
             file="Source/Application/jucer_MainWindow.h"/>
     </GROUP>
+    <GROUP id="{975E44C5-A111-4D70-9E39-30B87D76D834}" name="Automation">
+      <FILE id="autTyp" name="jucer_AutomationTypes.h" compile="0" resource="0"
+            file="Source/Automation/jucer_AutomationTypes.h"/>
+      <FILE id="autAdC" name="jucer_GuiDocumentAdapter.cpp" compile="0" resource="0"
+            file="Source/Automation/jucer_GuiDocumentAdapter.cpp"/>
+      <FILE id="autAdH" name="jucer_GuiDocumentAdapter.h" compile="0" resource="0"
+            file="Source/Automation/jucer_GuiDocumentAdapter.h"/>
+    </GROUP>
     <GROUP id="{D6EDA167-C7F5-88EC-9ABB-F8A6FBD578D4}" name="Assets">
       <GROUP id="{3919996E-77AB-F182-188C-87501AD9DE7C}" name="AppIcon.icon">
         <GROUP id="{505EB9E7-A196-65D1-8589-3785B985B85F}" name="Assets">

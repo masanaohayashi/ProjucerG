@@ -55,6 +55,7 @@
 #include "jucer_CommandLine.h"
 
 #include "../Project/UI/jucer_ProjectContentComponent.cpp"
+#include "../Automation/jucer_GuiDocumentAdapter.cpp"
 #include "jucer_Application.cpp"
 
 

@@ -469,43 +469,6 @@ Component* ComponentLayout::addComponentFromXml (const XmlElement& xml, const bo
     return nullptr;
 }
 
-#if JUCE_DEBUG
-Component* ComponentLayout::addPrototypeLowpassSlider (Rectangle<int> componentBounds)
-{
-    constexpr double minimumHz = 20.0;
-    constexpr double maximumHz = 20000.0;
-    constexpr int sliderSize = 120;
-    constexpr int horizontalOffsetFromCentre = -80;
-    constexpr int verticalOffsetFromCentre = 70;
-
-    Slider prototype ("lowpass filter");
-    prototype.setRange (minimumHz, maximumHz, 0.0);
-    prototype.setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
-    prototype.setTextBoxStyle (Slider::NoTextBox, true, 80, 20);
-    prototype.getProperties().set ("memberName", "lowpassFilterSlider");
-
-    const Point<int> placementCentre (componentBounds.getCentreX() + horizontalOffsetFromCentre,
-                                      componentBounds.getCentreY() + verticalOffsetFromCentre);
-    const Rectangle<int> sliderBounds (sliderSize, sliderSize);
-    const auto positionedBounds = sliderBounds.withCentre (placementCentre);
-
-    RelativePositionedRectangle position;
-    position.rect = PositionedRectangle (String (positionedBounds.getX()) + " "
-                                           + String (positionedBounds.getY()) + " "
-                                           + String (positionedBounds.getWidth()) + " "
-                                           + String (positionedBounds.getHeight()));
-    ComponentTypeHandler::setComponentPosition (&prototype, position, this);
-
-    if (auto* handler = ComponentTypeHandler::getHandlerFor (prototype))
-    {
-        std::unique_ptr<XmlElement> xml (handler->createXmlFor (&prototype, this));
-        return addComponentFromXml (*xml, true);
-    }
-
-    return nullptr;
-}
-#endif
-
 Component* ComponentLayout::findComponentWithId (const int64 componentId) const
 {
     for (int i = 0; i < components.size(); ++i)
