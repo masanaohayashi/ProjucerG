@@ -63,11 +63,14 @@ private:
     InterprocessConnection* createConnectionObject() override;
 
     void handleRequest (Connection&, const var&);
+    void handleAttachActiveDocument (Connection&, int id);
     void handleProjectInspect (Connection&, int id, const File& projectFile);
     void handleDocumentOpen (Connection&, int id, const File& documentFile, const File& projectFile);
     void handleInspect (Connection&, int id, const DynamicObject&, const File& documentFile);
     void handleCapture (Connection&, int id, const File& documentFile);
     void handleComponentCatalog (Connection&, int id, const File& documentFile);
+    void handleAddComponents (Connection&, int id, const DynamicObject&, const File& documentFile);
+    void handleDeleteComponents (Connection&, int id, const DynamicObject&, const File& documentFile);
     void handlePreviewComponents (Connection&, int id, const DynamicObject&, const File& documentFile);
     void handlePreviewDeleteComponents (Connection&, int id, const DynamicObject&, const File& documentFile);
     void handlePreviewSlider (Connection&, int id, const DynamicObject&, const File& documentFile);

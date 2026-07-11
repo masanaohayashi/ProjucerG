@@ -261,6 +261,12 @@ void LiveEditBridge::handleRequest (Connection& connection, const var& request)
     const auto documentFile = extractDocumentFile (*object);
     const auto projectFile = extractProjectFile (*object);
 
+    if (method == "document.attachActive")
+    {
+        handleAttachActiveDocument (connection, requestId);
+        return;
+    }
+
     if (method == "project.inspect")
     {
         handleProjectInspect (connection, requestId, projectFile);
@@ -288,6 +294,18 @@ void LiveEditBridge::handleRequest (Connection& connection, const var& request)
     if (method == "component.catalog")
     {
         handleComponentCatalog (connection, requestId, documentFile);
+        return;
+    }
+
+    if (method == "edit.addComponents")
+    {
+        handleAddComponents (connection, requestId, *object, documentFile);
+        return;
+    }
+
+    if (method == "edit.deleteComponents")
+    {
+        handleDeleteComponents (connection, requestId, *object, documentFile);
         return;
     }
 
@@ -334,6 +352,42 @@ void LiveEditBridge::handleRequest (Connection& connection, const var& request)
     }
 
     connection.sendError (requestId, -32601, "Unknown method: " + method);
+}
+
+void LiveEditBridge::handleAttachActiveDocument (Connection& connection, int id)
+{
+    auto* editor = findEditorInDesktop();
+    auto* document = editor != nullptr ? editor->getDocument() : nullptr;
+
+    if (document == nullptr)
+    {
+        connection.sendError (id, -32006, "ProjucerG has no active GUI document.");
+        return;
+    }
+
+    auto* project = document->getCppDocument().getProject();
+
+    if (project == nullptr)
+    {
+        connection.sendError (id, -32007, "The active GUI document has no Projucer project.");
+        return;
+    }
+
+    const auto documentFile = document->getCppFile();
+
+    if (documentFile == File{} || ! documentFile.existsAsFile())
+    {
+        connection.sendError (id, -32008, "The active GUI document has not been saved.");
+        return;
+    }
+
+    auto result = std::make_unique<DynamicObject>();
+    result->setProperty ("attached", true);
+    result->setProperty ("projectFile", project->getFile().getFullPathName());
+    result->setProperty ("projectName", project->getProjectNameString());
+    result->setProperty ("documentFile", documentFile.getFullPathName());
+    result->setProperty ("documentName", documentFile.getFileName());
+    connection.sendResponse (makeResultResponse (id, var (result.release())));
 }
 
 String LiveEditBridge::readStringProperty (const DynamicObject& object, const String& name, const String& defaultValue)
@@ -690,6 +744,140 @@ void LiveEditBridge::handleComponentCatalog (Connection& connection, int id, con
     auto result = std::make_unique<DynamicObject>();
     result->setProperty ("types", var (types));
     connection.sendResponse (makeResultResponse (id, var (result.release())));
+}
+
+void LiveEditBridge::handleAddComponents (Connection& connection, int id,
+                                          const DynamicObject& object, const File& documentFile)
+{
+    auto* editor = findDocumentEditor (documentFile);
+    const auto* params = object.getProperty ("params").getDynamicObject();
+    const auto* components = params != nullptr ? params->getProperty ("components").getArray() : nullptr;
+
+    if (editor == nullptr || editor->getDocument() == nullptr)
+    {
+        connection.sendError (id, -32002, "Requested document is not open.");
+        return;
+    }
+
+    if (components == nullptr || components->isEmpty())
+    {
+        connection.sendError (id, -32602, "params.components must contain at least one component.");
+        return;
+    }
+
+    std::vector<ComponentDraft> drafts;
+    drafts.reserve ((size_t) components->size());
+
+    for (const auto& value : *components)
+    {
+        const auto* source = value.getDynamicObject();
+
+        if (source == nullptr)
+        {
+            connection.sendError (id, -32602, "Each components entry must be an object.");
+            return;
+        }
+
+        ComponentDraft draft;
+        draft.type = readStringProperty (*source, "type");
+        draft.name = readStringProperty (*source, "name");
+        draft.memberName = readStringProperty (*source, "memberName");
+        draft.placement.anchor = PlacementAnchor::componentTopLeft;
+        draft.placement.offset = { readIntProperty (*source, "x"), readIntProperty (*source, "y") };
+        draft.placement.size = { readIntProperty (*source, "width", 100), readIntProperty (*source, "height", 24) };
+
+        if (const auto* properties = source->getProperty ("properties").getDynamicObject())
+            for (const auto& property : properties->getProperties())
+                draft.properties.set (property.name, property.value);
+
+        drafts.push_back (std::move (draft));
+    }
+
+    GuiDocumentAdapter adapter (*editor->getDocument());
+    auto result = adapter.addComponents (drafts, "AI Edit - Add Components");
+
+    if (! result.wasApplied())
+    {
+        connection.sendError (id, -32602, result.status.getErrorMessage());
+        return;
+    }
+
+    Array<var> addedComponents;
+
+    for (const auto& added : result.components)
+    {
+        auto component = std::make_unique<DynamicObject>();
+        component->setProperty ("id", String::toHexString (added.componentId));
+
+        auto bounds = std::make_unique<DynamicObject>();
+        bounds->setProperty ("x", added.bounds.getX());
+        bounds->setProperty ("y", added.bounds.getY());
+        bounds->setProperty ("width", added.bounds.getWidth());
+        bounds->setProperty ("height", added.bounds.getHeight());
+        component->setProperty ("bounds", var (bounds.release()));
+        addedComponents.add (var (component.release()));
+    }
+
+    auto response = std::make_unique<DynamicObject>();
+    response->setProperty ("added", (int) result.components.size());
+    response->setProperty ("components", var (addedComponents));
+    response->setProperty ("undoAvailable", true);
+    connection.sendResponse (makeResultResponse (id, var (response.release())));
+}
+
+void LiveEditBridge::handleDeleteComponents (Connection& connection, int id,
+                                             const DynamicObject& object, const File& documentFile)
+{
+    auto* editor = findDocumentEditor (documentFile);
+    const auto* params = object.getProperty ("params").getDynamicObject();
+    const auto* ids = params != nullptr ? params->getProperty ("componentIds").getArray() : nullptr;
+
+    if (editor == nullptr || editor->getDocument() == nullptr)
+    {
+        connection.sendError (id, -32002, "Requested document is not open.");
+        return;
+    }
+
+    if (ids == nullptr || ids->isEmpty())
+    {
+        connection.sendError (id, -32602, "params.componentIds must contain at least one component ID.");
+        return;
+    }
+
+    std::vector<int64> componentIds;
+    componentIds.reserve ((size_t) ids->size());
+
+    for (const auto& value : *ids)
+    {
+        const auto text = value.toString().trim();
+
+        if (text.isEmpty())
+        {
+            connection.sendError (id, -32602, "Each component ID must be a non-empty hexadecimal string.");
+            return;
+        }
+
+        componentIds.push_back ((int64) text.getHexValue64());
+    }
+
+    GuiDocumentAdapter adapter (*editor->getDocument());
+
+    if (auto validation = adapter.validateComponentIds (componentIds); validation.failed())
+    {
+        connection.sendError (id, -32602, validation.getErrorMessage());
+        return;
+    }
+
+    if (auto result = adapter.deleteComponents (componentIds, "AI Edit - Delete Components"); result.failed())
+    {
+        connection.sendError (id, -32009, result.getErrorMessage());
+        return;
+    }
+
+    auto response = std::make_unique<DynamicObject>();
+    response->setProperty ("deleted", (int) componentIds.size());
+    response->setProperty ("undoAvailable", true);
+    connection.sendResponse (makeResultResponse (id, var (response.release())));
 }
 
 void LiveEditBridge::handlePreviewComponents (Connection& connection, int id,

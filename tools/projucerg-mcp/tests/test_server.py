@@ -22,6 +22,13 @@ class FakeClient:
         self.requests.append((method, params, document_file, project_file))
         if method == "project.inspect":
             return {"projectFile": "/tmp/Test.jucer", "guiDocuments": []}
+        if method == "document.attachActive":
+            return {
+                "projectFile": "/tmp/Test.jucer",
+                "documentFile": "/tmp/Main.cpp",
+                "projectName": "Test",
+                "documentName": "Main.cpp",
+            }
         if method == "document.open":
             return {"opened": True}
         if method == "document.inspect":
@@ -51,8 +58,22 @@ class McpServerTests(unittest.TestCase):
         response = self.server.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
         names = {tool["name"] for tool in response["result"]["tools"]}
         self.assertEqual(
-            {"list_open_projects", "select_edit_target", "get_active_gui_document", "get_gui_editor_image", "list_component_types", "preview_components", "preview_sliders", "delete_components_by_ids", "apply_live_edit", "cancel_live_edit", "get_live_edit_status"},
+            {"attach_to_active_gui_document", "list_open_projects", "select_edit_target", "get_active_gui_document", "get_gui_editor_image", "list_component_types", "add_components", "delete_components_by_ids"},
             names,
+        )
+
+    def test_active_gui_document_can_be_attached_without_opening_a_file(self):
+        attached = self.server.call_tool("attach_to_active_gui_document", {})
+
+        self.assertEqual("document.attachActive", self.client.requests[-1][0])
+        self.assertEqual("/tmp/Test.jucer", attached["projectFile"])
+        self.assertEqual("/tmp/Main.cpp", attached["documentFile"])
+        self.assertIn("targetId", attached)
+
+        self.server.call_tool("get_active_gui_document", {"targetId": attached["targetId"]})
+        self.assertEqual(
+            ("document.inspect", {}, Path("/tmp/Main.cpp").resolve(), Path("/tmp/Test.jucer").resolve()),
+            self.client.requests[-1],
         )
 
     def test_target_must_be_confirmed(self):
@@ -60,31 +81,26 @@ class McpServerTests(unittest.TestCase):
         self.assertTrue(response["result"]["isError"])
         self.assertEqual([], self.client.requests)
 
-    def test_apply_must_be_confirmed(self):
+    def test_delete_must_be_confirmed(self):
         selected = self.server.call_tool("select_edit_target", {"projectFile": "/tmp/Test.jucer", "documentFile": "/tmp/Main.cpp", "userConfirmed": True})
-        response = self.server.handle({"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "apply_live_edit", "arguments": {"targetId": selected["targetId"], "userConfirmed": False}}})
+        response = self.server.handle({"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "delete_components_by_ids", "arguments": {"targetId": selected["targetId"], "componentIds": ["1a"], "userConfirmed": False}}})
         self.assertTrue(response["result"]["isError"])
         self.assertEqual("document.open", self.client.requests[-1][0])
 
-    def test_selected_target_is_required_for_preview(self):
-        response = self.server.handle({"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "preview_sliders", "arguments": {"targetId": "missing", "sliders": [{}]}}})
+    def test_selected_target_is_required_for_edit(self):
+        response = self.server.handle({"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "add_components", "arguments": {"targetId": "missing", "components": [{}]}}})
         self.assertTrue(response["result"]["isError"])
-
-    def test_status_preserves_user_escape_reason(self):
-        selected = self.server.call_tool("select_edit_target", {"projectFile": "/tmp/Test.jucer", "documentFile": "/tmp/Main.cpp", "userConfirmed": True})
-        result = self.server.call_tool("get_live_edit_status", {"targetId": selected["targetId"]})
-        self.assertEqual({"state": "cancelled", "reason": "user_escape"}, result)
 
     def test_component_catalog_is_requested_from_projucer(self):
         selected = self.server.call_tool("select_edit_target", {"projectFile": "/tmp/Test.jucer", "documentFile": "/tmp/Main.cpp", "userConfirmed": True})
         self.server.call_tool("list_component_types", {"targetId": selected["targetId"]})
         self.assertEqual("component.catalog", self.client.requests[-1][0])
 
-    def test_generic_components_are_forwarded_to_preview(self):
+    def test_generic_components_are_forwarded_for_immediate_addition(self):
         selected = self.server.call_tool("select_edit_target", {"projectFile": "/tmp/Test.jucer", "documentFile": "/tmp/Main.cpp", "userConfirmed": True})
         components = [{"type": "TEXTBUTTON", "name": "Run", "memberName": "runButton", "x": 8, "y": 8, "width": 80, "height": 24}]
-        self.server.call_tool("preview_components", {"targetId": selected["targetId"], "components": components})
-        self.assertEqual(("edit.previewComponents", {"components": components}), self.client.requests[-1][:2])
+        self.server.call_tool("add_components", {"targetId": selected["targetId"], "components": components})
+        self.assertEqual(("edit.addComponents", {"components": components}), self.client.requests[-1][:2])
 
     def test_active_gui_document_includes_selected_flag(self):
         selected = self.server.call_tool("select_edit_target", {"projectFile": "/tmp/Test.jucer", "documentFile": "/tmp/Main.cpp", "userConfirmed": True})
@@ -92,11 +108,11 @@ class McpServerTests(unittest.TestCase):
         components = response["components"]
         self.assertTrue(any("selected" in component for component in components))
 
-    def test_component_ids_are_forwarded_to_deletion_preview(self):
+    def test_confirmed_component_ids_are_forwarded_for_immediate_deletion(self):
         selected = self.server.call_tool("select_edit_target", {"projectFile": "/tmp/Test.jucer", "documentFile": "/tmp/Main.cpp", "userConfirmed": True})
         component_ids = ["1a", "2b"]
-        self.server.call_tool("delete_components_by_ids", {"targetId": selected["targetId"], "componentIds": component_ids})
-        self.assertEqual(("edit.previewDeleteComponents", {"componentIds": component_ids}), self.client.requests[-1][:2])
+        self.server.call_tool("delete_components_by_ids", {"targetId": selected["targetId"], "componentIds": component_ids, "userConfirmed": True})
+        self.assertEqual(("edit.deleteComponents", {"componentIds": component_ids}), self.client.requests[-1][:2])
 
     def test_gui_editor_image_uses_mcp_image_content(self):
         selected = self.server.call_tool("select_edit_target", {"projectFile": "/tmp/Test.jucer", "documentFile": "/tmp/Main.cpp", "userConfirmed": True})

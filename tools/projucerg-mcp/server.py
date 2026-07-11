@@ -20,12 +20,13 @@ PROTOCOL_VERSION = "2025-06-18"
 MAX_RESPONSE_SIZE = 16 * 1024 * 1024
 
 SERVER_INSTRUCTIONS = (
-    "Before editing, ask the user to identify the .jucer project and GUI document. "
-    "Call list_open_projects, then select_edit_target with userConfirmed=true. "
-    "Inspect before previewing. Delete only component IDs returned by that inspection. "
-    "Never apply an addition or deletion preview until the user confirms it visually. "
-    "If status reports cancelled or user_escape, tell the user the edit was interrupted and "
-    "do not retry automatically. Inspect again after applying."
+    "Start by calling attach_to_active_gui_document to use the GUI document already visible "
+    "in the user's running ProjucerG. Do not open or switch files when that succeeds. "
+    "Only call list_open_projects and select_edit_target when no GUI document is active or "
+    "when the user explicitly asks to switch targets. "
+    "Inspect before editing and inspect again afterwards. Additions are applied immediately "
+    "as undoable Projucer transactions. Delete only component IDs returned by inspection, "
+    "ask for confirmation in chat, and pass userConfirmed=true only after the user agrees."
 )
 
 
@@ -117,9 +118,15 @@ def _object_schema(properties: dict[str, Any], required: list[str] | None = None
     return schema
 
 
-TARGET_ID = {"type": "string", "description": "ID returned by select_edit_target."}
+TARGET_ID = {"type": "string", "description": "ID returned by attach_to_active_gui_document or select_edit_target."}
 
 TOOLS = [
+    {
+        "name": "attach_to_active_gui_document",
+        "description": "Attach to the GUI document currently visible in the user's running ProjucerG without opening or switching any file. Use this first for normal editing.",
+        "inputSchema": _object_schema({}),
+        "annotations": {"readOnlyHint": True},
+    },
     {
         "name": "list_open_projects",
         "description": "List GUI documents in the frontmost open ProjucerG project. Present the choices to the user; do not choose implicitly.",
@@ -158,8 +165,8 @@ TOOLS = [
         "annotations": {"readOnlyHint": True},
     },
     {
-        "name": "preview_components",
-        "description": "Show non-destructive previews of any supported top-level GUI components. Get valid types and properties from list_component_types first.",
+        "name": "add_components",
+        "description": "Immediately add supported top-level GUI components as one undoable Projucer transaction. Get valid types and properties from list_component_types first, then inspect the result.",
         "inputSchema": _object_schema(
             {
                 "targetId": TARGET_ID,
@@ -186,37 +193,8 @@ TOOLS = [
         "annotations": {"readOnlyHint": False, "destructiveHint": False},
     },
     {
-        "name": "preview_sliders",
-        "description": "Show one or more non-destructive translucent Slider previews. Coordinates are absolute canvas bounds. Do not apply without visual user confirmation.",
-        "inputSchema": _object_schema(
-            {
-                "targetId": TARGET_ID,
-                "sliders": {
-                    "type": "array",
-                    "minItems": 1,
-                    "items": _object_schema(
-                        {
-                            "name": {"type": "string"},
-                            "memberName": {"type": "string"},
-                            "minimum": {"type": "number"},
-                            "maximum": {"type": "number"},
-                            "interval": {"type": "number"},
-                            "x": {"type": "integer"},
-                            "y": {"type": "integer"},
-                            "width": {"type": "integer", "minimum": 1},
-                            "height": {"type": "integer", "minimum": 1},
-                        },
-                        ["name", "memberName", "minimum", "maximum", "x", "y", "width", "height"],
-                    ),
-                },
-            },
-            ["targetId", "sliders"],
-        ),
-        "annotations": {"readOnlyHint": False, "destructiveHint": False},
-    },
-    {
         "name": "delete_components_by_ids",
-        "description": "Preview deletion of specific top-level components by IDs returned from get_active_gui_document. The components remain visible with deletion markers until the user applies or cancels.",
+        "description": "Immediately delete specific top-level components as one undoable Projucer transaction. Ask the user in chat first and only pass userConfirmed=true after explicit confirmation.",
         "inputSchema": _object_schema(
             {
                 "targetId": TARGET_ID,
@@ -226,31 +204,11 @@ TOOLS = [
                     "uniqueItems": True,
                     "items": {"type": "string", "minLength": 1},
                 },
+                "userConfirmed": {"type": "boolean", "const": True},
             },
-            ["targetId", "componentIds"],
+            ["targetId", "componentIds", "userConfirmed"],
         ),
         "annotations": {"readOnlyHint": False, "destructiveHint": True},
-    },
-    {
-        "name": "apply_live_edit",
-        "description": "Apply the visible preview after the user explicitly confirms it. This changes the GUI document and is undoable.",
-        "inputSchema": _object_schema(
-            {"targetId": TARGET_ID, "userConfirmed": {"type": "boolean", "const": True}},
-            ["targetId", "userConfirmed"],
-        ),
-        "annotations": {"readOnlyHint": False, "destructiveHint": False},
-    },
-    {
-        "name": "cancel_live_edit",
-        "description": "Cancel the current preview. Safe to call when the user asks to stop.",
-        "inputSchema": _object_schema({"targetId": TARGET_ID}, ["targetId"]),
-        "annotations": {"readOnlyHint": False, "destructiveHint": False},
-    },
-    {
-        "name": "get_live_edit_status",
-        "description": "Read live-edit state and interruption reason. On cancelled/user_escape, report interruption to the user and never retry automatically.",
-        "inputSchema": _object_schema({"targetId": TARGET_ID}, ["targetId"]),
-        "annotations": {"readOnlyHint": True},
     },
 ]
 
@@ -267,6 +225,24 @@ class McpServer:
         return self.targets[target_id]
 
     def call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
+        if name == "attach_to_active_gui_document":
+            result = self.client.request("document.attachActive", {})
+            if not isinstance(result, dict):
+                raise ProjucerError("ProjucerG returned an invalid active GUI document.")
+
+            project_value = result.get("projectFile")
+            document_value = result.get("documentFile")
+            if not isinstance(project_value, str) or not project_value:
+                raise ProjucerError("The active GUI document has no Projucer project.")
+            if not isinstance(document_value, str) or not document_value:
+                raise ProjucerError("ProjucerG has no active GUI document.")
+
+            project = Path(project_value).expanduser().resolve()
+            document = Path(document_value).expanduser().resolve()
+            target_id = uuid.uuid4().hex
+            self.targets[target_id] = EditTarget(project, document)
+            return {**result, "targetId": target_id}
+
         if name == "list_open_projects":
             return self.client.request("project.inspect", {})
 
@@ -287,28 +263,18 @@ class McpServer:
             return self.client.request("document.capture", {}, target.document_file, target.project_file)
         if name == "list_component_types":
             return self.client.request("component.catalog", {}, target.document_file, target.project_file)
-        if name == "preview_components":
+        if name == "add_components":
             return self.client.request(
-                "edit.previewComponents", {"components": arguments["components"]},
+                "edit.addComponents", {"components": arguments["components"]},
                 target.document_file, target.project_file
-            )
-        if name == "preview_sliders":
-            return self.client.request(
-                "edit.previewSliders", {"sliders": arguments["sliders"]}, target.document_file, target.project_file
             )
         if name == "delete_components_by_ids":
+            if arguments.get("userConfirmed") is not True:
+                raise ProjucerError("Component deletion must be explicitly confirmed by the user in chat.")
             return self.client.request(
-                "edit.previewDeleteComponents", {"componentIds": arguments["componentIds"]},
+                "edit.deleteComponents", {"componentIds": arguments["componentIds"]},
                 target.document_file, target.project_file
             )
-        if name == "apply_live_edit":
-            if arguments.get("userConfirmed") is not True:
-                raise ProjucerError("The visible preview must be explicitly confirmed by the user before applying.")
-            return self.client.request("edit.apply", {}, target.document_file, target.project_file)
-        if name == "cancel_live_edit":
-            return self.client.request("session.cancel", {}, target.document_file, target.project_file)
-        if name == "get_live_edit_status":
-            return self.client.request("session.status", {}, target.document_file, target.project_file)
         raise ProjucerError(f"Unknown tool: {name}")
 
     def handle(self, message: dict[str, Any]) -> dict[str, Any] | None:
