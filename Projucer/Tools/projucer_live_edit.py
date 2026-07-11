@@ -84,6 +84,11 @@ def build_parser() -> argparse.ArgumentParser:
     preview_parser.add_argument("--width", type=int, default=120)
     preview_parser.add_argument("--height", type=int, default=120)
 
+    batch_parser = subparsers.add_parser("preview-sliders")
+    batch_parser.add_argument("document", type=Path)
+    batch_parser.add_argument("spec", type=Path,
+                              help="JSON file containing a sliders array with absolute x/y bounds")
+
     for command in ("apply", "cancel"):
         command_parser = subparsers.add_parser(command)
         command_parser.add_argument("document", type=Path)
@@ -121,6 +126,9 @@ def main() -> int:
             "width": args.width,
             "height": args.height,
         }
+    elif args.command == "preview-sliders":
+        method = "edit.previewSliders"
+        params = json.loads(args.spec.read_text(encoding="utf-8"))
     elif args.command == "apply":
         method, params = "edit.apply", {}
     else:

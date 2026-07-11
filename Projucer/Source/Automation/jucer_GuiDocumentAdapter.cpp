@@ -149,6 +149,42 @@ ApplyResult GuiDocumentAdapter::addSlider (const SliderDraft& draft, const Strin
     if (auto validation = validate (draft); validation.failed())
         return { validation };
 
+    document.beginTransaction (transactionName);
+    return addSliderWithoutStartingTransaction (draft);
+}
+
+BatchApplyResult GuiDocumentAdapter::addSliders (const std::vector<SliderDraft>& drafts, const String& transactionName)
+{
+    if (drafts.empty())
+        return { Result::fail ("At least one Slider is required."), {} };
+
+    for (const auto& draft : drafts)
+        if (auto validation = validate (draft); validation.failed())
+            return { validation, {} };
+
+    document.beginTransaction (transactionName);
+    std::vector<ApplyResult> results;
+    results.reserve (drafts.size());
+
+    for (const auto& draft : drafts)
+    {
+        auto result = addSliderWithoutStartingTransaction (draft);
+
+        if (! result.wasApplied())
+        {
+            document.getUndoManager().undoCurrentTransactionOnly();
+            return { result.status, {} };
+        }
+
+        results.push_back (std::move (result));
+    }
+
+    return { Result::ok(), std::move (results) };
+}
+
+ApplyResult GuiDocumentAdapter::addSliderWithoutStartingTransaction (const SliderDraft& draft)
+{
+
     auto* layout = document.getComponentLayout();
     jassert (layout != nullptr);
 
@@ -185,8 +221,6 @@ ApplyResult GuiDocumentAdapter::addSlider (const SliderDraft& draft, const Strin
         return { Result::fail ("No GUI Editor handler is registered for Slider.") };
 
     std::unique_ptr<XmlElement> xml (handler->createXmlFor (&slider, layout));
-    document.beginTransaction (transactionName);
-
     if (auto* added = layout->addComponentFromXml (*xml, true))
     {
         layout->getSelectedSet().selectOnly (added);

@@ -25,9 +25,11 @@ public:
     GuiDocumentSnapshot createSnapshot() const;
     Result validate (const SliderDraft&) const;
     ApplyResult addSlider (const SliderDraft&, const String& transactionName);
+    BatchApplyResult addSliders (const std::vector<SliderDraft>&, const String& transactionName);
     Result undoCurrentAiTransaction();
 
 private:
+    ApplyResult addSliderWithoutStartingTransaction (const SliderDraft&);
     Rectangle<int> resolveBounds (const ComponentPlacement&) const;
 
     JucerDocument& document;

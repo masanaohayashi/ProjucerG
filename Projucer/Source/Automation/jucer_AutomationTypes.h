@@ -15,7 +15,8 @@ namespace ProjucerAutomation
 {
 enum class PlacementAnchor
 {
-    componentCentre
+    componentCentre,
+    componentTopLeft
 };
 
 enum class SliderStyle
@@ -38,12 +39,21 @@ struct ComponentPlacement
 inline Rectangle<int> resolveComponentPlacementBounds (const ComponentPlacement& placement,
                                                        const Rectangle<int>& componentBounds)
 {
+    if (placement.anchor == PlacementAnchor::componentTopLeft)
+        return { componentBounds.getX() + placement.offset.x,
+                 componentBounds.getY() + placement.offset.y,
+                 placement.size.x,
+                 placement.size.y };
+
     Point<int> anchorPoint;
 
     switch (placement.anchor)
     {
         case PlacementAnchor::componentCentre:
             anchorPoint = componentBounds.getCentre();
+            break;
+        case PlacementAnchor::componentTopLeft:
+            anchorPoint = componentBounds.getPosition();
             break;
     }
 
@@ -109,5 +119,13 @@ struct ApplyResult
     Rectangle<int> bounds;
 
     bool wasApplied() const { return status.wasOk() && componentId != 0; }
+};
+
+struct BatchApplyResult
+{
+    Result status;
+    std::vector<ApplyResult> components;
+
+    bool wasApplied() const { return status.wasOk() && ! components.empty(); }
 };
 }

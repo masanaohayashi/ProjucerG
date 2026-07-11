@@ -285,6 +285,12 @@ void LiveEditBridge::handleRequest (Connection& connection, const var& request)
         return;
     }
 
+    if (method == "edit.previewSliders")
+    {
+        handlePreviewSliders (connection, requestId, *object, documentFile);
+        return;
+    }
+
     if (method == "edit.apply")
     {
         handleApply (connection, requestId, documentFile);
@@ -621,6 +627,60 @@ void LiveEditBridge::handlePreviewSlider (Connection& connection, int id, const 
 
     auto response = std::make_unique<DynamicObject>();
     response->setProperty ("applied", true);
+    connection.sendResponse (makeResultResponse (id, var (response.release())));
+}
+
+void LiveEditBridge::handlePreviewSliders (Connection& connection, int id, const DynamicObject& object, const File& documentFile)
+{
+    auto* editor = findDocumentEditor (documentFile);
+
+    if (editor == nullptr || editor->getDocument() == nullptr)
+    {
+        connection.sendError (id, -32002, "Requested document is not open.");
+        return;
+    }
+
+    const auto* params = object.getProperty ("params").getDynamicObject();
+    const auto* sliders = params != nullptr ? params->getProperty ("sliders").getArray() : nullptr;
+
+    if (sliders == nullptr || sliders->isEmpty())
+    {
+        connection.sendError (id, -32602, "params.sliders must contain at least one Slider.");
+        return;
+    }
+
+    std::vector<SliderDraft> drafts;
+    drafts.reserve ((size_t) sliders->size());
+
+    for (const auto& value : *sliders)
+    {
+        const auto* slider = value.getDynamicObject();
+
+        if (slider == nullptr)
+        {
+            connection.sendError (id, -32602, "Each sliders entry must be an object.");
+            return;
+        }
+
+        SliderDraft draft;
+        draft.name = readStringProperty (*slider, "name");
+        draft.memberName = readStringProperty (*slider, "memberName");
+        draft.minimum = readDoubleProperty (*slider, "minimum", 0.0);
+        draft.maximum = readDoubleProperty (*slider, "maximum", 1.0);
+        draft.interval = readDoubleProperty (*slider, "interval", 0.0);
+        draft.placement.anchor = PlacementAnchor::componentTopLeft;
+        draft.placement.offset.x = readIntProperty (*slider, "x", 0);
+        draft.placement.offset.y = readIntProperty (*slider, "y", 0);
+        draft.placement.size.x = readIntProperty (*slider, "width", 120);
+        draft.placement.size.y = readIntProperty (*slider, "height", 120);
+        drafts.push_back (std::move (draft));
+    }
+
+    if (auto* panel = editor->getCurrentLayoutPanel())
+        panel->showLiveEditPreview (drafts);
+
+    auto response = std::make_unique<DynamicObject>();
+    response->setProperty ("previewing", sliders->size());
     connection.sendResponse (makeResultResponse (id, var (response.release())));
 }
 

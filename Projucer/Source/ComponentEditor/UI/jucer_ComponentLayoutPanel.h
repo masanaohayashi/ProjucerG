@@ -72,13 +72,17 @@ public:
 
     void showLiveEditPreview (const ProjucerAutomation::SliderDraft& draftToUse)
     {
-        liveEditDraft = draftToUse;
-        hasLiveEditDraft = true;
+        showLiveEditPreview (std::vector<ProjucerAutomation::SliderDraft> { draftToUse });
+    }
+
+    void showLiveEditPreview (const std::vector<ProjucerAutomation::SliderDraft>& draftsToUse)
+    {
+        liveEditDrafts = draftsToUse;
         liveEditPreviewVisible = true;
         liveEditPaused = false;
         liveEditApplied = false;
-        liveEditStatusText = "AI editing: previewing Lowpass Filter Slider";
-        refreshLiveEditPreviewImage();
+        liveEditStatusText = "AI editing: previewing " + String (liveEditDrafts.size()) + " Slider(s)";
+        refreshLiveEditPreviewImages();
 
         if (liveEditOverlay == nullptr)
         {
@@ -99,10 +103,9 @@ public:
         liveEditPaused = false;
         liveEditApplied = false;
         liveEditStatusText = "AI edit cancelled";
-        liveEditDraft = {};
-        hasLiveEditDraft = false;
-        liveEditResult = ProjucerAutomation::ApplyResult { Result::ok() };
-        liveEditPreviewImage = {};
+        liveEditDrafts.clear();
+        liveEditResult = { Result::ok(), {} };
+        liveEditPreviewImages.clear();
 
         if (liveEditOverlay != nullptr)
             liveEditOverlay->syncFromState();
@@ -116,7 +119,8 @@ public:
             return;
 
         liveEditPaused = ! liveEditPaused;
-        liveEditStatusText = liveEditPaused ? "AI editing: paused" : "AI editing: previewing Lowpass Filter Slider";
+        liveEditStatusText = liveEditPaused ? "AI editing: paused"
+                                            : "AI editing: previewing " + String (liveEditDrafts.size()) + " Slider(s)";
 
         if (liveEditOverlay != nullptr)
             liveEditOverlay->syncFromState();
@@ -129,11 +133,11 @@ public:
         if (! liveEditPreviewVisible || liveEditApplied || liveEditPaused)
             return;
 
-        if (! hasLiveEditDraft)
+        if (liveEditDrafts.empty())
             return;
 
         ProjucerAutomation::GuiDocumentAdapter adapter (document);
-        liveEditResult = adapter.addSlider (liveEditDraft, "AI Edit - Add Lowpass Filter Slider");
+        liveEditResult = adapter.addSliders (liveEditDrafts, "AI Edit - Add Sliders");
         liveEditApplied = liveEditResult.wasApplied();
 
         if (liveEditApplied)
@@ -142,8 +146,10 @@ public:
             layout.getSelectedSet().deselectAll();
 
             for (int i = 0; i < layout.getNumComponents(); ++i)
-                if (auto* addedComponent = layout.getComponent (i); ComponentTypeHandler::getComponentId (addedComponent) == liveEditResult.componentId)
-                    layout.getSelectedSet().selectOnly (addedComponent);
+                if (auto* addedComponent = layout.getComponent (i))
+                    for (const auto& result : liveEditResult.components)
+                        if (ComponentTypeHandler::getComponentId (addedComponent) == result.componentId)
+                            layout.getSelectedSet().addToSelection (addedComponent);
 
             updatePropertiesList();
         }
@@ -192,12 +198,12 @@ public:
         return liveEditStatusText;
     }
 
-    Rectangle<int> getLiveEditPreviewBounds() const
+    Rectangle<int> getLiveEditPreviewBounds (size_t index) const
     {
-        if (! liveEditPreviewVisible || ! hasLiveEditDraft)
+        if (! liveEditPreviewVisible || index >= liveEditDrafts.size())
             return {};
 
-        const auto editorBounds = ProjucerAutomation::resolveComponentPlacementBounds (liveEditDraft.placement,
+        const auto editorBounds = ProjucerAutomation::resolveComponentPlacementBounds (liveEditDrafts[index].placement,
                                                                                         { 0, 0,
                                                                                           document.getInitialWidth(),
                                                                                           document.getInitialHeight() });
@@ -205,9 +211,14 @@ public:
         return editorBoundsToPanelBounds (editorBounds);
     }
 
-    Image getLiveEditPreviewImage() const
+    Image getLiveEditPreviewImage (size_t index) const
     {
-        return liveEditPreviewImage;
+        return index < liveEditPreviewImages.size() ? liveEditPreviewImages[index] : Image{};
+    }
+
+    size_t getNumLiveEditPreviews() const noexcept
+    {
+        return liveEditDrafts.size();
     }
 
     Rectangle<int> editorBoundsToPanelBounds (const Rectangle<int>& editorBounds) const
@@ -281,18 +292,19 @@ private:
             g.setFont (Font (15.0f, Font::bold));
             g.drawText (panel.getLiveEditStatusText(), banner.reduced (14, 8), Justification::centredLeft, false);
 
-            auto previewBounds = panel.getLiveEditPreviewBounds();
-            auto previewImage = panel.getLiveEditPreviewImage();
-            if (! previewBounds.isEmpty() && previewImage.isValid())
+            for (size_t i = 0; i < panel.getNumLiveEditPreviews(); ++i)
             {
-                g.setOpacity (panel.isLiveEditPaused() ? 0.35f : 0.6f);
-                g.drawImageWithin (previewImage,
-                                   previewBounds.getX(),
-                                   previewBounds.getY(),
-                                   previewBounds.getWidth(),
-                                   previewBounds.getHeight(),
-                                   RectanglePlacement::stretchToFit);
-                g.setOpacity (1.0f);
+                auto previewBounds = panel.getLiveEditPreviewBounds (i);
+                auto previewImage = panel.getLiveEditPreviewImage (i);
+                if (! previewBounds.isEmpty() && previewImage.isValid())
+                {
+                    g.setOpacity (panel.isLiveEditPaused() ? 0.35f : 0.6f);
+                    g.drawImageWithin (previewImage,
+                                       previewBounds.getX(), previewBounds.getY(),
+                                       previewBounds.getWidth(), previewBounds.getHeight(),
+                                       RectanglePlacement::stretchToFit);
+                    g.setOpacity (1.0f);
+                }
             }
         }
 
@@ -377,35 +389,38 @@ private:
         }
     }
 
-    void refreshLiveEditPreviewImage()
+    void refreshLiveEditPreviewImages()
     {
-        liveEditPreviewImage = {};
+        liveEditPreviewImages.clear();
 
-        if (! liveEditPreviewVisible || ! hasLiveEditDraft)
+        if (! liveEditPreviewVisible || liveEditDrafts.empty())
             return;
 
         if (dynamic_cast<ComponentLayoutEditor*> (editor) == nullptr)
             return;
 
-        Slider previewSlider (liveEditDraft.name);
-        previewSlider.setRange (liveEditDraft.minimum, liveEditDraft.maximum, liveEditDraft.interval);
-        previewSlider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
-        previewSlider.setTextBoxStyle (juce::Slider::NoTextBox, true, 80, 20);
-        previewSlider.setBounds (0, 0, liveEditDraft.placement.size.x, liveEditDraft.placement.size.y);
         liveEditPreviewLookAndFeel = PreviewLookAndFeel::createForDocument (&document);
-        previewSlider.setLookAndFeel (liveEditPreviewLookAndFeel.get());
-        liveEditPreviewImage = previewSlider.createComponentSnapshot (previewSlider.getLocalBounds());
-        previewSlider.setLookAndFeel (nullptr);
+
+        for (const auto& draft : liveEditDrafts)
+        {
+            Slider previewSlider (draft.name);
+            previewSlider.setRange (draft.minimum, draft.maximum, draft.interval);
+            previewSlider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
+            previewSlider.setTextBoxStyle (juce::Slider::NoTextBox, true, 80, 20);
+            previewSlider.setBounds (0, 0, draft.placement.size.x, draft.placement.size.y);
+            previewSlider.setLookAndFeel (liveEditPreviewLookAndFeel.get());
+            liveEditPreviewImages.push_back (previewSlider.createComponentSnapshot (previewSlider.getLocalBounds()));
+            previewSlider.setLookAndFeel (nullptr);
+        }
     }
 
     std::unique_ptr<LiveEditOverlay> liveEditOverlay;
     std::unique_ptr<LookAndFeel> liveEditPreviewLookAndFeel;
-    ProjucerAutomation::SliderDraft liveEditDraft;
-    bool hasLiveEditDraft = false;
+    std::vector<ProjucerAutomation::SliderDraft> liveEditDrafts;
     bool liveEditPreviewVisible = false;
     bool liveEditPaused = false;
     bool liveEditApplied = false;
-    ProjucerAutomation::ApplyResult liveEditResult { Result::ok() };
+    ProjucerAutomation::BatchApplyResult liveEditResult { Result::ok(), {} };
     String liveEditStatusText = "AI編集は停止中";
-    Image liveEditPreviewImage;
+    std::vector<Image> liveEditPreviewImages;
 };
