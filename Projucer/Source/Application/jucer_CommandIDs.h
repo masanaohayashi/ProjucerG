@@ -101,6 +101,7 @@ namespace CommandIDs
         showTutorials           = 0x300103,
 
         addNewGUIFile           = 0x300200,
+        addPrototypeLowpassSlider = 0x300201,
 
         lastCommandIDEntry
     };

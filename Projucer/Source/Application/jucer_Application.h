@@ -167,6 +167,9 @@ private:
     void launchTutorialsBrowser();
 
     void enableOrDisableGUIEditor();
+   #if JUCE_DEBUG
+    void addPrototypeLowpassSlider();
+   #endif
 
     //==============================================================================
    #if JUCE_MAC

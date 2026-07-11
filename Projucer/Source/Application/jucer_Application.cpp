@@ -38,6 +38,7 @@ void handleGUIEditorMenuCommand (int);
 void registerGUIEditorCommands();
 
 #include "../ComponentEditor/jucer_ObjectTypes.h"
+#include "../ComponentEditor/UI/jucer_JucerDocumentEditor.h"
 
 //==============================================================================
 struct ProjucerApplication::MainMenuModel final : public MenuBarModel
@@ -525,6 +526,9 @@ PopupMenu ProjucerApplication::createToolsMenu()
     menu.addCommandItem (commandManager.get(), CommandIDs::showTranslationTool);
     menu.addSeparator();
     menu.addCommandItem (commandManager.get(), CommandIDs::enableGUIEditor);
+   #if JUCE_DEBUG
+    menu.addCommandItem (commandManager.get(), CommandIDs::addPrototypeLowpassSlider);
+   #endif
     return menu;
 }
 
@@ -922,6 +926,9 @@ void ProjucerApplication::getAllCommands (Array <CommandID>& commands)
                               CommandIDs::checkForNewVersion,
                               CommandIDs::enableNewVersionCheck,
                               CommandIDs::enableGUIEditor,
+                             #if JUCE_DEBUG
+                              CommandIDs::addPrototypeLowpassSlider,
+                             #endif
                               CommandIDs::showForum,
                               CommandIDs::showAPIModules,
                               CommandIDs::showAPIClasses,
@@ -1000,6 +1007,15 @@ void ProjucerApplication::getCommandInfo (CommandID commandID, ApplicationComman
                         (isGUIEditorEnabled() ? ApplicationCommandInfo::isTicked : 0));
         break;
 
+   #if JUCE_DEBUG
+    case CommandIDs::addPrototypeLowpassSlider:
+        result.setInfo ("AI Prototype: Add Lowpass Slider...",
+                        "Adds the Phase 0 Lowpass Filter slider to the confirmed active GUI document",
+                        CommandCategories::general,
+                        0);
+        break;
+   #endif
+
     case CommandIDs::showAboutWindow:
         result.setInfo ("About Projucer", "Shows the Projucer's 'About' page.", CommandCategories::general, 0);
         break;
@@ -1053,6 +1069,9 @@ bool ProjucerApplication::perform (const InvocationInfo& info)
         case CommandIDs::showUTF8Tool:              showUTF8ToolWindow(); break;
         case CommandIDs::showSVGPathTool:           showSVGPathDataToolWindow(); break;
         case CommandIDs::enableGUIEditor:           enableOrDisableGUIEditor(); break;
+       #if JUCE_DEBUG
+        case CommandIDs::addPrototypeLowpassSlider: addPrototypeLowpassSlider(); break;
+       #endif
         case CommandIDs::showGlobalPathsWindow:     showPathsWindow (false); break;
         case CommandIDs::showAboutWindow:           showAboutWindow(); break;
         case CommandIDs::checkForNewVersion:        LatestVersionCheckerAndUpdater::getInstance()->checkForNewVersion (false); break;
@@ -1066,6 +1085,105 @@ bool ProjucerApplication::perform (const InvocationInfo& info)
 
     return true;
 }
+
+#if JUCE_DEBUG
+static JucerDocumentEditor* findJucerDocumentEditorIn (Component& parent)
+{
+    for (int i = 0; i < parent.getNumChildComponents(); ++i)
+    {
+        auto* child = parent.getChildComponent (i);
+
+        if (auto* editor = dynamic_cast<JucerDocumentEditor*> (child))
+            return editor;
+
+        if (auto* editor = findJucerDocumentEditorIn (*child))
+            return editor;
+    }
+
+    return nullptr;
+}
+
+static JucerDocumentEditor* findCurrentJucerDocumentEditor()
+{
+    if (auto* editor = JucerDocumentEditor::getActiveDocumentHolder())
+        return editor;
+
+    if (auto* window = TopLevelWindow::getActiveTopLevelWindow())
+        return findJucerDocumentEditorIn (*window);
+
+    return nullptr;
+}
+
+void ProjucerApplication::addPrototypeLowpassSlider()
+{
+    auto* editor = findCurrentJucerDocumentEditor();
+
+    if (editor == nullptr || editor->getDocument() == nullptr)
+        return;
+
+    auto& document = *editor->getDocument();
+    auto* project = document.getCppDocument().getProject();
+
+    if (project == nullptr || document.getComponentLayout() == nullptr)
+        return;
+
+    const auto projectFile = project->getFile();
+    const auto guiFile = document.getCppFile();
+    const auto message = "Add the Phase 0 Lowpass Filter slider to this target?\n\n"
+                         ".jucer:\n" + projectFile.getFullPathName()
+                         + "\n\nGUI document:\n" + guiFile.getFullPathName()
+                         + "\n\nSettings:\n"
+                           "- Position: slightly left and below centre\n"
+                           "- Range: 20 to 20000 Hz\n"
+                           "- Style: Rotary HorizontalVerticalDrag\n"
+                           "- Text box: None\n\n"
+                           "The change will not be saved automatically and can be removed with one Undo.";
+
+    auto options = MessageBoxOptions::makeOptionsOkCancel (MessageBoxIconType::QuestionIcon,
+                                                            "Confirm AI edit target",
+                                                            message,
+                                                            "Add Slider",
+                                                            "Cancel");
+    Component::SafePointer<JucerDocumentEditor> targetEditor (editor);
+
+    messageBox = AlertWindow::showScopedAsync (options,
+                                               [parent = WeakReference { this }, targetEditor, projectFile, guiFile] (int result)
+    {
+        if (parent == nullptr || targetEditor == nullptr || result == 0)
+            return;
+
+        if (targetEditor->getDocument() == nullptr)
+            return;
+
+        auto& activeDocument = *targetEditor->getDocument();
+        auto* activeProject = activeDocument.getCppDocument().getProject();
+        auto* layout = activeDocument.getComponentLayout();
+
+        if (activeProject == nullptr
+            || layout == nullptr
+            || activeProject->getFile() != projectFile
+            || activeDocument.getCppFile() != guiFile)
+        {
+            auto changedTarget = MessageBoxOptions::makeOptionsOk (MessageBoxIconType::WarningIcon,
+                                                                   "AI edit cancelled",
+                                                                   "The active .jucer project or GUI document changed while confirmation was open.");
+            parent->messageBox = AlertWindow::showScopedAsync (changedTarget, nullptr);
+            return;
+        }
+
+        activeDocument.beginTransaction ("AI Edit - Add Lowpass Filter Slider");
+
+        if (auto* added = layout->addPrototypeLowpassSlider ({ 0, 0,
+                                                               activeDocument.getInitialWidth(),
+                                                               activeDocument.getInitialHeight() }))
+        {
+            layout->getSelectedSet().selectOnly (added);
+            targetEditor->showLayout();
+            targetEditor->refreshPropertiesPanel();
+        }
+    });
+}
+#endif
 
 //==============================================================================
 void ProjucerApplication::createNewProject()
