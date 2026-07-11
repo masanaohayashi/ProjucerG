@@ -583,6 +583,7 @@ void LiveEditBridge::handleInspect (Connection& connection, int id, const Dynami
         item->setProperty ("type", component.type);
         item->setProperty ("name", component.name);
         item->setProperty ("memberName", component.memberName);
+        item->setProperty ("selected", component.isSelected);
 
         auto componentBounds = std::make_unique<DynamicObject>();
         componentBounds->setProperty ("x", component.bounds.getX());

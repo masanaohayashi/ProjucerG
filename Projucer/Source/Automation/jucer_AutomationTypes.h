@@ -98,6 +98,7 @@ struct ComponentSnapshot
     String memberName;
     Rectangle<int> bounds;
     NamedValueSet properties;
+    bool isSelected = false;
 
     struct SliderProperties
     {

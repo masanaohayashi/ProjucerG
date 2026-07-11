@@ -283,6 +283,7 @@ GuiDocumentSnapshot GuiDocumentAdapter::createSnapshot() const
             componentSnapshot.name = component->getName();
             componentSnapshot.memberName = layout->getComponentMemberVariableName (component);
             componentSnapshot.bounds = component->getBounds();
+            componentSnapshot.isSelected = layout->getSelectedSet().isSelected (component);
 
             if (std::unique_ptr<XmlElement> xml { handler->createXmlFor (component, layout) })
                 copyXmlAttributes (*xml, componentSnapshot.properties);

@@ -24,6 +24,8 @@ class FakeClient:
             return {"projectFile": "/tmp/Test.jucer", "guiDocuments": []}
         if method == "document.open":
             return {"opened": True}
+        if method == "document.inspect":
+            return {"components": [{"id": "1", "type": "Slider", "selected": True}]}
         if method == "session.status":
             return {"state": "cancelled", "reason": "user_escape"}
         if method == "document.capture":
@@ -83,6 +85,12 @@ class McpServerTests(unittest.TestCase):
         components = [{"type": "TEXTBUTTON", "name": "Run", "memberName": "runButton", "x": 8, "y": 8, "width": 80, "height": 24}]
         self.server.call_tool("preview_components", {"targetId": selected["targetId"], "components": components})
         self.assertEqual(("edit.previewComponents", {"components": components}), self.client.requests[-1][:2])
+
+    def test_active_gui_document_includes_selected_flag(self):
+        selected = self.server.call_tool("select_edit_target", {"projectFile": "/tmp/Test.jucer", "documentFile": "/tmp/Main.cpp", "userConfirmed": True})
+        response = self.server.call_tool("get_active_gui_document", {"targetId": selected["targetId"]})
+        components = response["components"]
+        self.assertTrue(any("selected" in component for component in components))
 
     def test_gui_editor_image_uses_mcp_image_content(self):
         selected = self.server.call_tool("select_edit_target", {"projectFile": "/tmp/Test.jucer", "documentFile": "/tmp/Main.cpp", "userConfirmed": True})
