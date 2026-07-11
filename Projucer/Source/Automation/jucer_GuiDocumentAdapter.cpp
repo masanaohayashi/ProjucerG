@@ -435,6 +435,48 @@ Result GuiDocumentAdapter::undoCurrentAiTransaction()
     return Result::fail ("There is no current AI edit transaction to undo.");
 }
 
+Result GuiDocumentAdapter::validateComponentIds (const std::vector<int64>& componentIds) const
+{
+    auto* layout = document.getComponentLayout();
+
+    if (layout == nullptr)
+        return Result::fail ("The GUI document has no component layout.");
+
+    if (componentIds.empty())
+        return Result::fail ("At least one component ID is required.");
+
+    std::set<int64> uniqueIds;
+
+    for (const auto componentId : componentIds)
+    {
+        if (componentId == 0)
+            return Result::fail ("Component IDs must not be zero.");
+
+        if (! uniqueIds.insert (componentId).second)
+            return Result::fail ("Duplicate component ID: " + String::toHexString (componentId));
+
+        if (layout->findComponentWithId (componentId) == nullptr)
+            return Result::fail ("Component not found: " + String::toHexString (componentId));
+    }
+
+    return Result::ok();
+}
+
+Result GuiDocumentAdapter::deleteComponents (const std::vector<int64>& componentIds, const String& transactionName)
+{
+    if (auto validation = validateComponentIds (componentIds); validation.failed())
+        return validation;
+
+    auto* layout = document.getComponentLayout();
+    document.beginTransaction (transactionName);
+    layout->getSelectedSet().deselectAll();
+
+    for (const auto componentId : componentIds)
+        layout->removeComponent (layout->findComponentWithId (componentId), true);
+
+    return Result::ok();
+}
+
 Result GuiDocumentAdapter::removeComponents (const std::vector<ApplyResult>& components)
 {
     auto* layout = document.getComponentLayout();

@@ -51,7 +51,7 @@ class McpServerTests(unittest.TestCase):
         response = self.server.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
         names = {tool["name"] for tool in response["result"]["tools"]}
         self.assertEqual(
-            {"list_open_projects", "select_edit_target", "get_active_gui_document", "get_gui_editor_image", "list_component_types", "preview_components", "preview_sliders", "apply_live_edit", "cancel_live_edit", "get_live_edit_status"},
+            {"list_open_projects", "select_edit_target", "get_active_gui_document", "get_gui_editor_image", "list_component_types", "preview_components", "preview_sliders", "delete_components_by_ids", "apply_live_edit", "cancel_live_edit", "get_live_edit_status"},
             names,
         )
 
@@ -91,6 +91,12 @@ class McpServerTests(unittest.TestCase):
         response = self.server.call_tool("get_active_gui_document", {"targetId": selected["targetId"]})
         components = response["components"]
         self.assertTrue(any("selected" in component for component in components))
+
+    def test_component_ids_are_forwarded_to_deletion_preview(self):
+        selected = self.server.call_tool("select_edit_target", {"projectFile": "/tmp/Test.jucer", "documentFile": "/tmp/Main.cpp", "userConfirmed": True})
+        component_ids = ["1a", "2b"]
+        self.server.call_tool("delete_components_by_ids", {"targetId": selected["targetId"], "componentIds": component_ids})
+        self.assertEqual(("edit.previewDeleteComponents", {"componentIds": component_ids}), self.client.requests[-1][:2])
 
     def test_gui_editor_image_uses_mcp_image_content(self):
         selected = self.server.call_tool("select_edit_target", {"projectFile": "/tmp/Test.jucer", "documentFile": "/tmp/Main.cpp", "userConfirmed": True})

@@ -22,7 +22,8 @@ MAX_RESPONSE_SIZE = 16 * 1024 * 1024
 SERVER_INSTRUCTIONS = (
     "Before editing, ask the user to identify the .jucer project and GUI document. "
     "Call list_open_projects, then select_edit_target with userConfirmed=true. "
-    "Inspect before previewing. Never apply a preview until the user confirms it visually. "
+    "Inspect before previewing. Delete only component IDs returned by that inspection. "
+    "Never apply an addition or deletion preview until the user confirms it visually. "
     "If status reports cancelled or user_escape, tell the user the edit was interrupted and "
     "do not retry automatically. Inspect again after applying."
 )
@@ -214,6 +215,23 @@ TOOLS = [
         "annotations": {"readOnlyHint": False, "destructiveHint": False},
     },
     {
+        "name": "delete_components_by_ids",
+        "description": "Preview deletion of specific top-level components by IDs returned from get_active_gui_document. The components remain visible with deletion markers until the user applies or cancels.",
+        "inputSchema": _object_schema(
+            {
+                "targetId": TARGET_ID,
+                "componentIds": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": True,
+                    "items": {"type": "string", "minLength": 1},
+                },
+            },
+            ["targetId", "componentIds"],
+        ),
+        "annotations": {"readOnlyHint": False, "destructiveHint": True},
+    },
+    {
         "name": "apply_live_edit",
         "description": "Apply the visible preview after the user explicitly confirms it. This changes the GUI document and is undoable.",
         "inputSchema": _object_schema(
@@ -277,6 +295,11 @@ class McpServer:
         if name == "preview_sliders":
             return self.client.request(
                 "edit.previewSliders", {"sliders": arguments["sliders"]}, target.document_file, target.project_file
+            )
+        if name == "delete_components_by_ids":
+            return self.client.request(
+                "edit.previewDeleteComponents", {"componentIds": arguments["componentIds"]},
+                target.document_file, target.project_file
             )
         if name == "apply_live_edit":
             if arguments.get("userConfirmed") is not True:

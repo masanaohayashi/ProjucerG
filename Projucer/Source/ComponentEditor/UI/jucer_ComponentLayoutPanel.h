@@ -100,6 +100,7 @@ public:
 
     void showLiveEditPreview (const std::vector<ProjucerAutomation::ComponentDraft>& draftsToUse)
     {
+        liveEditDeletionIds.clear();
         liveEditDrafts = draftsToUse;
         liveEditPreviewVisible = true;
         liveEditPaused = false;
@@ -108,6 +109,31 @@ public:
         liveEditCompletionReason.clear();
         liveEditStatusText = "AI editing: previewing " + String (liveEditDrafts.size()) + " component(s)";
         refreshLiveEditPreviewImages();
+
+        if (liveEditOverlay == nullptr)
+        {
+            liveEditOverlay.reset (new LiveEditOverlay (*this));
+            addAndMakeVisible (liveEditOverlay.get());
+        }
+
+        liveEditOverlay->syncFromState();
+        liveEditOverlay->toFront (false);
+        liveEditOverlay->grabKeyboardFocus();
+        resized();
+        repaint();
+    }
+
+    void showLiveEditDeletionPreview (const std::vector<int64>& componentIds)
+    {
+        liveEditDrafts.clear();
+        liveEditDeletionIds = componentIds;
+        liveEditPreviewVisible = true;
+        liveEditPaused = false;
+        liveEditApplied = false;
+        liveEditState = "previewing";
+        liveEditCompletionReason.clear();
+        liveEditStatusText = "AI editing: previewing deletion of " + String (liveEditDeletionIds.size()) + " component(s)";
+        liveEditPreviewImages.clear();
 
         if (liveEditOverlay == nullptr)
         {
@@ -134,6 +160,7 @@ public:
         liveEditState = "cancelled";
         liveEditCompletionReason = std::move (reason);
         liveEditDrafts.clear();
+        liveEditDeletionIds.clear();
         liveEditResult = { Result::ok(), {} };
         liveEditPreviewImages.clear();
 
@@ -176,31 +203,45 @@ public:
         if (! liveEditPreviewVisible || liveEditApplied || liveEditPaused)
             return;
 
-        if (liveEditDrafts.empty())
+        if (liveEditDrafts.empty() && liveEditDeletionIds.empty())
             return;
 
         ProjucerAutomation::GuiDocumentAdapter adapter (document);
-        liveEditResult = adapter.addComponents (liveEditDrafts, "AI Edit - Add Components");
-        liveEditApplied = liveEditResult.wasApplied();
+        Result deletionResult = Result::ok();
+
+        if (! liveEditDeletionIds.empty())
+        {
+            deletionResult = adapter.deleteComponents (liveEditDeletionIds, "AI Edit - Delete Components");
+            liveEditApplied = deletionResult.wasOk();
+        }
+        else
+        {
+            liveEditResult = adapter.addComponents (liveEditDrafts, "AI Edit - Add Components");
+            liveEditApplied = liveEditResult.wasApplied();
+        }
 
         if (liveEditApplied)
         {
             liveEditStatusText = "AI editing: applied - undo available";
             liveEditState = "applied";
             liveEditCompletionReason = "applied";
+            liveEditPreviewVisible = false;
             layout.getSelectedSet().deselectAll();
 
-            for (int i = 0; i < layout.getNumComponents(); ++i)
-                if (auto* addedComponent = layout.getComponent (i))
-                    for (const auto& result : liveEditResult.components)
-                        if (ComponentTypeHandler::getComponentId (addedComponent) == result.componentId)
-                            layout.getSelectedSet().addToSelection (addedComponent);
+            if (liveEditDeletionIds.empty())
+                for (int i = 0; i < layout.getNumComponents(); ++i)
+                    if (auto* addedComponent = layout.getComponent (i))
+                        for (const auto& result : liveEditResult.components)
+                            if (ComponentTypeHandler::getComponentId (addedComponent) == result.componentId)
+                                layout.getSelectedSet().addToSelection (addedComponent);
 
             updatePropertiesList();
         }
         else
         {
-            liveEditStatusText = "AI editing failed: " + liveEditResult.status.getErrorMessage();
+            liveEditStatusText = "AI editing failed: " + (! liveEditDeletionIds.empty()
+                                                              ? deletionResult.getErrorMessage()
+                                                              : liveEditResult.status.getErrorMessage());
             liveEditState = "failed";
             liveEditCompletionReason = "apply_failed";
         }
@@ -219,7 +260,8 @@ public:
         if (liveEditApplied)
         {
             ProjucerAutomation::GuiDocumentAdapter adapter (document);
-            const auto result = adapter.removeComponents (liveEditResult.components);
+            const auto result = ! liveEditDeletionIds.empty() ? adapter.undoCurrentAiTransaction()
+                                                               : adapter.removeComponents (liveEditResult.components);
 
             if (result.failed())
             {
@@ -288,6 +330,17 @@ public:
         return index < liveEditPreviewImages.size() ? liveEditPreviewImages[index] : Image{};
     }
 
+    bool isLiveEditDeletionPreview() const noexcept { return ! liveEditDeletionIds.empty(); }
+
+    std::vector<Rectangle<int>> getLiveEditDeletionBounds() const
+    {
+        std::vector<Rectangle<int>> bounds;
+        for (const auto componentId : liveEditDeletionIds)
+            if (auto* component = layout.findComponentWithId (componentId))
+                bounds.push_back (editorBoundsToPanelBounds (component->getBounds()));
+        return bounds;
+    }
+
     size_t getNumLiveEditPreviews() const noexcept
     {
         return liveEditDrafts.size();
@@ -296,7 +349,16 @@ public:
     Rectangle<int> editorBoundsToPanelBounds (const Rectangle<int>& editorBounds) const
     {
         if (auto* componentEditor = dynamic_cast<ComponentLayoutEditor*> (editor))
-            return getLocalArea (componentEditor, editorBounds);
+        {
+            // Component bounds are relative to the design surface (the
+            // sub-component holder), not to ComponentLayoutEditor itself.
+            // Fixed-size documents centre that surface inside the editor, so
+            // include its origin before converting into panel coordinates.
+            const auto componentArea = componentEditor->getComponentArea();
+            return getLocalArea (componentEditor,
+                                 editorBounds.translated (componentArea.getX(),
+                                                          componentArea.getY()));
+        }
 
         return editorBounds;
     }
@@ -377,6 +439,18 @@ private:
                                        RectanglePlacement::stretchToFit);
                     g.setOpacity (1.0f);
                 }
+            }
+
+            for (const auto bounds : panel.getLiveEditDeletionBounds())
+            {
+                g.setColour (Colours::red.withAlpha (panel.isLiveEditPaused() ? 0.18f : 0.32f));
+                g.fillRect (bounds);
+                g.setColour (Colours::red.withAlpha (0.9f));
+                g.drawRect (bounds, 3);
+                g.drawLine ((float) bounds.getX(), (float) bounds.getY(),
+                            (float) bounds.getRight(), (float) bounds.getBottom(), 3.0f);
+                g.drawLine ((float) bounds.getRight(), (float) bounds.getY(),
+                            (float) bounds.getX(), (float) bounds.getBottom(), 3.0f);
             }
         }
 
@@ -477,6 +551,7 @@ private:
 
     std::unique_ptr<LiveEditOverlay> liveEditOverlay;
     std::vector<ProjucerAutomation::ComponentDraft> liveEditDrafts;
+    std::vector<int64> liveEditDeletionIds;
     bool liveEditPreviewVisible = false;
     bool liveEditPaused = false;
     bool liveEditApplied = false;

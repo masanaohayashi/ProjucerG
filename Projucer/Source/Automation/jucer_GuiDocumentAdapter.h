@@ -30,6 +30,8 @@ public:
     Result validate (const SliderDraft&) const;
     ApplyResult addSlider (const SliderDraft&, const String& transactionName);
     BatchApplyResult addSliders (const std::vector<SliderDraft>&, const String& transactionName);
+    Result validateComponentIds (const std::vector<int64>&) const;
+    Result deleteComponents (const std::vector<int64>&, const String& transactionName);
     Result undoCurrentAiTransaction();
     Result removeComponents (const std::vector<ApplyResult>&);
 

@@ -297,6 +297,12 @@ void LiveEditBridge::handleRequest (Connection& connection, const var& request)
         return;
     }
 
+    if (method == "edit.previewDeleteComponents")
+    {
+        handlePreviewDeleteComponents (connection, requestId, *object, documentFile);
+        return;
+    }
+
     if (method == "edit.previewSlider")
     {
         handlePreviewSlider (connection, requestId, *object, documentFile);
@@ -745,6 +751,55 @@ void LiveEditBridge::handlePreviewComponents (Connection& connection, int id,
 
     auto response = std::make_unique<DynamicObject>();
     response->setProperty ("previewing", components->size());
+    connection.sendResponse (makeResultResponse (id, var (response.release())));
+}
+
+void LiveEditBridge::handlePreviewDeleteComponents (Connection& connection, int id,
+                                                    const DynamicObject& object, const File& documentFile)
+{
+    auto* panel = findLayoutPanel (documentFile);
+    auto* editor = findDocumentEditor (documentFile);
+    const auto* params = object.getProperty ("params").getDynamicObject();
+    const auto* ids = params != nullptr ? params->getProperty ("componentIds").getArray() : nullptr;
+
+    if (panel == nullptr || editor == nullptr || editor->getDocument() == nullptr)
+    {
+        connection.sendError (id, -32002, "Requested document is not open.");
+        return;
+    }
+
+    if (ids == nullptr || ids->isEmpty())
+    {
+        connection.sendError (id, -32602, "params.componentIds must contain at least one component ID.");
+        return;
+    }
+
+    std::vector<int64> componentIds;
+    componentIds.reserve ((size_t) ids->size());
+
+    for (const auto& value : *ids)
+    {
+        const auto text = value.toString().trim();
+        if (text.isEmpty())
+        {
+            connection.sendError (id, -32602, "Each component ID must be a non-empty hexadecimal string.");
+            return;
+        }
+
+        componentIds.push_back ((int64) text.getHexValue64());
+    }
+
+    GuiDocumentAdapter adapter (*editor->getDocument());
+    if (auto validation = adapter.validateComponentIds (componentIds); validation.failed())
+    {
+        connection.sendError (id, -32602, validation.getErrorMessage());
+        return;
+    }
+
+    panel->showLiveEditDeletionPreview (componentIds);
+
+    auto response = std::make_unique<DynamicObject>();
+    response->setProperty ("previewingDeletion", ids->size());
     connection.sendResponse (makeResultResponse (id, var (response.release())));
 }
 
