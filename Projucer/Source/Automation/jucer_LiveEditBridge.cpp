@@ -279,6 +279,12 @@ void LiveEditBridge::handleRequest (Connection& connection, const var& request)
         return;
     }
 
+    if (method == "document.capture")
+    {
+        handleCapture (connection, requestId, documentFile);
+        return;
+    }
+
     if (method == "edit.previewSlider")
     {
         handlePreviewSlider (connection, requestId, *object, documentFile);
@@ -594,6 +600,34 @@ void LiveEditBridge::handleInspect (Connection& connection, int id, const Dynami
 
     root->setProperty ("components", var (components));
     connection.sendResponse (makeResultResponse (id, var (root.release())));
+}
+
+void LiveEditBridge::handleCapture (Connection& connection, int id, const File& documentFile)
+{
+    auto* panel = findLayoutPanel (documentFile);
+
+    if (panel == nullptr || panel->getWidth() <= 0 || panel->getHeight() <= 0)
+    {
+        connection.sendError (id, -32002, "Requested GUI Editor is not visible.");
+        return;
+    }
+
+    const auto image = panel->Component::createComponentSnapshot (panel->getLocalBounds(), true, 1.0f);
+    MemoryOutputStream encodedImage;
+    PNGImageFormat png;
+
+    if (! image.isValid() || ! png.writeImageToStream (image, encodedImage))
+    {
+        connection.sendError (id, -32006, "Could not capture the GUI Editor image.");
+        return;
+    }
+
+    auto result = std::make_unique<DynamicObject>();
+    result->setProperty ("mimeType", "image/png");
+    result->setProperty ("data", Base64::toBase64 (encodedImage.getData(), encodedImage.getDataSize()));
+    result->setProperty ("width", image.getWidth());
+    result->setProperty ("height", image.getHeight());
+    connection.sendResponse (makeResultResponse (id, var (result.release())));
 }
 
 void LiveEditBridge::handlePreviewSlider (Connection& connection, int id, const DynamicObject& object, const File& documentFile)

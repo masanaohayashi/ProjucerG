@@ -27,9 +27,10 @@ default_tools_approval_mode = "writes"
 3. `select_edit_target` を `userConfirmed=true` で呼び、`targetId`を得る。このフラグは操作手順のガードであり、実際の承認境界にはCodexホストのwrite approvalも使用する。
 4. `get_active_gui_document` でキャンバス、Grid、既存コンポーネントを取得する。
 5. `preview_sliders` でProjucerG上に半透明プレビューを表示する。
-6. ユーザーが見た目を確認する。EscapeまたはCancelの場合は中断を伝え、自動再試行しない。
-7. ユーザーが明示的に承認した場合だけ `apply_live_edit` を `userConfirmed=true` で呼ぶ。
-8. 適用後に `get_active_gui_document` で結果を再確認する。
+6. `get_gui_editor_image` で表示中のGUI Editorを画像として確認する。
+7. ユーザーが見た目を確認する。EscapeまたはCancelの場合は中断を伝え、自動再試行しない。
+8. ユーザーが明示的に承認した場合だけ `apply_live_edit` を `userConfirmed=true` で呼ぶ。
+9. 適用後に `get_active_gui_document` と `get_gui_editor_image` で結果を再確認する。
 
 ## テスト
 

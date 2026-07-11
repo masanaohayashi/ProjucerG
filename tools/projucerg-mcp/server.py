@@ -145,6 +145,12 @@ TOOLS = [
         "annotations": {"readOnlyHint": True},
     },
     {
+        "name": "get_gui_editor_image",
+        "description": "Capture the visible GUI Editor as a PNG image so the current layout or preview can be inspected visually.",
+        "inputSchema": _object_schema({"targetId": TARGET_ID}, ["targetId"]),
+        "annotations": {"readOnlyHint": True},
+    },
+    {
         "name": "preview_sliders",
         "description": "Show one or more non-destructive translucent Slider previews. Coordinates are absolute canvas bounds. Do not apply without visual user confirmation.",
         "inputSchema": _object_schema(
@@ -225,6 +231,8 @@ class McpServer:
         target = self._target(arguments)
         if name == "get_active_gui_document":
             return self.client.request("document.inspect", {}, target.document_file, target.project_file)
+        if name == "get_gui_editor_image":
+            return self.client.request("document.capture", {}, target.document_file, target.project_file)
         if name == "preview_sliders":
             return self.client.request(
                 "edit.previewSliders", {"sliders": arguments["sliders"]}, target.document_file, target.project_file
@@ -286,6 +294,21 @@ class McpServer:
 
     @staticmethod
     def _tool_result(value: Any, is_error: bool = False) -> dict[str, Any]:
+        if (
+            not is_error
+            and isinstance(value, dict)
+            and isinstance(value.get("data"), str)
+            and value.get("mimeType") == "image/png"
+        ):
+            metadata = {key: item for key, item in value.items() if key != "data"}
+            return {
+                "content": [
+                    {"type": "image", "data": value["data"], "mimeType": value["mimeType"]},
+                    {"type": "text", "text": json.dumps(metadata, ensure_ascii=False, indent=2)},
+                ],
+                "structuredContent": metadata,
+            }
+
         result = {
             "content": [{"type": "text", "text": json.dumps(value, ensure_ascii=False, indent=2)}],
             "structuredContent": value if isinstance(value, dict) else {"value": value},

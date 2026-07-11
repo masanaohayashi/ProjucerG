@@ -26,6 +26,8 @@ class FakeClient:
             return {"opened": True}
         if method == "session.status":
             return {"state": "cancelled", "reason": "user_escape"}
+        if method == "document.capture":
+            return {"mimeType": "image/png", "data": "cG5n", "width": 800, "height": 600}
         return {"ok": True}
 
 
@@ -47,7 +49,7 @@ class McpServerTests(unittest.TestCase):
         response = self.server.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
         names = {tool["name"] for tool in response["result"]["tools"]}
         self.assertEqual(
-            {"list_open_projects", "select_edit_target", "get_active_gui_document", "preview_sliders", "apply_live_edit", "cancel_live_edit", "get_live_edit_status"},
+            {"list_open_projects", "select_edit_target", "get_active_gui_document", "get_gui_editor_image", "preview_sliders", "apply_live_edit", "cancel_live_edit", "get_live_edit_status"},
             names,
         )
 
@@ -70,6 +72,14 @@ class McpServerTests(unittest.TestCase):
         selected = self.server.call_tool("select_edit_target", {"projectFile": "/tmp/Test.jucer", "documentFile": "/tmp/Main.cpp", "userConfirmed": True})
         result = self.server.call_tool("get_live_edit_status", {"targetId": selected["targetId"]})
         self.assertEqual({"state": "cancelled", "reason": "user_escape"}, result)
+
+    def test_gui_editor_image_uses_mcp_image_content(self):
+        selected = self.server.call_tool("select_edit_target", {"projectFile": "/tmp/Test.jucer", "documentFile": "/tmp/Main.cpp", "userConfirmed": True})
+        response = self.server.handle({"jsonrpc": "2.0", "id": 8, "method": "tools/call", "params": {"name": "get_gui_editor_image", "arguments": {"targetId": selected["targetId"]}}})
+        result = response["result"]
+        self.assertEqual("image", result["content"][0]["type"])
+        self.assertEqual("cG5n", result["content"][0]["data"])
+        self.assertNotIn("data", result["structuredContent"])
 
     def test_stdio_uses_one_json_message_per_line(self):
         input_stream = io.StringIO(json.dumps({"jsonrpc": "2.0", "id": 5, "method": "ping"}) + "\n")

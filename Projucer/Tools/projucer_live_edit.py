@@ -3,6 +3,7 @@
 """Command-line client for a running Projucer live-edit session."""
 
 import argparse
+import base64
 import json
 import socket
 import struct
@@ -73,6 +74,10 @@ def build_parser() -> argparse.ArgumentParser:
     inspect_parser = subparsers.add_parser("inspect")
     inspect_parser.add_argument("document", type=Path)
 
+    capture_parser = subparsers.add_parser("capture")
+    capture_parser.add_argument("document", type=Path)
+    capture_parser.add_argument("output", type=Path)
+
     preview_parser = subparsers.add_parser("preview-slider")
     preview_parser.add_argument("document", type=Path)
     preview_parser.add_argument("--name", default="Lowpass Filter Slider")
@@ -127,6 +132,19 @@ def main() -> int:
             if time.monotonic() >= deadline:
                 raise RuntimeError("Timed out waiting for the live-edit session to finish.")
             time.sleep(args.interval)
+
+    if args.command == "capture":
+        response = send_request("document.capture", {}, document, project)
+
+        if "error" in response:
+            print(json.dumps(response, ensure_ascii=False, indent=2))
+            return 1
+
+        result = response.get("result", {})
+        args.output.write_bytes(base64.b64decode(result["data"], validate=True))
+        print(json.dumps({key: value for key, value in result.items() if key != "data"},
+                         ensure_ascii=False, indent=2))
+        return 0
 
     if args.command == "list-components":
         method, params = "project.inspect", {}
