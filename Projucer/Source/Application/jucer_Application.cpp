@@ -40,6 +40,7 @@ void registerGUIEditorCommands();
 #include "../ComponentEditor/jucer_ObjectTypes.h"
 #include "../ComponentEditor/UI/jucer_JucerDocumentEditor.h"
 #include "../Automation/jucer_GuiDocumentAdapter.h"
+#include "../Automation/jucer_LiveEditBridge.h"
 
 //==============================================================================
 struct ProjucerApplication::MainMenuModel final : public MenuBarModel
@@ -168,6 +169,8 @@ void ProjucerApplication::doBasicApplicationSetup()
     LookAndFeel::setDefaultLookAndFeel (&lookAndFeel);
     initCommandManager();
     icons = std::make_unique<Icons>();
+    liveEditBridge = std::make_unique<ProjucerAutomation::LiveEditBridge> (*this);
+    liveEditBridge->start();
 }
 
 static void deleteTemporaryFiles()
@@ -180,6 +183,12 @@ static void deleteTemporaryFiles()
 
 void ProjucerApplication::shutdown()
 {
+    if (liveEditBridge != nullptr)
+    {
+        liveEditBridge->stop();
+        liveEditBridge.reset();
+    }
+
     utf8Window.reset();
     svgPathWindow.reset();
     aboutWindow.reset();

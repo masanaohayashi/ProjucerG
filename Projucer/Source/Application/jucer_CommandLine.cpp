@@ -34,6 +34,7 @@
 
 #include "jucer_Headers.h"
 #include "jucer_Application.h"
+#include "../Automation/jucer_LiveEditBridge.h"
 #include "../Utility/Helpers/jucer_TranslationHelpers.h"
 
 #include "jucer_CommandLine.h"
@@ -51,6 +52,51 @@ namespace
         Process::setDockIconVisible (false);
        #endif
     }
+
+    struct LiveEditClient final : public InterprocessConnection
+    {
+        LiveEditClient()
+            : InterprocessConnection (false)
+        {
+        }
+
+        ~LiveEditClient() override
+        {
+            disconnect();
+        }
+
+        void connectionMade() override
+        {
+            connected = true;
+            signal.signal();
+        }
+
+        void connectionLost() override
+        {
+            signal.signal();
+        }
+
+        void messageReceived (const MemoryBlock& message) override
+        {
+            lastResponse = String::fromUTF8 ((const char*) message.getData(), (int) message.getSize());
+            received = true;
+            signal.signal();
+        }
+
+        bool waitForResponse (int timeoutMs)
+        {
+            if (received)
+                return true;
+
+            signal.wait (timeoutMs);
+            return received;
+        }
+
+        WaitableEvent signal;
+        bool connected = false;
+        bool received = false;
+        String lastResponse;
+    };
 
     static Array<File> findAllSourceFiles (const File& folder)
     {
@@ -822,6 +868,100 @@ namespace
             ConsoleApplication::fail (createMainCppResult.getErrorMessage());
     }
 
+    static void aiRequest (const ArgumentList& args)
+    {
+        args.checkMinNumArguments (3);
+
+        auto documentFile = args[1].resolveAsExistingFile();
+        auto requestText = args[2].text.trim();
+
+        if (requestText.isEmpty())
+            ConsoleApplication::fail ("Missing live-edit request payload.");
+
+        auto requestJson = requestText.startsWithChar ('@')
+                               ? JSON::parse (File (requestText.substring (1)).loadFileAsString())
+                               : JSON::parse (requestText);
+
+        if (! requestJson.isObject())
+            ConsoleApplication::fail ("Live-edit request must be a JSON object.");
+
+        auto* requestObject = requestJson.getDynamicObject();
+
+        if (requestObject == nullptr)
+            ConsoleApplication::fail ("Live-edit request must be a JSON object.");
+
+        auto method = requestObject->getProperty ("method").toString();
+
+        if (method.isEmpty())
+            ConsoleApplication::fail ("Live-edit request needs a method field.");
+
+        auto params = requestObject->getProperty ("params");
+        auto payload = std::make_unique<DynamicObject>();
+        payload->setProperty ("jsonrpc", "2.0");
+        payload->setProperty ("id", 1);
+        payload->setProperty ("method", method);
+        payload->setProperty ("documentFile", documentFile.getFullPathName());
+        payload->setProperty ("params", params);
+
+        ProjucerAutomation::LiveEditSessionInfo session;
+
+        if (! ProjucerAutomation::readLiveEditSessionInfo (session))
+            ConsoleApplication::fail ("Projucer live-edit session is not running.");
+
+        payload->setProperty ("token", session.token);
+
+        LiveEditClient client;
+
+        if (! client.connectToSocket ("127.0.0.1", session.port, 2000))
+            ConsoleApplication::fail ("Could not connect to Projucer live-edit session.");
+
+        auto request = JSON::toString (var (payload.release()));
+        MemoryBlock message (request.toRawUTF8(), (size_t) request.getNumBytesAsUTF8());
+
+        if (! client.sendMessage (message))
+            ConsoleApplication::fail ("Failed to send live-edit request.");
+
+        if (! client.waitForResponse (5000))
+            ConsoleApplication::fail ("Timed out waiting for a live-edit response.");
+
+        std::cout << client.lastResponse << std::endl;
+    }
+
+    static void aiInspect (const ArgumentList& args)
+    {
+        args.checkMinNumArguments (2);
+
+        auto documentFile = args[1].resolveAsExistingFile();
+        ProjucerAutomation::LiveEditSessionInfo session;
+
+        if (! ProjucerAutomation::readLiveEditSessionInfo (session))
+            ConsoleApplication::fail ("Projucer live-edit session is not running.");
+
+        auto payload = std::make_unique<DynamicObject>();
+        payload->setProperty ("jsonrpc", "2.0");
+        payload->setProperty ("id", 1);
+        payload->setProperty ("method", "document.inspect");
+        payload->setProperty ("token", session.token);
+        payload->setProperty ("documentFile", documentFile.getFullPathName());
+        payload->setProperty ("params", var (new DynamicObject()));
+
+        LiveEditClient client;
+
+        if (! client.connectToSocket ("127.0.0.1", session.port, 2000))
+            ConsoleApplication::fail ("Could not connect to Projucer live-edit session.");
+
+        auto request = JSON::toString (var (payload.release()));
+        MemoryBlock message (request.toRawUTF8(), (size_t) request.getNumBytesAsUTF8());
+
+        if (! client.sendMessage (message))
+            ConsoleApplication::fail ("Failed to send live-edit request.");
+
+        if (! client.waitForResponse (5000))
+            ConsoleApplication::fail ("Timed out waiting for a live-edit response.");
+
+        std::cout << client.lastResponse << std::endl;
+    }
+
     //==============================================================================
     static void showHelp()
     {
@@ -892,6 +1032,12 @@ namespace
                   << "    Generates a folder containing a JUCE project in the specified output path using the specified PIP file. Use the optional JUCE and user module paths to override "
                      "the global module paths." << std::endl
                   << std::endl
+                  << " " << appName << " --ai-inspect project_file" << std::endl
+                  << "    Returns the current GUI document snapshot from a running Projucer live-edit session." << std::endl
+                  << std::endl
+                  << " " << appName << " --ai-request project_file request_json_or_@file" << std::endl
+                  << "    Sends a JSON-RPC live-edit request to the running Projucer live-edit session. Use @file to read the request payload from disk." << std::endl
+                  << std::endl
                   << "Note that for any of the file-rewriting commands, add the option \"--lf\" if you want it to use LF linefeeds instead of CRLF" << std::endl
                   << std::endl;
     }
@@ -933,6 +1079,8 @@ int performCommandLine (const ArgumentList& args)
         if (matchCommand ("trans-finish"))             { createFinishedTranslationFile (args);  return 0; }
         if (matchCommand ("set-global-search-path"))   { setGlobalPath (args);                  return 0; }
         if (matchCommand ("create-project-from-pip"))  { createProjectFromPIP (args);           return 0; }
+        if (matchCommand ("ai-request"))               { aiRequest (args);                      return 0; }
+        if (matchCommand ("ai-inspect"))               { aiInspect (args);                      return 0; }
 
         if (command.isLongOption() || command.isShortOption())
             ConsoleApplication::fail ("Unrecognised command: " + command.text.quoted());

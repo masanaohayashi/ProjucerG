@@ -39,6 +39,7 @@
 #include "jucer_AutoUpdater.h"
 #include "../CodeEditor/jucer_SourceCodeEditor.h"
 #include "../Utility/UI/jucer_ProjucerLookAndFeel.h"
+#include "../Automation/jucer_LiveEditBridge.h"
 
 //==============================================================================
 class ProjucerApplication final : public JUCEApplication,
@@ -110,6 +111,7 @@ public:
     std::unique_ptr<ApplicationCommandManager> commandManager;
 
     bool isRunningCommandLine = false;
+    std::unique_ptr<ProjucerAutomation::LiveEditBridge> liveEditBridge;
 
 private:
     //==============================================================================
