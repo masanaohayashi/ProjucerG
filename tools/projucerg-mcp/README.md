@@ -26,11 +26,12 @@ default_tools_approval_mode = "writes"
 2. ユーザーに `.jucer` ProjectとGUIドキュメントを確認する。
 3. `select_edit_target` を `userConfirmed=true` で呼び、`targetId`を得る。このフラグは操作手順のガードであり、実際の承認境界にはCodexホストのwrite approvalも使用する。
 4. `get_active_gui_document` でキャンバス、Grid、既存コンポーネントを取得する。
-5. `preview_sliders` でProjucerG上に半透明プレビューを表示する。
-6. `get_gui_editor_image` で表示中のGUI Editorを画像として確認する。
-7. ユーザーが見た目を確認する。EscapeまたはCancelの場合は中断を伝え、自動再試行しない。
-8. ユーザーが明示的に承認した場合だけ `apply_live_edit` を `userConfirmed=true` で呼ぶ。
-9. 適用後に `get_active_gui_document` と `get_gui_editor_image` で結果を再確認する。
+5. `list_component_types` で、このProjucerGが扱える全コンポーネント型・既定サイズ・属性を取得する。
+6. `preview_components` で任意の対応コンポーネントをProjucerG上に半透明プレビュー表示する。Slider専用の互換ツールとして`preview_sliders`も利用できる。
+7. `get_gui_editor_image` で表示中のGUI Editorを画像として確認する。
+8. ユーザーが見た目を確認する。EscapeまたはCancelの場合は中断を伝え、自動再試行しない。
+9. ユーザーが明示的に承認した場合だけ `apply_live_edit` を `userConfirmed=true` で呼ぶ。
+10. 適用後に `get_active_gui_document` と `get_gui_editor_image` で結果を再確認する。
 
 ## テスト
 

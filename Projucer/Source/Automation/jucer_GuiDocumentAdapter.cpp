@@ -18,6 +18,46 @@ namespace ProjucerAutomation
 {
 namespace
 {
+ComponentTypeHandler* findHandler (const String& requestedType)
+{
+    for (int i = 0; i < ObjectTypes::numComponentTypes; ++i)
+    {
+        auto* handler = ObjectTypes::componentTypeHandlers[i];
+
+        if (handler->getTypeName().equalsIgnoreCase (requestedType)
+            || handler->getXmlTagName().equalsIgnoreCase (requestedType))
+            return handler;
+
+        std::unique_ptr<Component> component (handler->createNewComponent (nullptr));
+        if (component != nullptr && handler->getClassName (component.get()).equalsIgnoreCase (requestedType))
+            return handler;
+    }
+
+    return nullptr;
+}
+
+void copyXmlAttributes (const XmlElement& xml, NamedValueSet& destination)
+{
+    for (int i = 0; i < xml.getNumAttributes(); ++i)
+    {
+        const auto name = xml.getAttributeName (i);
+
+        if (name != "id" && name != "pos" && name != "name" && name != "memberName")
+            destination.set (name, xml.getAttributeValue (i));
+    }
+}
+
+void applyPropertiesToXml (const NamedValueSet& properties, XmlElement& xml)
+{
+    for (int i = 0; i < properties.size(); ++i)
+    {
+        const auto name = properties.getName (i).toString();
+
+        if (name != "id" && name != "pos" && name != "name" && name != "memberName")
+            xml.setAttribute (name, properties.getValueAt (i).toString());
+    }
+}
+
 String sliderStyleToString (Slider::SliderStyle style)
 {
     switch (style)
@@ -39,7 +79,160 @@ String sliderStyleToString (Slider::SliderStyle style)
 
     return "Unknown";
 }
+}
 
+std::vector<ComponentTypeDescriptor> GuiDocumentAdapter::createComponentTypeCatalog() const
+{
+    std::vector<ComponentTypeDescriptor> result;
+    result.reserve ((size_t) ObjectTypes::numComponentTypes);
+
+    for (int i = 0; i < ObjectTypes::numComponentTypes; ++i)
+    {
+        auto* handler = ObjectTypes::componentTypeHandlers[i];
+        std::unique_ptr<Component> component (handler->createNewComponent (&document));
+
+        if (component == nullptr)
+            continue;
+
+        ComponentTypeDescriptor descriptor;
+        descriptor.type = handler->getTypeName();
+        descriptor.xmlTag = handler->getXmlTagName();
+        descriptor.className = handler->getClassName (component.get());
+        descriptor.defaultSize = { handler->getDefaultWidth(), handler->getDefaultHeight() };
+
+        if (std::unique_ptr<XmlElement> xml { handler->createXmlFor (component.get(), document.getComponentLayout()) })
+            copyXmlAttributes (*xml, descriptor.defaultProperties);
+
+        result.push_back (std::move (descriptor));
+    }
+
+    return result;
+}
+
+Result GuiDocumentAdapter::validate (const ComponentDraft& draft) const
+{
+    if (document.getComponentLayout() == nullptr)
+        return Result::fail ("The GUI document has no component layout.");
+
+    if (findHandler (draft.type) == nullptr)
+        return Result::fail ("Unknown GUI component type: " + draft.type);
+
+    if (draft.name.trim().isEmpty())
+        return Result::fail ("The component name must not be empty.");
+
+    if (draft.memberName.trim().isEmpty())
+        return Result::fail ("The component member name must not be empty.");
+
+    if (draft.placement.size.x <= 0 || draft.placement.size.y <= 0)
+        return Result::fail ("The component size must be positive.");
+
+    const Rectangle<int> componentBounds { 0, 0, document.getInitialWidth(), document.getInitialHeight() };
+
+    if (! componentBounds.contains (resolveBounds (draft.placement)))
+        return Result::fail ("The component must fit inside the GUI component.");
+
+    return Result::ok();
+}
+
+std::unique_ptr<Component> GuiDocumentAdapter::createConfiguredComponent (const ComponentDraft& draft) const
+{
+    auto* handler = findHandler (draft.type);
+
+    if (handler == nullptr)
+        return {};
+
+    std::unique_ptr<Component> component (handler->createNewComponent (&document));
+    if (component == nullptr)
+        return {};
+
+    component->setName (draft.name);
+    component->getProperties().set ("memberName", draft.memberName);
+
+    auto* layout = document.getComponentLayout();
+    std::unique_ptr<XmlElement> xml (handler->createXmlFor (component.get(), layout));
+    if (xml == nullptr)
+        return {};
+
+    xml->setAttribute ("name", draft.name);
+    xml->setAttribute ("memberName", draft.memberName);
+    applyPropertiesToXml (draft.properties, *xml);
+
+    if (! handler->restoreFromXml (*xml, component.get(), layout))
+        return {};
+
+    component->setBounds (resolveBounds (draft.placement));
+    return component;
+}
+
+Image GuiDocumentAdapter::createComponentPreview (const ComponentDraft& draft) const
+{
+    auto component = createConfiguredComponent (draft);
+
+    if (component == nullptr)
+        return {};
+
+    auto lookAndFeel = PreviewLookAndFeel::createForDocument (&document);
+    component->setBounds (0, 0, draft.placement.size.x, draft.placement.size.y);
+    component->setLookAndFeel (lookAndFeel.get());
+    auto image = component->createComponentSnapshot (component->getLocalBounds());
+    component->setLookAndFeel (nullptr);
+    return image;
+}
+
+BatchApplyResult GuiDocumentAdapter::addComponents (const std::vector<ComponentDraft>& drafts,
+                                                    const String& transactionName)
+{
+    if (drafts.empty())
+        return { Result::fail ("At least one component is required."), {} };
+
+    for (const auto& draft : drafts)
+        if (auto validation = validate (draft); validation.failed())
+            return { validation, {} };
+
+    document.beginTransaction (transactionName);
+    std::vector<ApplyResult> results;
+    results.reserve (drafts.size());
+
+    for (const auto& draft : drafts)
+    {
+        auto result = addComponentWithoutStartingTransaction (draft);
+
+        if (! result.wasApplied())
+        {
+            document.getUndoManager().undoCurrentTransactionOnly();
+            return { result.status, {} };
+        }
+
+        results.push_back (std::move (result));
+    }
+
+    return { Result::ok(), std::move (results) };
+}
+
+ApplyResult GuiDocumentAdapter::addComponentWithoutStartingTransaction (const ComponentDraft& draft)
+{
+    auto* layout = document.getComponentLayout();
+    auto component = createConfiguredComponent (draft);
+
+    if (layout == nullptr || component == nullptr)
+        return { Result::fail ("The GUI component could not be configured.") };
+
+    auto* handler = ComponentTypeHandler::getHandlerFor (*component);
+    RelativePositionedRectangle position;
+    const auto bounds = resolveBounds (draft.placement);
+    position.rect = PositionedRectangle (String (bounds.getX()) + " " + String (bounds.getY()) + " "
+                                         + String (bounds.getWidth()) + " " + String (bounds.getHeight()));
+    ComponentTypeHandler::setComponentPosition (component.get(), position, layout);
+
+    std::unique_ptr<XmlElement> xml (handler->createXmlFor (component.get(), layout));
+    if (auto* added = layout->addComponentFromXml (*xml, true))
+        return { Result::ok(), ComponentTypeHandler::getComponentId (added), added->getBounds() };
+
+    return { Result::fail ("The GUI component could not be restored into the document.") };
+}
+
+namespace
+{
 String textBoxPositionToString (Slider::TextEntryBoxPosition position)
 {
     switch (position)
@@ -90,6 +283,9 @@ GuiDocumentSnapshot GuiDocumentAdapter::createSnapshot() const
             componentSnapshot.name = component->getName();
             componentSnapshot.memberName = layout->getComponentMemberVariableName (component);
             componentSnapshot.bounds = component->getBounds();
+
+            if (std::unique_ptr<XmlElement> xml { handler->createXmlFor (component, layout) })
+                copyXmlAttributes (*xml, componentSnapshot.properties);
 
             if (auto* slider = dynamic_cast<Slider*> (component))
             {

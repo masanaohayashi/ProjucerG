@@ -151,6 +151,40 @@ TOOLS = [
         "annotations": {"readOnlyHint": True},
     },
     {
+        "name": "list_component_types",
+        "description": "List every GUI component type supported by this ProjucerG build, including default size and raw editable XML properties.",
+        "inputSchema": _object_schema({"targetId": TARGET_ID}, ["targetId"]),
+        "annotations": {"readOnlyHint": True},
+    },
+    {
+        "name": "preview_components",
+        "description": "Show non-destructive previews of any supported top-level GUI components. Get valid types and properties from list_component_types first.",
+        "inputSchema": _object_schema(
+            {
+                "targetId": TARGET_ID,
+                "components": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": _object_schema(
+                        {
+                            "type": {"type": "string"},
+                            "name": {"type": "string"},
+                            "memberName": {"type": "string"},
+                            "x": {"type": "integer"},
+                            "y": {"type": "integer"},
+                            "width": {"type": "integer", "minimum": 1},
+                            "height": {"type": "integer", "minimum": 1},
+                            "properties": {"type": "object", "additionalProperties": True},
+                        },
+                        ["type", "name", "memberName", "x", "y", "width", "height"],
+                    ),
+                },
+            },
+            ["targetId", "components"],
+        ),
+        "annotations": {"readOnlyHint": False, "destructiveHint": False},
+    },
+    {
         "name": "preview_sliders",
         "description": "Show one or more non-destructive translucent Slider previews. Coordinates are absolute canvas bounds. Do not apply without visual user confirmation.",
         "inputSchema": _object_schema(
@@ -233,6 +267,13 @@ class McpServer:
             return self.client.request("document.inspect", {}, target.document_file, target.project_file)
         if name == "get_gui_editor_image":
             return self.client.request("document.capture", {}, target.document_file, target.project_file)
+        if name == "list_component_types":
+            return self.client.request("component.catalog", {}, target.document_file, target.project_file)
+        if name == "preview_components":
+            return self.client.request(
+                "edit.previewComponents", {"components": arguments["components"]},
+                target.document_file, target.project_file
+            )
         if name == "preview_sliders":
             return self.client.request(
                 "edit.previewSliders", {"sliders": arguments["sliders"]}, target.document_file, target.project_file

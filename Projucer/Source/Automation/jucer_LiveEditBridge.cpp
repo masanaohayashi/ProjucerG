@@ -285,6 +285,18 @@ void LiveEditBridge::handleRequest (Connection& connection, const var& request)
         return;
     }
 
+    if (method == "component.catalog")
+    {
+        handleComponentCatalog (connection, requestId, documentFile);
+        return;
+    }
+
+    if (method == "edit.previewComponents")
+    {
+        handlePreviewComponents (connection, requestId, *object, documentFile);
+        return;
+    }
+
     if (method == "edit.previewSlider")
     {
         handlePreviewSlider (connection, requestId, *object, documentFile);
@@ -579,6 +591,11 @@ void LiveEditBridge::handleInspect (Connection& connection, int id, const Dynami
         componentBounds->setProperty ("height", component.bounds.getHeight());
         item->setProperty ("bounds", var (componentBounds.release()));
 
+        auto properties = std::make_unique<DynamicObject>();
+        for (int i = 0; i < component.properties.size(); ++i)
+            properties->setProperty (component.properties.getName (i), component.properties.getValueAt (i));
+        item->setProperty ("properties", var (properties.release()));
+
         if (component.slider.has_value())
         {
             const auto& source = *component.slider;
@@ -628,6 +645,106 @@ void LiveEditBridge::handleCapture (Connection& connection, int id, const File& 
     result->setProperty ("width", image.getWidth());
     result->setProperty ("height", image.getHeight());
     connection.sendResponse (makeResultResponse (id, var (result.release())));
+}
+
+void LiveEditBridge::handleComponentCatalog (Connection& connection, int id, const File& documentFile)
+{
+    auto* editor = findDocumentEditor (documentFile);
+
+    if (editor == nullptr || editor->getDocument() == nullptr)
+    {
+        connection.sendError (id, -32002, "Requested document is not open.");
+        return;
+    }
+
+    GuiDocumentAdapter adapter (*editor->getDocument());
+    Array<var> types;
+
+    for (const auto& descriptor : adapter.createComponentTypeCatalog())
+    {
+        auto type = std::make_unique<DynamicObject>();
+        type->setProperty ("type", descriptor.type);
+        type->setProperty ("xmlTag", descriptor.xmlTag);
+        type->setProperty ("className", descriptor.className);
+
+        auto size = std::make_unique<DynamicObject>();
+        size->setProperty ("width", descriptor.defaultSize.x);
+        size->setProperty ("height", descriptor.defaultSize.y);
+        type->setProperty ("defaultSize", var (size.release()));
+
+        auto properties = std::make_unique<DynamicObject>();
+        for (int i = 0; i < descriptor.defaultProperties.size(); ++i)
+            properties->setProperty (descriptor.defaultProperties.getName (i),
+                                     descriptor.defaultProperties.getValueAt (i));
+        type->setProperty ("defaultProperties", var (properties.release()));
+        types.add (var (type.release()));
+    }
+
+    auto result = std::make_unique<DynamicObject>();
+    result->setProperty ("types", var (types));
+    connection.sendResponse (makeResultResponse (id, var (result.release())));
+}
+
+void LiveEditBridge::handlePreviewComponents (Connection& connection, int id,
+                                              const DynamicObject& object, const File& documentFile)
+{
+    auto* panel = findLayoutPanel (documentFile);
+    auto* editor = findDocumentEditor (documentFile);
+    const auto* params = object.getProperty ("params").getDynamicObject();
+    const auto* components = params != nullptr ? params->getProperty ("components").getArray() : nullptr;
+
+    if (panel == nullptr || editor == nullptr || editor->getDocument() == nullptr)
+    {
+        connection.sendError (id, -32002, "Requested document is not open.");
+        return;
+    }
+
+    if (components == nullptr || components->isEmpty())
+    {
+        connection.sendError (id, -32602, "params.components must contain at least one component.");
+        return;
+    }
+
+    std::vector<ComponentDraft> drafts;
+    drafts.reserve ((size_t) components->size());
+
+    for (const auto& value : *components)
+    {
+        const auto* source = value.getDynamicObject();
+        if (source == nullptr)
+        {
+            connection.sendError (id, -32602, "Each components entry must be an object.");
+            return;
+        }
+
+        ComponentDraft draft;
+        draft.type = readStringProperty (*source, "type");
+        draft.name = readStringProperty (*source, "name");
+        draft.memberName = readStringProperty (*source, "memberName");
+        draft.placement.anchor = PlacementAnchor::componentTopLeft;
+        draft.placement.offset = { readIntProperty (*source, "x"), readIntProperty (*source, "y") };
+        draft.placement.size = { readIntProperty (*source, "width", 100), readIntProperty (*source, "height", 24) };
+
+        if (const auto* properties = source->getProperty ("properties").getDynamicObject())
+            for (const auto& property : properties->getProperties())
+                draft.properties.set (property.name, property.value);
+
+        drafts.push_back (std::move (draft));
+    }
+
+    GuiDocumentAdapter adapter (*editor->getDocument());
+    for (const auto& draft : drafts)
+        if (auto validation = adapter.validate (draft); validation.failed())
+        {
+            connection.sendError (id, -32602, validation.getErrorMessage());
+            return;
+        }
+
+    panel->showLiveEditPreview (drafts);
+
+    auto response = std::make_unique<DynamicObject>();
+    response->setProperty ("previewing", components->size());
+    connection.sendResponse (makeResultResponse (id, var (response.release())));
 }
 
 void LiveEditBridge::handlePreviewSlider (Connection& connection, int id, const DynamicObject& object, const File& documentFile)

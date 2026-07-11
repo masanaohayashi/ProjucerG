@@ -77,13 +77,36 @@ public:
 
     void showLiveEditPreview (const std::vector<ProjucerAutomation::SliderDraft>& draftsToUse)
     {
+        std::vector<ProjucerAutomation::ComponentDraft> components;
+        components.reserve (draftsToUse.size());
+
+        for (const auto& slider : draftsToUse)
+        {
+            ProjucerAutomation::ComponentDraft component;
+            component.type = "SLIDER";
+            component.name = slider.name;
+            component.memberName = slider.memberName;
+            component.placement = slider.placement;
+            component.properties.set ("min", slider.minimum);
+            component.properties.set ("max", slider.maximum);
+            component.properties.set ("int", slider.interval);
+            component.properties.set ("style", "RotaryHorizontalVerticalDrag");
+            component.properties.set ("textBoxPos", "NoTextBox");
+            components.push_back (std::move (component));
+        }
+
+        showLiveEditPreview (components);
+    }
+
+    void showLiveEditPreview (const std::vector<ProjucerAutomation::ComponentDraft>& draftsToUse)
+    {
         liveEditDrafts = draftsToUse;
         liveEditPreviewVisible = true;
         liveEditPaused = false;
         liveEditApplied = false;
         liveEditState = "previewing";
         liveEditCompletionReason.clear();
-        liveEditStatusText = "AI editing: previewing " + String (liveEditDrafts.size()) + " Slider(s)";
+        liveEditStatusText = "AI editing: previewing " + String (liveEditDrafts.size()) + " component(s)";
         refreshLiveEditPreviewImages();
 
         if (liveEditOverlay == nullptr)
@@ -140,7 +163,7 @@ public:
         liveEditState = liveEditPaused ? "paused" : "previewing";
         liveEditCompletionReason.clear();
         liveEditStatusText = liveEditPaused ? "AI editing: paused"
-                                            : "AI editing: previewing " + String (liveEditDrafts.size()) + " Slider(s)";
+                                            : "AI editing: previewing " + String (liveEditDrafts.size()) + " component(s)";
 
         if (liveEditOverlay != nullptr)
             liveEditOverlay->syncFromState();
@@ -157,7 +180,7 @@ public:
             return;
 
         ProjucerAutomation::GuiDocumentAdapter adapter (document);
-        liveEditResult = adapter.addSliders (liveEditDrafts, "AI Edit - Add Sliders");
+        liveEditResult = adapter.addComponents (liveEditDrafts, "AI Edit - Add Components");
         liveEditApplied = liveEditResult.wasApplied();
 
         if (liveEditApplied)
@@ -448,24 +471,12 @@ private:
         if (dynamic_cast<ComponentLayoutEditor*> (editor) == nullptr)
             return;
 
-        liveEditPreviewLookAndFeel = PreviewLookAndFeel::createForDocument (&document);
-
         for (const auto& draft : liveEditDrafts)
-        {
-            Slider previewSlider (draft.name);
-            previewSlider.setRange (draft.minimum, draft.maximum, draft.interval);
-            previewSlider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
-            previewSlider.setTextBoxStyle (juce::Slider::NoTextBox, true, 80, 20);
-            previewSlider.setBounds (0, 0, draft.placement.size.x, draft.placement.size.y);
-            previewSlider.setLookAndFeel (liveEditPreviewLookAndFeel.get());
-            liveEditPreviewImages.push_back (previewSlider.createComponentSnapshot (previewSlider.getLocalBounds()));
-            previewSlider.setLookAndFeel (nullptr);
-        }
+            liveEditPreviewImages.push_back (ProjucerAutomation::GuiDocumentAdapter (document).createComponentPreview (draft));
     }
 
     std::unique_ptr<LiveEditOverlay> liveEditOverlay;
-    std::unique_ptr<LookAndFeel> liveEditPreviewLookAndFeel;
-    std::vector<ProjucerAutomation::SliderDraft> liveEditDrafts;
+    std::vector<ProjucerAutomation::ComponentDraft> liveEditDrafts;
     bool liveEditPreviewVisible = false;
     bool liveEditPaused = false;
     bool liveEditApplied = false;

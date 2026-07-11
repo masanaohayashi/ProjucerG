@@ -72,6 +72,24 @@ struct SliderDraft
     ComponentPlacement placement;
 };
 
+struct ComponentDraft
+{
+    String type;
+    String name;
+    String memberName;
+    ComponentPlacement placement;
+    NamedValueSet properties;
+};
+
+struct ComponentTypeDescriptor
+{
+    String type;
+    String xmlTag;
+    String className;
+    Point<int> defaultSize;
+    NamedValueSet defaultProperties;
+};
+
 struct ComponentSnapshot
 {
     int64 id = 0;
@@ -79,6 +97,7 @@ struct ComponentSnapshot
     String name;
     String memberName;
     Rectangle<int> bounds;
+    NamedValueSet properties;
 
     struct SliderProperties
     {

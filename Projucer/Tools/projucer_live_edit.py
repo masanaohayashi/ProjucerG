@@ -74,6 +74,9 @@ def build_parser() -> argparse.ArgumentParser:
     inspect_parser = subparsers.add_parser("inspect")
     inspect_parser.add_argument("document", type=Path)
 
+    catalog_parser = subparsers.add_parser("component-catalog")
+    catalog_parser.add_argument("document", type=Path)
+
     capture_parser = subparsers.add_parser("capture")
     capture_parser.add_argument("document", type=Path)
     capture_parser.add_argument("output", type=Path)
@@ -94,6 +97,11 @@ def build_parser() -> argparse.ArgumentParser:
     batch_parser.add_argument("document", type=Path)
     batch_parser.add_argument("spec", type=Path,
                               help="JSON file containing a sliders array with absolute x/y bounds")
+
+    components_parser = subparsers.add_parser("preview-components")
+    components_parser.add_argument("document", type=Path)
+    components_parser.add_argument("spec", type=Path,
+                                   help="JSON file containing a components array")
 
     for command in ("apply", "cancel", "status"):
         command_parser = subparsers.add_parser(command)
@@ -152,6 +160,8 @@ def main() -> int:
         method, params = "document.open", {}
     elif args.command == "inspect":
         method, params = "document.inspect", {}
+    elif args.command == "component-catalog":
+        method, params = "component.catalog", {}
     elif args.command == "preview-slider":
         method = "edit.previewSlider"
         params = {
@@ -167,6 +177,9 @@ def main() -> int:
         }
     elif args.command == "preview-sliders":
         method = "edit.previewSliders"
+        params = json.loads(args.spec.read_text(encoding="utf-8"))
+    elif args.command == "preview-components":
+        method = "edit.previewComponents"
         params = json.loads(args.spec.read_text(encoding="utf-8"))
     elif args.command == "apply":
         method, params = "edit.apply", {}

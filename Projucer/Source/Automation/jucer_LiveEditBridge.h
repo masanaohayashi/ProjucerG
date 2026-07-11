@@ -67,6 +67,8 @@ private:
     void handleDocumentOpen (Connection&, int id, const File& documentFile, const File& projectFile);
     void handleInspect (Connection&, int id, const DynamicObject&, const File& documentFile);
     void handleCapture (Connection&, int id, const File& documentFile);
+    void handleComponentCatalog (Connection&, int id, const File& documentFile);
+    void handlePreviewComponents (Connection&, int id, const DynamicObject&, const File& documentFile);
     void handlePreviewSlider (Connection&, int id, const DynamicObject&, const File& documentFile);
     void handlePreviewSliders (Connection&, int id, const DynamicObject&, const File& documentFile);
     void handleApply (Connection&, int id, const File& documentFile);
