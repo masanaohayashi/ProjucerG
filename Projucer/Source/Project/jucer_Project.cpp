@@ -197,6 +197,11 @@ void Project::updateTitleDependencies()
     pluginARACompatibleArchiveIDsValue.setDefault (getDefaultARACompatibleArchiveIDs());
 }
 
+void Project::updateVersionDependencies()
+{
+    pluginARAArchiveIDValue.setDefault (getDefaultARADocumentArchiveID());
+}
+
 String Project::getDocumentTitle()
 {
     return getProjectNameString();
@@ -220,6 +225,9 @@ void Project::updateWebsiteDependencies()
 void Project::updateProjectSettings()
 {
     projectRoot.setProperty (Ids::name, getDocumentTitle(), nullptr);
+
+    if (shouldEnableARA())
+        projectRoot.setProperty (Ids::araDocumentArchiveID, getARADocumentArchiveIDString(), nullptr);
 }
 
 bool Project::setCppVersionFromOldExporterSettings()
@@ -406,11 +414,12 @@ void Project::initialiseAudioPluginValues()
 
     pluginAUMainTypeValue.referTo            (projectRoot, Ids::pluginAUMainType,           getUndoManager(), getDefaultAUMainTypes(),    ",");
     pluginAUSandboxSafeValue.referTo         (projectRoot, Ids::pluginAUIsSandboxSafe,      getUndoManager(), false);
+    pluginLV2PluginClassValue.referTo        (projectRoot, Ids::pluginLV2PluginClass,       getUndoManager(), getDefaultLV2PluginClass());
     pluginVSTCategoryValue.referTo           (projectRoot, Ids::pluginVSTCategory,          getUndoManager(), getDefaultVSTCategories(),  ",");
     pluginVST3CategoryValue.referTo          (projectRoot, Ids::pluginVST3Category,         getUndoManager(), getDefaultVST3Categories(), ",");
     pluginAAXCategoryValue.referTo           (projectRoot, Ids::pluginAAXCategory,          getUndoManager(), getDefaultAAXCategories(),  ",");
 
-    pluginEnableARA.referTo                  (projectRoot, Ids::enableARA,                  getUndoManager(),  shouldEnableARA(), ",");
+    pluginEnableARA.referTo                  (projectRoot, Ids::enableARA,                  getUndoManager(), shouldEnableARA(), ",");
     pluginARAAnalyzableContentValue.referTo  (projectRoot, Ids::pluginARAAnalyzableContent, getUndoManager(), getDefaultARAContentTypes(), ",");
     pluginARATransformFlagsValue.referTo     (projectRoot, Ids::pluginARATransformFlags,    getUndoManager(), getDefaultARATransformationFlags(), ",");
     pluginARACompatibleArchiveIDsValue.referTo (projectRoot, Ids::araCompatibleArchiveIDs,  getUndoManager(), getDefaultARACompatibleArchiveIDs());
@@ -621,6 +630,15 @@ void Project::updatePluginCategories()
             pluginVSTCategoryValue = Array<var> (vstCategory);
         else
             pluginVSTCategoryValue.resetToDefault();
+    }
+
+    {
+        auto lv2Class = projectRoot.getProperty (Ids::pluginLV2PluginClass, {}).toString();
+
+        if (lv2Class.isNotEmpty())
+            pluginLV2PluginClassValue = lv2Class;
+        else
+            pluginLV2PluginClassValue.resetToDefault();
     }
 
     {
@@ -1177,6 +1195,10 @@ void Project::valueTreePropertyChanged (ValueTree& tree, const Identifier& prope
         {
             updateTitleDependencies();
         }
+        else if (property == Ids::version)
+        {
+            updateVersionDependencies();
+        }
         else if (property == Ids::companyName)
         {
             updateCompanyNameDependencies();
@@ -1198,6 +1220,7 @@ void Project::valueTreePropertyChanged (ValueTree& tree, const Identifier& prope
         }
         else if (property == Ids::pluginCharacteristicsValue)
         {
+            pluginLV2PluginClassValue.setDefault (getDefaultLV2PluginClass());
             pluginAUMainTypeValue.setDefault   (getDefaultAUMainTypes());
             pluginVSTCategoryValue.setDefault  (getDefaultVSTCategories());
             pluginVST3CategoryValue.setDefault (getDefaultVST3Categories());
@@ -1862,6 +1885,10 @@ void Project::createAudioPluginPropertyEditors (PropertyListBuilder& props)
         props.add (new MultiChoicePropertyComponent (pluginVSTCategoryValue, "Plugin VST (Legacy) Category", getAllVSTCategoryStrings(), vstCategoryVars, 1),
                    "VST category.");
     }
+
+    props.add (new TextPropertyComponent (pluginLV2PluginClassValue, "Plugin LV2 Class", 128, false),
+               "The Class (or category) of the LV2 plugin, such as InstrumentPlugin or DistortionPlugin. "
+               "The full set of standard classes can be found at https://lv2plug.in/ns/lv2core#Plugin.");
 
     props.add (new TextPropertyComponent (pluginLV2URIValue, "LV2 URI", 128, false),
                "This acts as a unique identifier for this plugin. "
@@ -2580,6 +2607,11 @@ bool Project::isAUSandBoxSafe() const noexcept
     return pluginAUSandboxSafeValue.get();
 }
 
+String Project::getLV2PluginClassString() const noexcept
+{
+    return pluginLV2PluginClassValue.get();
+}
+
 String Project::getVSTCategoryString() const noexcept
 {
     auto v = pluginVSTCategoryValue.get();
@@ -2747,6 +2779,14 @@ Array<var> Project::getAllAUMainTypeVars() noexcept
                                        "'auou'", "'aupn'" };
 
     return auMainTypeVars;
+}
+
+String Project::getDefaultLV2PluginClass() const noexcept
+{
+    if (isPluginSynth())
+        return "InstrumentPlugin";
+
+    return "Plugin";
 }
 
 Array<var> Project::getDefaultAUMainTypes() const noexcept
@@ -3189,6 +3229,7 @@ StringPairArray Project::getAudioPluginFlags() const
     flags.set ("JucePlugin_VersionString",               toStringLiteral (getVersionString()));
     flags.set ("JucePlugin_VSTUniqueID",                 "JucePlugin_PluginCode");
     flags.set ("JucePlugin_VSTCategory",                 getVSTCategoryString());
+    flags.set ("JucePlugin_LV2PluginClass",              getLV2PluginClassString());
     flags.set ("JucePlugin_Vst3Category",                toStringLiteral (getVST3CategoryString()));
     flags.set ("JucePlugin_AUMainType",                  getAUMainTypeString());
     flags.set ("JucePlugin_AUSubType",                   "JucePlugin_PluginCode");

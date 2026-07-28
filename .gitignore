@@ -4,6 +4,7 @@
 # Reference JUCE checkouts used for comparison.
 /JUCE-7.0.12/
 /JUCE-8.0.13/
+/JUCE-9.0.0/
 /JUCE-juce9/
 
 # Local build output from Projucer-generated projects.
