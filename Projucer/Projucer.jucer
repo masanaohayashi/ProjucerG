@@ -35,9 +35,10 @@
     <VS2019 targetFolder="Builds/VisualStudio2019" bigIcon="Zrx1Gl" extraCompilerFlags="/w44265 /w45038 /w44062"
             smallIcon="Zrx1Gl">
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" useRuntimeLibDLL="0"/>
+        <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" useRuntimeLibDLL="0"
+                       winArchitecture="ARM64,x64"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="Projucer"
-                       useRuntimeLibDLL="0" linkTimeOptimisation="0"/>
+                       useRuntimeLibDLL="0" linkTimeOptimisation="0" winArchitecture="ARM64,x64"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../JUCE-9.0.0/modules"/>
@@ -59,9 +60,10 @@
     <VS2022 targetFolder="Builds/VisualStudio2022" bigIcon="Zrx1Gl" extraCompilerFlags="/w44265 /w45038 /w44062"
             smallIcon="Zrx1Gl">
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" useRuntimeLibDLL="0"/>
+        <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" useRuntimeLibDLL="0"
+                       winArchitecture="ARM64,x64"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="Projucer"
-                       useRuntimeLibDLL="0" linkTimeOptimisation="0"/>
+                       useRuntimeLibDLL="0" linkTimeOptimisation="0" winArchitecture="ARM64,x64"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../JUCE-9.0.0/modules"/>
@@ -83,9 +85,10 @@
     <VS2026 targetFolder="Builds/VisualStudio2026" bigIcon="Zrx1Gl" extraCompilerFlags="/w44265 /w45038 /w44062"
             smallIcon="Zrx1Gl">
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" useRuntimeLibDLL="0"/>
+        <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" useRuntimeLibDLL="0"
+                       winArchitecture="ARM64,x64"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="Projucer"
-                       useRuntimeLibDLL="0" linkTimeOptimisation="0"/>
+                       useRuntimeLibDLL="0" linkTimeOptimisation="0" winArchitecture="ARM64,x64"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../JUCE-9.0.0/modules"/>
