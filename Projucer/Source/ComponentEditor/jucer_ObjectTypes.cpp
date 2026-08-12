@@ -89,6 +89,12 @@ void clearPreviewLookAndFeels()
     SliderHandler::clearPreviewLookAndFeels();
 }
 
+void clearProjectTypefaces()
+{
+    // (the cached typefaces must be released before JUCE's font machinery is torn down)
+    FontPropertyComponent::clearTypefaceCache();
+}
+
 PaintElement* createNewElement (const int index, PaintRoutine* owner)
 {
     switch (index)

@@ -197,3 +197,15 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JucerDocument)
 };
+
+//==============================================================================
+/** Returns the project that a document belongs to, or nullptr if there isn't one. */
+inline Project* getProjectFor (const JucerDocument* document)
+{
+    return document != nullptr ? document->getCppDocument().getProject() : nullptr;
+}
+
+inline Project* getProjectFor (const ComponentLayout* layout)
+{
+    return layout != nullptr ? getProjectFor (layout->getDocument()) : nullptr;
+}

@@ -50,7 +50,7 @@ public:
     {
         fillType.setFillType (g, getDocument(), parentArea);
 
-        font = FontPropertyComponent::applyNameToFont (typefaceName, font);
+        font = FontPropertyComponent::applyNameToFont (getProjectFor (getDocument()), typefaceName, font);
         g.setFont (font);
 
         g.drawText (replaceStringTranslations (text, owner->getDocument()),
@@ -95,7 +95,7 @@ public:
               << "    //[/UserPaintCustomArguments]\n"
               << "    ";
             fillType.fillInGeneratedCode ("fill", position, code, r);
-            r << "    g.setFont (" << FontPropertyComponent::getCompleteFontCode (font, typefaceName) << ");\n"
+            r << "    g.setFont (" << code.getFontCode (font, typefaceName) << ");\n"
               << "    g.drawText (text, x, y, width, height,\n"
               << "                " << CodeHelpers::justificationToCode (justification) << ", true);\n"
               << "}\n\n";
@@ -146,7 +146,7 @@ public:
 
             text = xml.getStringAttribute ("text", "Hello World");
             typefaceName = xml.getStringAttribute ("fontname", FontPropertyComponent::getDefaultFont());
-            font = FontPropertyComponent::applyNameToFont (typefaceName, font);
+            font = FontPropertyComponent::applyNameToFont (getProjectFor (getDocument()), typefaceName, font);
             font.setHeight ((float) xml.getDoubleAttribute ("fontsize", 15.0));
             font.setBold (xml.getBoolAttribute ("bold", false));
             font.setItalic (xml.getBoolAttribute ("italic", false));
@@ -357,7 +357,7 @@ public:
         if (PaintRoutineEditor* parent = dynamic_cast<PaintRoutineEditor*> (getParentComponent()))
         {
 
-            font = FontPropertyComponent::applyNameToFont (typefaceName, font);
+            font = FontPropertyComponent::applyNameToFont (getProjectFor (getDocument()), typefaceName, font);
 
             const Rectangle<int> r =
                 getCurrentBounds (parent->getComponentArea().withZeroOrigin());
@@ -424,7 +424,7 @@ private:
     {
     public:
         FontNameProperty (PaintElementText* const e)
-            : FontPropertyComponent ("font"),
+            : FontPropertyComponent ("font", getProjectFor (e->getDocument())),
               element (e)
         {
             element->getDocument()->addChangeListener (this);

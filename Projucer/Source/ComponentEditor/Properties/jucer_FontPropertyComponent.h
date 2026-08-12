@@ -25,12 +25,13 @@
 
 #pragma once
 
+// (this header is always included after jucer_Project.h / jucer_JucerDocument.h)
 
 //==============================================================================
 class FontPropertyComponent    : public ChoicePropertyComponent
 {
 public:
-    FontPropertyComponent (const String& name)
+    FontPropertyComponent (const String& name, Project* projectToUse)
         : ChoicePropertyComponent (name)
     {
         choices.add (getDefaultFont());
@@ -38,6 +39,14 @@ public:
         choices.add (getDefaultSerif());
         choices.add (getDefaultMono());
         choices.add (String());
+
+        auto projectFonts = getProjectFontNames (projectToUse);
+
+        if (! projectFonts.isEmpty())
+        {
+            choices.addArray (projectFonts);
+            choices.add (String());
+        }
 
         static StringArray fontNames;
 
@@ -57,6 +66,95 @@ public:
     static String getDefaultSans()  { return "Default sans-serif font"; }
     static String getDefaultSerif() { return "Default serif font"; }
     static String getDefaultMono()  { return "Default monospaced font"; }
+
+    //==============================================================================
+    /** Fonts that were added to the project as binary resources are listed by their
+        file name (e.g. "MyFont.ttf"), which is also what gets stored in the document.
+    */
+    static bool isFontFileName (const String& name)
+    {
+        return name.endsWithIgnoreCase (".ttf") || name.endsWithIgnoreCase (".otf");
+    }
+
+    static StringArray getProjectFontNames (Project* project)
+    {
+        StringArray names;
+
+        for (auto& f : getProjectFontFiles (project))
+            names.addIfNotAlreadyThere (f.getFileName());
+
+        return names;
+    }
+
+    /** Returns the file that a typeface name refers to, or an empty file if the name
+        isn't one of the project's embedded fonts.
+    */
+    static File getProjectFontFile (Project* project, const String& typefaceName)
+    {
+        if (project != nullptr && isFontFileName (typefaceName))
+            for (auto& f : getProjectFontFiles (project))
+                if (f.getFileName() == typefaceName)
+                    return f;
+
+        return {};
+    }
+
+    /** Returns the BinaryData identifier that the project's resource file will use for a
+        font, matching the numbering that JucerResourceFile applies to same-named files.
+    */
+    static String getBinaryDataIdentifier (Project* project, const File& fontFile)
+    {
+        StringArray used;
+
+        for (auto& f : getProjectBinaryResources (project))
+        {
+            auto root = build_tools::makeBinaryDataIdentifierName (f);
+            auto identifier = root;
+
+            for (int suffix = 2; used.contains (identifier); ++suffix)
+                identifier = root + String (suffix);
+
+            used.add (identifier);
+
+            if (f == fontFile)
+                return identifier;
+        }
+
+        return {};
+    }
+
+    /** Loads (and caches) an embedded project font. Holding on to the returned pointer keeps
+        the typeface registered with JUCE, so that it can be found by its family name.
+    */
+    static Typeface::Ptr getProjectTypeface (Project* project, const String& typefaceName)
+    {
+        if (project == nullptr || ! isFontFileName (typefaceName))
+            return {};
+
+        // ponytail: keyed by project + name, so a .ttf that's swapped on disk needs the
+        // document reopening to show up. Add a modification-time check if that bites.
+        auto& cache = getTypefaceCache();
+        auto key = project->getFile().getFullPathName() + "|" + typefaceName;
+        auto existing = cache.find (key);
+
+        if (existing != cache.end())
+            return existing->second;
+
+        MemoryBlock data;
+
+        if (! getProjectFontFile (project, typefaceName).loadFileAsData (data))
+            return {};   // (not cached, so that a font that's added later will be picked up)
+
+        auto typeface = Typeface::createSystemTypefaceFor (data.getData(), data.getSize());
+        cache[key] = typeface;
+        return typeface;
+    }
+
+    /** The cached typefaces must be released before JUCE shuts down. */
+    static void clearTypefaceCache()
+    {
+        getTypefaceCache().clear();
+    }
 
     //==============================================================================
     virtual void setTypefaceName (const String& newFontName) = 0;
@@ -79,9 +177,14 @@ public:
         return choices.indexOf (getTypefaceName());
     }
 
-    static Font applyNameToFont (const String& typefaceName, const Font& font)
+    static Font applyNameToFont (Project* project, const String& typefaceName, const Font& font)
     {
         auto extraKerning = font.getExtraKerningFactor();
+
+        // An embedded project font is used via its family name, so that bold/italic and the
+        // style list keep working exactly as they do for an installed font.
+        if (auto typeface = getProjectTypeface (project, typefaceName))
+            return applyNameToFont (nullptr, typeface->getName(), font);
 
         if (typefaceName == getDefaultFont())  return makeLegacyFont (Font::getDefaultSansSerifFontName(), font.getHeight(), font.getStyleFlags(), extraKerning);
         if (typefaceName == getDefaultSans())  return makeLegacyFont (Font::getDefaultSansSerifFontName(), font.getHeight(), font.getStyleFlags(), extraKerning);
@@ -115,12 +218,16 @@ public:
         return "juce::Font::plain";
     }
 
-    static String getCompleteFontCode (const Font& font, const String& typefaceName)
+    /** If typefaceNameCode is supplied, it's used as the C++ expression for the typeface name
+        instead of the name itself (used for the project's embedded fonts).
+    */
+    static String getCompleteFontCode (const Font& font, const String& typefaceName,
+                                       const String& typefaceNameCode = {})
     {
         String s;
 
         s << "juce::Font (juce::FontOptions { "
-          << getTypefaceNameCode (typefaceName)
+          << (typefaceNameCode.isNotEmpty() ? typefaceNameCode + ", " : getTypefaceNameCode (typefaceName))
           << CodeHelpers::floatLiteral (font.getHeight(), 2)
           << ", ";
 
@@ -145,6 +252,47 @@ public:
     }
 
 private:
+    static std::map<String, Typeface::Ptr>& getTypefaceCache()
+    {
+        static std::map<String, Typeface::Ptr> cache;
+        return cache;
+    }
+
+    static Array<File> getProjectFontFiles (Project* project)
+    {
+        Array<File> files;
+
+        for (auto& f : getProjectBinaryResources (project))
+            if (isFontFileName (f.getFileName()))
+                files.add (f);
+
+        return files;
+    }
+
+    /** All of the project's binary resources, in the order that JucerResourceFile adds them. */
+    static Array<File> getProjectBinaryResources (Project* project)
+    {
+        Array<File> files;
+
+        if (project != nullptr)
+            findBinaryResources (project->getMainGroup(), files);
+
+        return files;
+    }
+
+    static void findBinaryResources (const Project::Item& item, Array<File>& results)
+    {
+        if (item.isGroup())
+        {
+            for (int i = 0; i < item.getNumChildren(); ++i)
+                findBinaryResources (item.getChild (i), results);
+        }
+        else if (item.shouldBeAddedToBinaryResources())
+        {
+            results.add (item.getFile());
+        }
+    }
+
     static Font makeLegacyFont (const String& typefaceName, float height, int styleFlags, float extraKerning)
     {
         return Font { FontOptions { typefaceName, height, styleFlags }

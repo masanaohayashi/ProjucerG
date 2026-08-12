@@ -93,7 +93,7 @@ public:
         l->setFont (font);
 
         l->getProperties().set ("typefaceName", xml.getStringAttribute ("fontname", FontPropertyComponent::getDefaultFont()));
-        updateLabelFont (l);
+        updateLabelFont (l, getProjectFor (layout));
 
         l->setJustificationType (Justification (xml.getIntAttribute ("justification", Justification::centred)));
 
@@ -106,10 +106,10 @@ public:
         return true;
     }
 
-    static void updateLabelFont (Label* label)
+    static void updateLabelFont (Label* label, Project* project)
     {
         Font f (label->getFont());
-        f = FontPropertyComponent::applyNameToFont (label->getProperties().getWithDefault ("typefaceName", FontPropertyComponent::getDefaultFont()), f);
+        f = FontPropertyComponent::applyNameToFont (project, label->getProperties().getWithDefault ("typefaceName", FontPropertyComponent::getDefaultFont()), f);
         label->setFont (f);
     }
 
@@ -131,7 +131,7 @@ public:
         String s;
 
         s << memberVariableName << "->setFont ("
-          << FontPropertyComponent::getCompleteFontCode (l->getFont(), l->getProperties().getWithDefault ("typefaceName", FontPropertyComponent::getDefaultFont()))
+          << code.getFontCode (l->getFont(), l->getProperties().getWithDefault ("typefaceName", FontPropertyComponent::getDefaultFont()))
           << ");\n"
           << memberVariableName << "->setJustificationType ("
           << CodeHelpers::justificationToCode (l->getJustificationType())
@@ -446,7 +446,7 @@ private:
     {
     public:
         FontNameProperty (Label* const label_, JucerDocument& doc)
-            : FontPropertyComponent ("font"),
+            : FontPropertyComponent ("font", getProjectFor (&doc)),
               label (label_),
               document (doc)
         {
@@ -489,7 +489,7 @@ private:
             {
                 showCorrectTab();
                 getComponent()->getProperties().set ("typefaceName", newState);
-                LabelHandler::updateLabelFont (getComponent());
+                LabelHandler::updateLabelFont (getComponent(), getProjectFor (&layout));
                 changed();
                 return true;
             }
@@ -498,7 +498,7 @@ private:
             {
                 showCorrectTab();
                 getComponent()->getProperties().set ("typefaceName", oldState);
-                LabelHandler::updateLabelFont (getComponent());
+                LabelHandler::updateLabelFont (getComponent(), getProjectFor (&layout));
                 changed();
                 return true;
             }

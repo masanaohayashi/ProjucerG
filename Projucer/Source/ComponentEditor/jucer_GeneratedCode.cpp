@@ -26,6 +26,7 @@
 #include "../Application/jucer_Headers.h"
 #include "jucer_GeneratedCode.h"
 #include "jucer_JucerDocument.h"
+#include "Properties/jucer_FontPropertyComponent.h"
 
 //==============================================================================
 GeneratedCode::GeneratedCode (const JucerDocument* const doc)
@@ -96,6 +97,47 @@ void GeneratedCode::addImageResourceLoader (const String& imageMemberName, const
     if (resourceName.isNotEmpty())
         constructorCode << imageMemberName << " = juce::ImageCache::getFromMemory ("
                         << resourceName << ", " << resourceName << "Size);\n";
+}
+
+String GeneratedCode::addTypefaceMember (const File& fontFile)
+{
+    auto* project = getProjectFor (document);
+    auto resourceName = FontPropertyComponent::getBinaryDataIdentifier (project, fontFile);
+    auto memberName = "typeface_" + resourceName;
+
+    if (! typefaceMemberNames.contains (memberName))
+    {
+        typefaceMemberNames.add (memberName);
+
+        auto dataNamespace = project != nullptr ? project->getBinaryDataNamespaceString().trim() : String();
+
+        if (dataNamespace.isEmpty())
+            dataNamespace = "BinaryData";
+
+        // Holding on to the typeface keeps it registered with JUCE for as long as this
+        // component exists, so that fonts can find it by its family name.
+        privateMemberDeclarations
+            << "juce::Typeface::Ptr " << memberName
+            << " { juce::Typeface::createSystemTypefaceFor ("
+            << dataNamespace << "::" << resourceName << ", "
+            << dataNamespace << "::" << resourceName << "Size) };\n";
+
+        if (project != nullptr && ! project->shouldIncludeBinaryInJuceHeader())
+            includeFilesCPP.addIfNotAlreadyThere (project->getBinaryDataHeaderFile());
+    }
+
+    return memberName;
+}
+
+String GeneratedCode::getFontCode (const Font& font, const String& typefaceName)
+{
+    auto fontFile = FontPropertyComponent::getProjectFontFile (getProjectFor (document), typefaceName);
+
+    if (fontFile == File())
+        return FontPropertyComponent::getCompleteFontCode (font, typefaceName);
+
+    return FontPropertyComponent::getCompleteFontCode (font, typefaceName,
+                                                       addTypefaceMember (fontFile) + "->getName()");
 }
 
 StringArray GeneratedCode::getExtraParentClasses() const

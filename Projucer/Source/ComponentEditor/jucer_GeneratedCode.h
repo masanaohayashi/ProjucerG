@@ -87,10 +87,17 @@ public:
 
     bool shouldUseTransMacro() const noexcept;
 
+    /** Returns the code for a juce::Font, adding a typeface loader for the project's
+        embedded fonts if the given typeface name refers to one of them.
+    */
+    String getFontCode (const Font& font, const String& typefaceName);
+
 private:
     String getClassDeclaration() const;
     String getInitialiserList() const;
+    String addTypefaceMember (const File& fontFile);
     int suffix;
+    StringArray typefaceMemberNames;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GeneratedCode)
 };

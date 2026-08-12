@@ -199,6 +199,7 @@ void ProjucerApplication::shutdown()
     mainWindowList.forceCloseAllWindows();
     openDocumentManager.clear();
     ObjectTypes::clearPreviewLookAndFeels();
+    ObjectTypes::clearProjectTypefaces();
 
    #if JUCE_MAC
     MenuBarModel::setMacMainMenu (nullptr);

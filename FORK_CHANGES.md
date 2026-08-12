@@ -15,6 +15,10 @@ components and workflows that are limited or missing in the original Projucer.
   settings.
 - Added optional AffineTransform-based scaling for GUI components, with
   scale-to-fit and keep-aspect-ratio modes.
+- Added embedded custom font support: `.ttf`/`.otf` files added to the project as
+  binary resources are listed in the font selectors of Label and Text paint
+  elements, previewed in the editor without being installed on the system, and
+  loaded from `BinaryData` in the generated code.
 
 ## Template Improvements
 

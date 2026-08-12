@@ -37,6 +37,7 @@ namespace ObjectTypes
     extern const int numComponentTypes;
 
     void clearPreviewLookAndFeels();
+    void clearProjectTypefaces();
 
     //==============================================================================
     // Element types
