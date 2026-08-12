@@ -75,6 +75,13 @@ void PaintRoutine::clear()
 {
     if (elements.size() > 0)
     {
+        // The selection must be emptied synchronously, so that any property components
+        // referring to these elements are gone before the elements are deleted.
+        selectedPoints.deselectAll();
+        selectedElements.deselectAll();
+        selectedPoints.changed (true);
+        selectedElements.changed (true);
+
         elements.clear();
         changed();
     }
