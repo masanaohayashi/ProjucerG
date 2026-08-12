@@ -558,6 +558,6 @@ private:
     String liveEditState = "idle";
     String liveEditCompletionReason;
     ProjucerAutomation::BatchApplyResult liveEditResult { Result::ok(), {} };
-    String liveEditStatusText = "AI編集は停止中";
+    String liveEditStatusText { CharPointer_UTF8 ("AI編集は停止中") };
     std::vector<Image> liveEditPreviewImages;
 };
