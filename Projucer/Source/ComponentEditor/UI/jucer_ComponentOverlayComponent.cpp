@@ -81,7 +81,10 @@ void ComponentOverlayComponent::changeListenerCallback (ChangeBroadcaster*)
 
 void ComponentOverlayComponent::paint (Graphics& g)
 {
-    jassert (target != nullptr);
+    // The target may already have gone: the editor only removes the overlay when it
+    // handles the layout's change message, which happens asynchronously.
+    if (target == nullptr)
+        return;
 
     border->setColour (backgroundColourId, Colours::transparentBlack);
     if (selected)
@@ -153,8 +156,17 @@ void ComponentOverlayComponent::componentMovedOrResized (Component&, bool /*wasM
     updateBoundsToMatchTarget();
 }
 
+void ComponentOverlayComponent::componentBeingDeleted (Component&)
+{
+    // (stop drawing and responding to the mouse until the editor removes this overlay)
+    setVisible (false);
+}
+
 void ComponentOverlayComponent::updateBoundsToMatchTarget()
 {
+    if (target == nullptr)
+        return;
+
     if (Component* const parent = target->getParentComponent())
     {
         const int dx = parent->getX();

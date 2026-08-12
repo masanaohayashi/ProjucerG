@@ -72,6 +72,7 @@ private:
     void applyBoundsToComponent (Component&, Rectangle<int>) override;
 
     void componentMovedOrResized (Component&, bool wasMoved, bool wasResized) override;
+    void componentBeingDeleted (Component&) override;
 
     void updateSelected();
     void changeListenerCallback (ChangeBroadcaster*) override;
