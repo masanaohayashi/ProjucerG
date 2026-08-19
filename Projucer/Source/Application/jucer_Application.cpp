@@ -186,33 +186,48 @@ namespace
     */
     void createICloudContainerFolder()
     {
-        using Send       = id (*) (id, SEL);
-        using SendWithId = id (*) (id, SEL, id);
+        JUCE_AUTORELEASEPOOL
+        {
+            using Send       = id (*) (id, SEL);
+            using SendWithId = id (*) (id, SEL, id);
 
-        auto* fileManager = ((Send) objc_msgSend) ((id) objc_getClass ("NSFileManager"),
-                                                   sel_registerName ("defaultManager"));
+            auto log = [] (const String& message) { Logger::writeToLog ("iCloud: " + message); };
 
-        if (fileManager == nullptr)
-            return;
+            auto* fileManager = ((Send) objc_msgSend) ((id) objc_getClass ("NSFileManager"),
+                                                       sel_registerName ("defaultManager"));
 
-        auto* url = ((SendWithId) objc_msgSend) (fileManager,
-                                                 sel_registerName ("URLForUbiquityContainerIdentifier:"),
-                                                 nullptr);
+            if (fileManager == nullptr)
+            {
+                log ("no NSFileManager");
+                return;
+            }
 
-        if (url == nullptr)
-            return; // no iCloud account signed in, or the entitlement is missing
+            auto* url = ((SendWithId) objc_msgSend) (fileManager,
+                                                     sel_registerName ("URLForUbiquityContainerIdentifier:"),
+                                                     nullptr);
 
-        auto* path = ((Send) objc_msgSend) (url, sel_registerName ("path"));
+            if (url == nullptr)
+            {
+                log ("no container - check that iCloud Drive is on for this device and that the "
+                     "build is signed with the iCloud entitlement");
+                return;
+            }
 
-        if (path == nullptr)
-            return;
+            auto* path = ((Send) objc_msgSend) (url, sel_registerName ("path"));
+            auto* utf8 = path != nullptr ? ((const char* (*) (id, SEL)) objc_msgSend) (path, sel_registerName ("UTF8String"))
+                                         : nullptr;
 
-        auto* utf8 = ((const char* (*) (id, SEL)) objc_msgSend) (path, sel_registerName ("UTF8String"));
+            if (utf8 == nullptr)
+            {
+                log ("container URL has no path");
+                return;
+            }
 
-        if (utf8 == nullptr)
-            return;
+            const auto documents = File (String::fromUTF8 (utf8)).getChildFile ("Documents");
+            const auto result = documents.createDirectory();
 
-        File (String::fromUTF8 (utf8)).getChildFile ("Documents").createDirectory();
+            log (documents.getFullPathName() + (result.wasOk() ? " - ok" : " - " + result.getErrorMessage()));
+        }
     }
 }
 #endif
