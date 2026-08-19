@@ -62,12 +62,100 @@ DRIVER = r"""
 #include <cstdio>
 #include <cerrno>
 #include <string>
+#include <set>
+#include <vector>
 #include <unistd.h>
 #include <signal.h>
 #include <sys/types.h>
+#include <fcntl.h>
+#include <dirent.h>
+#include <cstdlib>
+
+/* Every currently-open fd number, read from /dev/fd. No access to
+   PseudoTerminal's private members needed - this is how any other process
+   on the system would see the descriptor too. */
+static std::set<int> listOpenFds()
+{
+    std::set<int> fds;
+    DIR* dir = opendir ("/dev/fd");
+
+    if (dir != nullptr)
+    {
+        const int dirFd = dirfd (dir); // exclude the handle this call itself
+                                        // holds open, or every snapshot would
+                                        // see a "new" fd that is really just
+                                        // our own readdir() in progress.
+        while (auto* entry = readdir (dir))
+        {
+            char* end = nullptr;
+            const long fd = strtol (entry->d_name, &end, 10);
+
+            if (end != entry->d_name && *end == '\0' && (int) fd != dirFd)
+                fds.insert ((int) fd);
+        }
+
+        closedir (dir);
+    }
+
+    return fds;
+}
 
 int main()
 {
+    /* I2 regression check: masterFd must be FD_CLOEXEC, so a ChildProcess
+       Projucer spawns afterwards (the compiler, git, ...) doesn't inherit
+       the pty master across its own fork/exec. Diff /dev/fd around start()
+       to find the new descriptor without touching any private member
+       (verified: with the FD_CLOEXEC fcntl() call removed, this fails). */
+    {
+        PseudoTerminal cloexecPty;
+        const auto before = listOpenFds();
+
+        if (! cloexecPty.start (juce::File ("/tmp"), 80, 24))
+        {
+            printf ("FAIL: start() failed for CLOEXEC test: %s\n", cloexecPty.getLastError().toRawUTF8());
+            return 1;
+        }
+
+        const auto after = listOpenFds();
+        std::vector<int> newFds;
+
+        for (int fd : after)
+            if (before.find (fd) == before.end())
+                newFds.push_back (fd);
+
+        if (newFds.empty())
+        {
+            printf ("FAIL: start() did not open any descriptor visible via /dev/fd\n");
+            return 1;
+        }
+
+        for (int fd : newFds)
+        {
+            const int flags = fcntl (fd, F_GETFD);
+
+            if (flags < 0 || (flags & FD_CLOEXEC) == 0)
+            {
+                printf ("FAIL: descriptor %d opened by start() is not FD_CLOEXEC\n", fd);
+                return 1;
+            }
+        }
+
+        cloexecPty.stop();
+    }
+
+    /* A marker set on *this* process before start(), so the only way the
+       child can see it is by inheriting our environment through envp. PATH
+       cannot be used for this on macOS: a login shell (`-l`, which is what
+       start() always passes) re-derives PATH from /etc/paths via
+       /usr/libexec/path_helper in /etc/zprofile regardless of what it
+       inherited, so a PATH=set check silently passes even when the rest of
+       the parent's environment was dropped - confirmed empirically by
+       stripping PATH from envp and re-running this test unmodified: it
+       still passed. A private variable name nothing else touches doesn't
+       have that problem. */
+    setenv ("PSEUDOTERM_ENV_PROBE", "present", 1);
+
     PseudoTerminal pty;
 
     if (! pty.start (juce::File ("/tmp"), 80, 24))
@@ -76,12 +164,19 @@ int main()
         return 1;
     }
 
-    /* Ask the shell to print a distinctive string, its TERM (must be the
-       xterm-256color the child sets via envp, not inherited-then-overwritten
-       with setenv - regression check for C1) and PATH (must be non-empty,
-       proving the child got the rest of the parent's environment too, not
-       just a one-variable envp), then leave. */
-    const char* cmd = "printf 'PTYOK TERM=%s PATH=%s\\n' \"$TERM\" \"${PATH:+set}\"; exit 0\n";
+    /* Ask the shell to print a distinctive string, its TERM, and the probe
+       variable above, then leave. These are plain behaviour checks, not a
+       C1 regression test: C1 is about *when* the environment is assembled
+       (before fork(), via envp/execle(), vs. setenv() racing with other
+       threads between fork() and exec()) - a code-shape property that is
+       not black-box observable, because a setenv() done right would produce
+       the same TERM value seen here. C1 is verified by reading the child
+       branch (see the review), not by this test. What *is* genuinely
+       checked here: the probe fails if envp were ever rebuilt with only
+       TERM in it, which is the realistic way this rewrite would actually
+       break (verified: stripping everything but TERM from envp makes this
+       assertion fail). */
+    const char* cmd = "printf 'PTYOK TERM=%s PROBE=%s\\n' \"$TERM\" \"$PSEUDOTERM_ENV_PROBE\"; exit 0\n";
     pty.writeBytes (cmd, (int) strlen (cmd));
 
     /* Drain until we see our marker or the child goes away. Reading must never
@@ -112,9 +207,9 @@ int main()
         return 1;
     }
 
-    if (collected.find ("PATH=set") == std::string::npos)
+    if (collected.find ("PROBE=present") == std::string::npos)
     {
-        printf ("FAIL: child did not inherit the parent's PATH. Got: [%s]\n", collected.c_str());
+        printf ("FAIL: child did not inherit the parent's environment. Got: [%s]\n", collected.c_str());
         return 1;
     }
 
@@ -130,9 +225,15 @@ int main()
 
     /* I4 regression check: a foreground grandchild (like vim or top under the
        shell) must not be orphaned when stop() hangs up the shell - it has to
-       go down with the pty too. Spawn a shell that forks a second shell,
-       which execs into `cat` (a distinct, easily-identified process), record
-       its pid, then confirm stop() takes it out along with the login shell. */
+       go down with the pty too. The grandchild traps SIGHUP (`trap "" HUP`)
+       so it cannot be taken out by SIGHUP alone, and runs `sleep`, not
+       something that reads stdin, so it cannot be taken out by the pty EOF
+       either - this makes the test actually exercise stop()'s process-group
+       SIGKILL escalation instead of passing for the wrong reason (verified:
+       with the I4 fix removed entirely, this block reports the grandchild
+       survived). Spawn a shell that forks a second shell into this state,
+       record its pid, then confirm stop() takes it out along with the login
+       shell. */
     {
         PseudoTerminal gcPty;
 
@@ -148,7 +249,7 @@ int main()
         close (pidFileFd);
 
         char gcCmd[256];
-        snprintf (gcCmd, sizeof (gcCmd), "sh -c 'echo $$ > %s; exec cat'\n", pidFileTemplate);
+        snprintf (gcCmd, sizeof (gcCmd), "sh -c 'trap \"\" HUP; echo $$ > %s; exec sleep 300'\n", pidFileTemplate);
         gcPty.writeBytes (gcCmd, (int) strlen (gcCmd));
 
         long grandchildPid = 0;

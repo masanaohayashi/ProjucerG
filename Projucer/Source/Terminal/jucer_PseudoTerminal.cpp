@@ -110,28 +110,59 @@ void PseudoTerminal::stop()
 {
     if (childPid > 0 && ! childHasExited)
     {
-        // Close our end of the pty first: forkpty() makes the child a session
-        // leader attached to the slave as its controlling terminal, so this
-        // delivers SIGHUP to the whole foreground process group the moment
-        // the line drops, exactly as a real terminal hanging up would.
+        // Ask the kernel which process group currently owns the terminal
+        // before touching anything else - once the master is closed there's
+        // no way to ask. With job control on (any interactive shell), the
+        // shell puts each foreground job in its own process group, so a
+        // running vim or top is *not* in childPid's group: killpg(childPid)
+        // alone never reaches it, and it survives as an orphan under init.
+        const pid_t foregroundPgid = (masterFd >= 0) ? tcgetpgrp (masterFd) : (pid_t) -1;
+
+        // Hang up first, civilly: SIGHUP is what a real terminal sends when
+        // the line drops, and it's what lets a shell write its history, run
+        // zshexit, or let an editor save its swap file before it goes.
+        // Signal both the shell's own group and whatever job currently owns
+        // the foreground, since they can differ (see above).
+        killpg ((pid_t) childPid, SIGHUP);
+        if (foregroundPgid > 0 && foregroundPgid != (pid_t) childPid)
+            killpg (foregroundPgid, SIGHUP);
+
         if (masterFd >= 0)
         {
             close (masterFd);
             masterFd = -1;
         }
 
-        // SIGHUP alone can leave a foreground grandchild behind - vim traps
-        // it, top ignores it - orphaned under the shell that just left. Signal
-        // the whole process group (its pgid equals childPid, since forkpty()
-        // made it a session/group leader) so nothing under this pty survives
-        // the shell. This may run on the message thread (Task 3), so there is
-        // no budget for a wait-and-poll grace period: no sleeping here.
-        killpg ((pid_t) childPid, SIGKILL);
-        kill ((pid_t) childPid, SIGKILL);
+        // A short, bounded grace period - not the ~500ms poll this replaced,
+        // just enough ticks for the signal handlers above to actually run
+        // before we stop waiting for the shell. This may run on the message
+        // thread, so the budget is small and fixed, never open-ended.
+        for (int i = 0; i < 10 && ! childHasExited; ++i)
+        {
+            reapChildIfNeeded();
 
-        int status = 0;
-        waitpid ((pid_t) childPid, &status, 0);
-        childHasExited = true;
+            if (! childHasExited)
+                usleep (5000);
+        }
+
+        // Insist. A foreground job that trapped or ignored SIGHUP (top,
+        // "trap '' HUP") can still be alive here even though the shell
+        // above it already exited and was reaped - at that point it's no
+        // longer our child, so we can't check it directly, but killing an
+        // already-dead process group is a harmless no-op, so this always
+        // runs rather than being skipped when the shell is already gone.
+        if (foregroundPgid > 0 && foregroundPgid != (pid_t) childPid)
+            killpg (foregroundPgid, SIGKILL);
+
+        if (! childHasExited)
+        {
+            killpg ((pid_t) childPid, SIGKILL);
+
+            int status = 0;
+            waitpid ((pid_t) childPid, &status, 0);
+            childHasExited = true;
+            exitCode = WIFEXITED (status) ? WEXITSTATUS (status) : -1;
+        }
     }
 
     if (masterFd >= 0)
