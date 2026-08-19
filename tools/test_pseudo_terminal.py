@@ -59,8 +59,12 @@ namespace juce
 DRIVER = r"""
 #include <cassert>
 #include <cstring>
+#include <cstdio>
+#include <cerrno>
 #include <string>
 #include <unistd.h>
+#include <signal.h>
+#include <sys/types.h>
 
 int main()
 {
@@ -72,8 +76,12 @@ int main()
         return 1;
     }
 
-    /* Ask the shell to print a distinctive string and leave. */
-    const char* cmd = "printf 'PTYOK\\n'; exit 0\n";
+    /* Ask the shell to print a distinctive string, its TERM (must be the
+       xterm-256color the child sets via envp, not inherited-then-overwritten
+       with setenv - regression check for C1) and PATH (must be non-empty,
+       proving the child got the rest of the parent's environment too, not
+       just a one-variable envp), then leave. */
+    const char* cmd = "printf 'PTYOK TERM=%s PATH=%s\\n' \"$TERM\" \"${PATH:+set}\"; exit 0\n";
     pty.writeBytes (cmd, (int) strlen (cmd));
 
     /* Drain until we see our marker or the child goes away. Reading must never
@@ -98,6 +106,18 @@ int main()
         return 1;
     }
 
+    if (collected.find ("TERM=xterm-256color") == std::string::npos)
+    {
+        printf ("FAIL: child TERM was not xterm-256color. Got: [%s]\n", collected.c_str());
+        return 1;
+    }
+
+    if (collected.find ("PATH=set") == std::string::npos)
+    {
+        printf ("FAIL: child did not inherit the parent's PATH. Got: [%s]\n", collected.c_str());
+        return 1;
+    }
+
     /* Resizing a live pty must not throw or corrupt the descriptor. */
     pty.setSize (100, 40);
 
@@ -106,6 +126,80 @@ int main()
     {
         printf ("FAIL: still running after stop()\n");
         return 1;
+    }
+
+    /* I4 regression check: a foreground grandchild (like vim or top under the
+       shell) must not be orphaned when stop() hangs up the shell - it has to
+       go down with the pty too. Spawn a shell that forks a second shell,
+       which execs into `cat` (a distinct, easily-identified process), record
+       its pid, then confirm stop() takes it out along with the login shell. */
+    {
+        PseudoTerminal gcPty;
+
+        if (! gcPty.start (juce::File ("/tmp"), 80, 24))
+        {
+            printf ("FAIL: start() failed for grandchild test: %s\n", gcPty.getLastError().toRawUTF8());
+            return 1;
+        }
+
+        char pidFileTemplate[] = "/tmp/pty_gc_pid_XXXXXX";
+        const int pidFileFd = mkstemp (pidFileTemplate);
+        assert (pidFileFd >= 0);
+        close (pidFileFd);
+
+        char gcCmd[256];
+        snprintf (gcCmd, sizeof (gcCmd), "sh -c 'echo $$ > %s; exec cat'\n", pidFileTemplate);
+        gcPty.writeBytes (gcCmd, (int) strlen (gcCmd));
+
+        long grandchildPid = 0;
+
+        for (int attempt = 0; attempt < 200 && grandchildPid == 0; ++attempt)
+        {
+            char buffer[256];
+            gcPty.readBytes (buffer, sizeof (buffer)); // keep the pty drained
+
+            FILE* f = fopen (pidFileTemplate, "r");
+            if (f != nullptr)
+            {
+                if (fscanf (f, "%ld", &grandchildPid) != 1)
+                    grandchildPid = 0;
+                fclose (f);
+            }
+
+            if (grandchildPid == 0)
+                usleep (5000);
+        }
+
+        unlink (pidFileTemplate);
+
+        if (grandchildPid == 0)
+        {
+            printf ("FAIL: grandchild never reported its pid\n");
+            return 1;
+        }
+
+        if (kill ((pid_t) grandchildPid, 0) != 0)
+        {
+            printf ("FAIL: grandchild pid %ld was not alive before stop()\n", grandchildPid);
+            return 1;
+        }
+
+        gcPty.stop();
+
+        bool grandchildGone = false;
+        for (int attempt = 0; attempt < 200 && ! grandchildGone; ++attempt)
+        {
+            if (kill ((pid_t) grandchildPid, 0) != 0 && errno == ESRCH)
+                grandchildGone = true;
+            else
+                usleep (5000);
+        }
+
+        if (! grandchildGone)
+        {
+            printf ("FAIL: grandchild pid %ld survived stop() - orphaned\n", grandchildPid);
+            return 1;
+        }
     }
 
     /* A bad working directory is a user-visible failure, not a crash. */

@@ -13,6 +13,10 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
+#include <vector>
+#include <string>
+
+extern char** environ;
 
 PseudoTerminal::PseudoTerminal() = default;
 
@@ -32,7 +36,11 @@ bool PseudoTerminal::start (const juce::File& workingDirectory, int numColumns, 
     // Everything the child needs must be built here, before the fork. Between
     // fork() and exec() only async-signal-safe calls are legal, and this is a
     // multi-threaded app - allocating there would risk deadlocking on a malloc
-    // lock held by another thread at the moment we forked.
+    // lock held by another thread at the moment we forked. That includes the
+    // environment: setenv() after fork() is not async-signal-safe (it can
+    // allocate), so the child's whole environment - the parent's, with TERM
+    // overridden - is assembled here as a plain envp array and handed to
+    // execle() instead.
     const juce::String shellPath = [&]
     {
         if (auto* fromEnv = getenv ("SHELL"))
@@ -47,6 +55,19 @@ bool PseudoTerminal::start (const juce::File& workingDirectory, int numColumns, 
                                      ? workingDirectory.getFullPathName().toRawUTF8()
                                      : "/");
 
+    std::vector<std::string> envStorage;
+
+    for (char** e = environ; e != nullptr && *e != nullptr; ++e)
+        if (strncmp (*e, "TERM=", 5) != 0)
+            envStorage.emplace_back (*e);
+
+    envStorage.emplace_back ("TERM=xterm-256color");
+
+    std::vector<char*> envp;
+    for (auto& entry : envStorage)
+        envp.push_back (entry.data());
+    envp.push_back (nullptr);
+
     const pid_t pid = forkpty (&masterFd, nullptr, nullptr, &ws);
 
     if (pid < 0)
@@ -58,13 +79,13 @@ bool PseudoTerminal::start (const juce::File& workingDirectory, int numColumns, 
 
     if (pid == 0)
     {
-        // Child. Only async-signal-safe calls from here to execl().
+        // Child. Only async-signal-safe calls from here to execle() - no
+        // allocation, no setenv(), nothing that could touch a malloc lock
+        // another thread held at the moment of the fork.
         if (chdir (directory.c_str()) != 0)
             _exit (127);
 
-        setenv ("TERM", "xterm-256color", 1);
-
-        execl (shell.c_str(), shell.c_str(), "-l", (char*) nullptr);
+        execle (shell.c_str(), shell.c_str(), "-l", (char*) nullptr, envp.data());
         _exit (127);
     }
 
@@ -77,6 +98,11 @@ bool PseudoTerminal::start (const juce::File& workingDirectory, int numColumns, 
     // when the child has nothing to say.
     fcntl (masterFd, F_SETFL, fcntl (masterFd, F_GETFL, 0) | O_NONBLOCK);
 
+    // Every ChildProcess Projucer spawns (the compiler, git, etc.) would
+    // otherwise inherit the pty master across its own fork/exec and keep it
+    // open, defeating EOF/hangup detection on our side.
+    fcntl (masterFd, F_SETFD, FD_CLOEXEC);
+
     return true;
 }
 
@@ -84,24 +110,28 @@ void PseudoTerminal::stop()
 {
     if (childPid > 0 && ! childHasExited)
     {
-        kill ((pid_t) childPid, SIGHUP);
-
-        // Give it a moment to leave on its own before insisting.
-        for (int i = 0; i < 100 && ! childHasExited; ++i)
+        // Close our end of the pty first: forkpty() makes the child a session
+        // leader attached to the slave as its controlling terminal, so this
+        // delivers SIGHUP to the whole foreground process group the moment
+        // the line drops, exactly as a real terminal hanging up would.
+        if (masterFd >= 0)
         {
-            reapChildIfNeeded();
-
-            if (! childHasExited)
-                usleep (5000);
+            close (masterFd);
+            masterFd = -1;
         }
 
-        if (! childHasExited)
-        {
-            kill ((pid_t) childPid, SIGKILL);
-            int status = 0;
-            waitpid ((pid_t) childPid, &status, 0);
-            childHasExited = true;
-        }
+        // SIGHUP alone can leave a foreground grandchild behind - vim traps
+        // it, top ignores it - orphaned under the shell that just left. Signal
+        // the whole process group (its pgid equals childPid, since forkpty()
+        // made it a session/group leader) so nothing under this pty survives
+        // the shell. This may run on the message thread (Task 3), so there is
+        // no budget for a wait-and-poll grace period: no sleeping here.
+        killpg ((pid_t) childPid, SIGKILL);
+        kill ((pid_t) childPid, SIGKILL);
+
+        int status = 0;
+        waitpid ((pid_t) childPid, &status, 0);
+        childHasExited = true;
     }
 
     if (masterFd >= 0)
