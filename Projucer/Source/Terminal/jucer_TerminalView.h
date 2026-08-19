@@ -54,7 +54,12 @@ private:
     juce::HeapBlock<char> incomingBuffer { (size_t) (1 << 16) };
 
     /** Owned by the reader thread, which is the only thing that can observe the
-        shell going away; everything else only reads it. */
+        shell going away; everything else only reads it. pty.isRunning() is not
+        a substitute: the reader is the only thing that ever calls readBytes(),
+        which is the only thing that reaps the child, so once the reader stops
+        reading nothing reaps it any more and pty.isRunning() would keep
+        reporting true forever. This flag is this class's own record of "the
+        reader gave up", set at the moment that happens. */
     std::atomic<bool> shellRunning { false };
 
     juce::Font font { juce::FontOptions {} };

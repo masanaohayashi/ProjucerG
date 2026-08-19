@@ -90,8 +90,8 @@ bool PseudoTerminal::start (const juce::File& workingDirectory, int numColumns, 
     }
 
     childPid = (int) pid;
-    childHasExited = false;
-    exitCode = -1;
+    childHasExited.store (false, std::memory_order_relaxed);
+    exitCode.store (-1, std::memory_order_relaxed);
     lastError = {};
 
     // Non-blocking, so that a read on the message thread returns immediately
@@ -108,7 +108,7 @@ bool PseudoTerminal::start (const juce::File& workingDirectory, int numColumns, 
 
 void PseudoTerminal::stop()
 {
-    if (childPid > 0 && ! childHasExited)
+    if (childPid > 0 && ! childHasExited.load (std::memory_order_relaxed))
     {
         // Ask the kernel which process group currently owns the terminal
         // before touching anything else - once the master is closed there's
@@ -149,11 +149,11 @@ void PseudoTerminal::stop()
         // just enough ticks for the signal handlers above to actually run
         // before we stop waiting for the shell. This may run on the message
         // thread, so the budget is small and fixed, never open-ended.
-        for (int i = 0; i < 10 && ! childHasExited; ++i)
+        for (int i = 0; i < 10 && ! childHasExited.load (std::memory_order_relaxed); ++i)
         {
             reapChildIfNeeded();
 
-            if (! childHasExited)
+            if (! childHasExited.load (std::memory_order_relaxed))
                 usleep (5000);
         }
 
@@ -166,7 +166,7 @@ void PseudoTerminal::stop()
         if (foregroundPgid > 0 && foregroundPgid != (pid_t) childPid)
             killpg (foregroundPgid, SIGKILL);
 
-        if (! childHasExited)
+        if (! childHasExited.load (std::memory_order_relaxed))
         {
             kill   ((pid_t) childPid, SIGKILL);
             killpg ((pid_t) childPid, SIGKILL);
@@ -179,11 +179,11 @@ void PseudoTerminal::stop()
             // killpg() was added. ~100ms is far more than an already-SIGKILLed
             // child needs; if it somehow expires the child is left unreaped
             // until Projucer exits, which is a stray zombie, not a hang.
-            for (int i = 0; i < 20 && ! childHasExited; ++i)
+            for (int i = 0; i < 20 && ! childHasExited.load (std::memory_order_relaxed); ++i)
             {
                 reapChildIfNeeded();
 
-                if (! childHasExited)
+                if (! childHasExited.load (std::memory_order_relaxed))
                     usleep (5000);
             }
         }
@@ -200,7 +200,7 @@ void PseudoTerminal::stop()
 
 void PseudoTerminal::reapChildIfNeeded()
 {
-    if (childPid <= 0 || childHasExited)
+    if (childPid <= 0 || childHasExited.load (std::memory_order_relaxed))
         return;
 
     int status = 0;
@@ -208,18 +208,21 @@ void PseudoTerminal::reapChildIfNeeded()
 
     if (result == (pid_t) childPid)
     {
-        childHasExited = true;
-        exitCode = WIFEXITED (status) ? WEXITSTATUS (status) : -1;
+        // Publish the exit code before the flag that announces it, so that
+        // any thread which observes childHasExited become true (via the
+        // acquire load in isRunning()) is guaranteed to see this write too.
+        exitCode.store (WIFEXITED (status) ? WEXITSTATUS (status) : -1, std::memory_order_relaxed);
+        childHasExited.store (true, std::memory_order_release);
     }
     else if (result < 0 && errno == ECHILD)
     {
-        childHasExited = true;
+        childHasExited.store (true, std::memory_order_release);
     }
 }
 
 bool PseudoTerminal::isRunning() const noexcept
 {
-    return childPid > 0 && ! childHasExited;
+    return childPid > 0 && ! childHasExited.load (std::memory_order_acquire);
 }
 
 int PseudoTerminal::readBytes (char* destination, int maxBytes)

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <atomic>
+
 //==============================================================================
 /**
     A shell running under a pseudo-terminal.
@@ -17,30 +19,31 @@
 
     @section threading
 
-    This class is NOT internally synchronised. Exactly one split is supported,
-    which is the one TerminalView uses:
+    This class is mostly NOT internally synchronised. Exactly one split is
+    supported, which is the one TerminalView uses:
 
     - readBytes() may be called from one single background thread.
-    - every other member - start(), stop(), writeBytes(), setSize(),
-      isRunning(), getExitCode() - belongs to the owning thread.
+    - every other member - start(), stop(), writeBytes(), setSize() - belongs
+      to the owning thread, and start()/stop() additionally require that the
+      reading thread be joined first: start() creates it, stop() must not run
+      while it is still reading.
 
-    The split is not free, because readBytes() reaps the child: it calls
-    waitpid() and writes exitCode and childHasExited, which isRunning() and
-    getExitCode() read. Those two fields are plain, not atomic, so the owner
-    must not read them while the reading thread can still run. Two rules keep
-    that true, and both are load-bearing:
+    isRunning() and getExitCode() are the exception: readBytes() reaps the
+    child on the background thread (it calls waitpid() and writes exitCode
+    and childHasExited), and those two fields are atomic specifically so that
+    isRunning() and getExitCode() can be called from the owning thread at any
+    time, including while the reading thread is still alive. childHasExited
+    is published with release/acquire, which is what makes exitCode's
+    (relaxed) write visible once isRunning() has been observed to return
+    false.
 
-    1. Join the reading thread before calling stop(), and never call
-       isRunning() or getExitCode() while it is alive.
-    2. Learn that the child is gone from readBytes() returning -1, not by
-       polling isRunning() - then publish that fact to the owning thread
-       through your own atomic. The release/acquire pair that publishing
-       forms is what makes the reap's writes visible, so getExitCode() is
-       only valid on the far side of it.
-
-    TerminalView::Reader does both. If you need a second concurrent caller,
-    or an owner that polls isRunning(), make exitCode and childHasExited
-    atomic first - do not assume the current arrangement generalises.
+    One thing atomicity does not buy: once the reading thread stops calling
+    readBytes() - which is the only thing that ever reaps the child - nothing
+    reaps it any more, so isRunning() will keep reporting true forever after
+    that point even though the child is long gone. A caller that needs to
+    know "the shell is gone" after the reading thread has stopped reading
+    must learn that some other way (TerminalView does, via its own flag) -
+    isRunning() alone is not enough once nothing is left to reap.
 */
 class PseudoTerminal
 {
@@ -61,7 +64,7 @@ public:
     juce::String getLastError() const                 { return lastError; }
 
     /** Valid once isRunning() returns false. -1 if the child never ran. */
-    int getExitCode() const noexcept                  { return exitCode; }
+    int getExitCode() const noexcept                  { return exitCode.load (std::memory_order_relaxed); }
 
     /** Returns the number of bytes read, 0 if none are waiting, or -1 if the
         child has gone away. */
@@ -80,8 +83,15 @@ private:
 
     int masterFd = -1;
     int childPid = -1;
-    int exitCode = -1;
-    bool childHasExited = true;
+
+    // Written by reapChildIfNeeded() on the reading thread, read by
+    // isRunning()/getExitCode() on the owning thread - see @section threading
+    // above. exitCode only ever needs relaxed order because childHasExited's
+    // release store/acquire load already establishes happens-before between
+    // the write and any read that saw childHasExited become true.
+    std::atomic<int> exitCode { -1 };
+    std::atomic<bool> childHasExited { true };
+
     juce::String lastError;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PseudoTerminal)
