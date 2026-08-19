@@ -18,6 +18,7 @@ UNITY = TERMINAL / "jucer_libvterm_unity.c"
 DRIVER = r"""
 #include <stdio.h>
 #include <string.h>
+#include <string>
 
 #include "jucer_TerminalTranslation.h"
 
@@ -154,6 +155,117 @@ int main (void)
         CHECK ("a wide character spans two columns", lead.width == 2);
         CHECK ("the trailing half draws nothing", tail.character == 0);
         CHECK ("the trailing half has no width", tail.width == 0);
+    }
+
+    /* --- output ordering under short writes -------------------------------- */
+
+    /* A pty with a finite buffer: it accepts `budget` more bytes in total and
+       then returns 0, so a short write is guaranteed rather than a matter of
+       timing. */
+    {
+        std::string shell;          // what the child actually received, in order
+        int budget = 0;
+
+        auto write = [&] (const char* b, int n)
+        {
+            const int taken = budget < n ? budget : n;
+            shell.append (b, (size_t) taken);
+            budget -= taken;
+            return taken;
+        };
+
+        std::string queue;
+
+        /* Buffer full: nothing reaches the shell, and nothing is lost either. */
+        queueTerminalOutput (queue, "\x1b[A", 3, write);
+        CHECK ("a refused write reaches nobody", shell.empty());
+        CHECK ("a refused write is kept whole", queue == "\x1b[A");
+
+        /* Room for one byte, so the arrow key is split across the boundary. */
+        budget = 1;
+        drainTerminalOutput (queue, write);
+        CHECK ("a short write sends what fits", shell == "\x1b");
+        CHECK ("a short write keeps the tail", queue == "[A");
+
+        /* The child now drains its buffer, so the pty will accept again - but
+           the tail is still sitting in our queue. This is the moment that
+           matters: a keystroke arriving now must go behind the tail, not
+           straight down the pty ahead of it. Writing it through would send
+           "\x1bb[A" - the shell reads ESC-b as a word-left, then prints "[A".
+           Both halves of the fix are on trial here, so they are asserted after
+           the single call that has to get it right. */
+        budget = 64;
+        queueTerminalOutput (queue, "b", 1, write);
+        CHECK ("the shell receives the original order", shell == "\x1b[Ab");
+        CHECK ("a fully drained queue is empty", queue.empty());
+
+        /* Retrying a drain that already succeeded must not resend anything. */
+        drainTerminalOutput (queue, write);
+        CHECK ("draining an empty queue sends nothing again", shell == "\x1b[Ab");
+
+        /* The straightforward path still writes through in one go. */
+        shell.clear();
+        queueTerminalOutput (queue, "ls\r", 3, write);
+        CHECK ("an accepted write goes straight through", shell == "ls\r");
+        CHECK ("an accepted write leaves nothing queued", queue.empty());
+    }
+
+    /* --- grid geometry ---------------------------------------------------- */
+
+    /* A deliberately fractional cell width: an integral one hides every
+       rounding mistake in here. */
+    {
+        const float cw = 7.5f;
+        const int ch = 16;
+
+        const TerminalRect c = getTerminalCellBounds (2, 3, 1, cw, ch);
+        CHECK ("cell x truncates the fractional advance", c.x == 22);
+        CHECK ("cell y is a whole number of rows", c.y == 32);
+        CHECK ("cell height is one row", c.height == 16);
+        /* One pixel wider than the advance, so neighbouring background fills
+           meet instead of leaving a seam of stale pixels between columns. */
+        CHECK ("a cell overlaps its neighbour by a pixel", c.width == 9);
+        CHECK ("cells overlap rather than gap",
+               c.x + c.width > getTerminalCellBounds (2, 4, 1, cw, ch).x);
+
+        /* A double-width character must end exactly where the cell it covers
+           ends - not at twice its own width, which would over-run by the seam
+           pixel and paint into the column after it. */
+        const TerminalRect wide = getTerminalCellBounds (2, 3, 2, cw, ch);
+        const TerminalRect next = getTerminalCellBounds (2, 4, 1, cw, ch);
+        CHECK ("a wide cell starts where a narrow one would", wide.x == c.x);
+        CHECK ("a wide cell ends where its second column ends",
+               wide.x + wide.width == next.x + next.width);
+        CHECK ("a wide cell is not simply twice as wide", wide.width != c.width * 2);
+
+        /* The trailing half reports width 0; asking for its bounds anyway must
+           not produce a negative rectangle. */
+        CHECK ("a zero width still yields one cell",
+               getTerminalCellBounds (2, 3, 0, cw, ch).width == c.width);
+
+        /* libvterm's damage rows and columns are half-open. */
+        const TerminalRect d = getTerminalDamageBounds (1, 2, 3, 5, cw, ch);
+        CHECK ("damage starts at the first cell", d.x == 15 && d.y == 16);
+        CHECK ("damage covers the last row before the end", d.height == 32);
+        CHECK ("damage covers the last column before the end", d.width == 24);
+        CHECK ("damage stops at the end column, not past it",
+               d.x + d.width == getTerminalCellBounds (2, 4, 1, cw, ch).x
+                                 + getTerminalCellBounds (2, 4, 1, cw, ch).width);
+
+        /* A single damaged cell is exactly that cell. */
+        const TerminalRect one = getTerminalDamageBounds (2, 3, 3, 4, cw, ch);
+        CHECK ("a one-cell damage rect is one cell",
+               one.x == c.x && one.y == c.y && one.width == c.width && one.height == c.height);
+
+        const TerminalGridSize g = getTerminalGridSize (800, 600, cw, ch);
+        CHECK ("only whole columns count", g.numColumns == 106);
+        CHECK ("only whole rows count", g.numRows == 37);
+
+        /* The first layout pass hands a component zero bounds. libvterm and
+           the pty both reject an empty grid, so this may never return 0. */
+        const TerminalGridSize empty = getTerminalGridSize (0, 0, cw, ch);
+        CHECK ("an unlaid-out view still has one column", empty.numColumns == 1);
+        CHECK ("an unlaid-out view still has one row", empty.numRows == 1);
     }
 
     /* --- keystroke to bytes ---------------------------------------------- */

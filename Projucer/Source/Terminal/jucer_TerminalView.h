@@ -43,7 +43,7 @@ private:
     void consumePendingBytes();
     void sendToShell (const char* bytes, int numBytes);
     void updateGridSizeFromBounds();
-    juce::Rectangle<int> getCellBounds (int row, int column) const;
+    juce::Rectangle<int> getCellBounds (int row, int column, int widthInCells = 1) const;
 
     PseudoTerminal pty;
     VTerm* vterm = nullptr;

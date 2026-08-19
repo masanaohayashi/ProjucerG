@@ -160,22 +160,10 @@ void TerminalView::consumePendingBytes()
 
 void TerminalView::sendToShell (const char* bytes, int numBytes)
 {
-    int offset = 0;
-
-    while (offset < numBytes)
-    {
-        const int written = pty.writeBytes (bytes + offset, numBytes - offset);
-
-        if (written <= 0)
-        {
-            // The child's buffer is full. Keep the rest and let the timer retry
-            // rather than spinning here on the message thread.
-            pendingOutput.append (bytes + offset, (size_t) (numBytes - offset));
-            return;
-        }
-
-        offset += written;
-    }
+    // Whatever the pty will not take right now stays in pendingOutput for the
+    // timer to retry, rather than spinning here on the message thread.
+    queueTerminalOutput (pendingOutput, bytes, numBytes,
+                         [this] (const char* b, int n) { return pty.writeBytes (b, n); });
 }
 
 //==============================================================================
@@ -183,10 +171,11 @@ int TerminalView::damageCallback (VTermRect rect, void* user)
 {
     auto& self = *static_cast<TerminalView*> (user);
 
-    const auto topLeft     = self.getCellBounds (rect.start_row, rect.start_col);
-    const auto bottomRight = self.getCellBounds (rect.end_row - 1, rect.end_col - 1);
+    const auto damaged = getTerminalDamageBounds (rect.start_row, rect.start_col,
+                                                  rect.end_row, rect.end_col,
+                                                  self.cellWidth, self.cellHeight);
 
-    self.repaint (topLeft.getUnion (bottomRight));
+    self.repaint ({ damaged.x, damaged.y, damaged.width, damaged.height });
     return 1;
 }
 
@@ -216,22 +205,22 @@ void TerminalView::outputCallback (const char* bytes, size_t len, void* user)
 }
 
 //==============================================================================
-juce::Rectangle<int> TerminalView::getCellBounds (int row, int column) const
+juce::Rectangle<int> TerminalView::getCellBounds (int row, int column, int widthInCells) const
 {
-    return { (int) ((float) column * cellWidth), row * cellHeight,
-             (int) std::ceil (cellWidth) + 1, cellHeight };
+    const auto r = getTerminalCellBounds (row, column, widthInCells, cellWidth, cellHeight);
+
+    return { r.x, r.y, r.width, r.height };
 }
 
 void TerminalView::updateGridSizeFromBounds()
 {
-    const int columns = juce::jmax (1, (int) ((float) getWidth() / cellWidth));
-    const int rows    = juce::jmax (1, getHeight() / cellHeight);
+    const auto size = getTerminalGridSize (getWidth(), getHeight(), cellWidth, cellHeight);
 
-    if (columns == numColumns && rows == numRows)
+    if (size.numColumns == numColumns && size.numRows == numRows)
         return;
 
-    numColumns = columns;
-    numRows = rows;
+    numColumns = size.numColumns;
+    numRows = size.numRows;
 
     // Both halves must be told: libvterm so its model reflows, and the pty so
     // the child gets SIGWINCH and redraws itself.
@@ -252,11 +241,8 @@ void TerminalView::timerCallback()
     repaint (getCellBounds (cursorRow, cursorColumn));
 
     if (! pendingOutput.empty())
-    {
-        const auto retry = std::move (pendingOutput);
-        pendingOutput.clear();
-        sendToShell (retry.data(), (int) retry.size());
-    }
+        drainTerminalOutput (pendingOutput,
+                             [this] (const char* b, int n) { return pty.writeBytes (b, n); });
 }
 
 //==============================================================================
@@ -294,8 +280,7 @@ void TerminalView::paint (juce::Graphics& g)
             if (style.width == 0)
                 continue;                     // the tail of a double-width cell
 
-            auto area = getCellBounds (row, column);
-            area.setRight (getCellBounds (row, column + style.width - 1).getRight());
+            const auto area = getCellBounds (row, column, style.width);
 
             if (style.background != defaultBackgroundRGB)
             {
@@ -321,8 +306,32 @@ void TerminalView::paint (juce::Graphics& g)
 
     if (cursorVisible && cursorBlinkOn && hasKeyboardFocus (true))
     {
-        g.setColour (defaultForeground.withAlpha (0.7f));
-        g.fillRect (getCellBounds (cursorRow, cursorColumn));
+        // A block cursor has to reverse the cell rather than wash over it, or
+        // the character you are sitting on - the one vim is about to change -
+        // is the one character on screen you cannot read.
+        const auto area = getCellBounds (cursorRow, cursorColumn);
+
+        VTermScreenCell cell;
+        VTermPos pos;
+        pos.row = cursorRow;
+        pos.col = cursorColumn;
+
+        const bool haveCell = vterm_screen_get_cell (screen, pos, &cell) != 0;
+
+        const auto style = haveCell ? getTerminalCellStyle (screen, cell,
+                                                            defaultForegroundRGB, defaultBackgroundRGB)
+                                    : TerminalCellStyle {};
+
+        g.setColour (haveCell ? toColour (style.foreground) : defaultForeground);
+        g.fillRect (area);
+
+        if (haveCell && style.character != 0)
+        {
+            g.setColour (toColour (style.background));
+            g.setFont (style.bold ? font.withStyle (juce::Font::bold) : font);
+            g.drawText (juce::String::charToString ((juce::juce_wchar) style.character),
+                        area, juce::Justification::centredLeft, false);
+        }
     }
 
     if (statusMessage.isNotEmpty())

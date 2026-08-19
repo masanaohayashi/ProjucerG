@@ -14,6 +14,33 @@
     Only the macOS implementation exists today; the interface is deliberately
     free of anything platform-specific so a ConPTY body can be added later
     without disturbing anything above it.
+
+    @section threading
+
+    This class is NOT internally synchronised. Exactly one split is supported,
+    which is the one TerminalView uses:
+
+    - readBytes() may be called from one single background thread.
+    - every other member - start(), stop(), writeBytes(), setSize(),
+      isRunning(), getExitCode() - belongs to the owning thread.
+
+    The split is not free, because readBytes() reaps the child: it calls
+    waitpid() and writes exitCode and childHasExited, which isRunning() and
+    getExitCode() read. Those two fields are plain, not atomic, so the owner
+    must not read them while the reading thread can still run. Two rules keep
+    that true, and both are load-bearing:
+
+    1. Join the reading thread before calling stop(), and never call
+       isRunning() or getExitCode() while it is alive.
+    2. Learn that the child is gone from readBytes() returning -1, not by
+       polling isRunning() - then publish that fact to the owning thread
+       through your own atomic. The release/acquire pair that publishing
+       forms is what makes the reap's writes visible, so getExitCode() is
+       only valid on the far side of it.
+
+    TerminalView::Reader does both. If you need a second concurrent caller,
+    or an owner that polls isRunning(), make exitCode and childHasExited
+    atomic first - do not assume the current arrangement generalises.
 */
 class PseudoTerminal
 {

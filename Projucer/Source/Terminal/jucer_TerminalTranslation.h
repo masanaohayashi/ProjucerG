@@ -1,6 +1,9 @@
 #pragma once
 
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
+#include <string>
 #include <utility>
 
 extern "C" {
@@ -9,12 +12,69 @@ extern "C" {
 
 //==============================================================================
 /**
-    The parts of the terminal that are pure logic: what a cell should look like
-    on screen, and what a keystroke should send to the shell.
+    The parts of the terminal that are pure logic: where a cell lands on screen,
+    what it should look like, and what a keystroke should send to the shell.
 
     Deliberately free of JUCE, so tools/test_terminal_view.py can compile this
-    against libvterm alone and assert both without a message loop or a window.
+    against libvterm alone and assert them without a message loop or a window.
 */
+
+//==============================================================================
+/** A pixel rectangle, in the same convention as juce::Rectangle<int>. */
+struct TerminalRect
+{
+    int x, y, width, height;
+};
+
+/** Where a run of cells lands on screen.
+
+    @param widthInCells  1 for an ordinary cell, 2 for a double-width character.
+
+    Cells are one pixel wider than their advance so that adjacent background
+    fills meet rather than leaving a seam at fractional cell widths.
+*/
+inline TerminalRect getTerminalCellBounds (int row, int column, int widthInCells,
+                                           float cellWidth, int cellHeight)
+{
+    const int glyphWidth = (int) std::ceil (cellWidth) + 1;
+    const int lastColumn = column + std::max (1, widthInCells) - 1;
+
+    const int x     = (int) ((float) column * cellWidth);
+    const int right = (int) ((float) lastColumn * cellWidth) + glyphWidth;
+
+    return { x, row * cellHeight, right - x, cellHeight };
+}
+
+/** The area a libvterm damage rectangle covers. Its rows and columns are
+    half-open, so the last cell touched is one before each end. */
+inline TerminalRect getTerminalDamageBounds (int startRow, int startColumn,
+                                             int endRow, int endColumn,
+                                             float cellWidth, int cellHeight)
+{
+    const auto first = getTerminalCellBounds (startRow, startColumn, 1, cellWidth, cellHeight);
+    const auto last  = getTerminalCellBounds (endRow - 1, endColumn - 1, 1, cellWidth, cellHeight);
+
+    const int x = std::min (first.x, last.x);
+    const int y = std::min (first.y, last.y);
+
+    return { x, y,
+             std::max (first.x + first.width, last.x + last.width) - x,
+             std::max (first.y + first.height, last.y + last.height) - y };
+}
+
+/** How many whole cells fit in a component of this size. Never zero: libvterm
+    and the pty both reject an empty grid. */
+struct TerminalGridSize
+{
+    int numColumns, numRows;
+};
+
+inline TerminalGridSize getTerminalGridSize (int width, int height,
+                                             float cellWidth, int cellHeight)
+{
+    return { std::max (1, (int) ((float) width / cellWidth)),
+             std::max (1, height / cellHeight) };
+}
 
 /** What one cell of the grid draws as. Colours are 0xRRGGBB. */
 struct TerminalCellStyle
@@ -74,6 +134,46 @@ inline TerminalCellStyle getTerminalCellStyle (const VTermScreen* screen,
         std::swap (style.foreground, style.background);
 
     return style;
+}
+
+//==============================================================================
+/** Pushes as much of the queue into the shell as it will take right now.
+
+    @param write  takes up to n bytes and returns how many it accepted, 0 when
+                  the child's input buffer is full. It must not block.
+*/
+template <typename WriteFn>
+void drainTerminalOutput (std::string& queue, WriteFn&& write)
+{
+    size_t offset = 0;
+
+    while (offset < queue.size())
+    {
+        const int written = write (queue.data() + offset, (int) (queue.size() - offset));
+
+        if (written <= 0)
+            break;                          // full buffer: the rest waits for the retry
+
+        offset += (size_t) written;
+    }
+
+    queue.erase (0, offset);
+}
+
+/** Hands bytes to the shell, in order.
+
+    Everything goes through the queue even when it is empty, which is the whole
+    point: a short write leaves a tail behind, and anything produced afterwards
+    has to land behind that tail. Writing it directly instead would splice the
+    newer bytes into the middle of the older escape sequence.
+*/
+template <typename WriteFn>
+void queueTerminalOutput (std::string& queue, const char* bytes, int numBytes, WriteFn&& write)
+{
+    if (numBytes > 0)
+        queue.append (bytes, (size_t) numBytes);
+
+    drainTerminalOutput (queue, write);
 }
 
 //==============================================================================
