@@ -633,6 +633,10 @@
     <GROUP id="{A1B2C3D4-0000-4000-8000-000000000001}" name="Terminal">
       <FILE id="tRmVt1" name="jucer_libvterm_unity.c" compile="1" resource="0"
             file="Source/Terminal/jucer_libvterm_unity.c"/>
+      <FILE id="tRmPt1" name="jucer_PseudoTerminal.cpp" compile="1" resource="0"
+            file="Source/Terminal/jucer_PseudoTerminal.cpp"/>
+      <FILE id="tRmPt2" name="jucer_PseudoTerminal.h" compile="0" resource="0"
+            file="Source/Terminal/jucer_PseudoTerminal.h"/>
     </GROUP>
     <GROUP id="{95DBFE17-0A31-0729-A633-C52B640801E5}" name="Utility">
       <GROUP id="{B7989E96-4C08-4D17-CBEA-4F3985A734D5}" name="Helpers">

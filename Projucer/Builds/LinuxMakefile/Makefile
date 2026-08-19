@@ -112,6 +112,7 @@ OBJECTS_APP := \
   $(JUCE_OBJDIR)/jucer_AppearanceSettings_fa5d736e.o \
   $(JUCE_OBJDIR)/jucer_StoredSettings_c7168d2d.o \
   $(JUCE_OBJDIR)/jucer_libvterm_unity_c62052e1.o \
+  $(JUCE_OBJDIR)/jucer_PseudoTerminal_b56fec68.o \
   $(JUCE_OBJDIR)/jucer_CodeHelpers_1e797672.o \
   $(JUCE_OBJDIR)/jucer_FileHelpers_54f12f83.o \
   $(JUCE_OBJDIR)/jucer_MiscUtilities_31fc8dd8.o \
@@ -367,6 +368,11 @@ $(JUCE_OBJDIR)/jucer_libvterm_unity_c62052e1.o: ../../Source/Terminal/jucer_libv
 	-$(V_AT)mkdir -p $(@D)
 	@echo "Compiling jucer_libvterm_unity.c"
 	$(V_AT)$(CC) $(JUCE_CFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/jucer_PseudoTerminal_b56fec68.o: ../../Source/Terminal/jucer_PseudoTerminal.cpp
+	-$(V_AT)mkdir -p $(@D)
+	@echo "Compiling jucer_PseudoTerminal.cpp"
+	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
 
 $(JUCE_OBJDIR)/jucer_CodeHelpers_1e797672.o: ../../Source/Utility/Helpers/jucer_CodeHelpers.cpp
 	-$(V_AT)mkdir -p $(@D)

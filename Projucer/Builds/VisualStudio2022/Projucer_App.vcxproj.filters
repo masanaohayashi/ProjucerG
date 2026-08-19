@@ -1105,6 +1105,9 @@
     <ClCompile Include="..\..\Source\Terminal\jucer_libvterm_unity.c">
       <Filter>Projucer\Terminal</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Source\Terminal\jucer_PseudoTerminal.cpp">
+      <Filter>Projucer\Terminal</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Source\Utility\Helpers\jucer_CodeHelpers.cpp">
       <Filter>Projucer\Utility\Helpers</Filter>
     </ClCompile>
@@ -4754,6 +4757,9 @@
     </ClInclude>
     <ClInclude Include="..\..\Source\Settings\jucer_StoredSettings.h">
       <Filter>Projucer\Settings</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Terminal\jucer_PseudoTerminal.h">
+      <Filter>Projucer\Terminal</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\Utility\Helpers\jucer_CodeHelpers.h">
       <Filter>Projucer\Utility\Helpers</Filter>
