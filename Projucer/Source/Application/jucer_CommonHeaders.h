@@ -54,7 +54,10 @@ struct TargetOS
     {
        #if JUCE_WINDOWS
         return windows;
-       #elif JUCE_MAC
+       #elif JUCE_MAC || JUCE_IOS
+        // iOS shares the macOS paths: they are ordinary local paths, and giving iOS its
+        // own entry would only matter if one settings file were shared between a Mac and
+        // an iPad, which sandboxing rules out anyway.
         return osx;
        #elif JUCE_LINUX || JUCE_BSD
         return linux;
