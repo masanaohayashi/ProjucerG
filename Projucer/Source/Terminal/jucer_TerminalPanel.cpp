@@ -18,7 +18,9 @@ public:
         g.setColour (backgroundColour);
         g.fillRect (area);
 
-        const float alpha = button.isFrontTab() || isMouseOver || isMouseDown ? 1.0f : 0.65f;
+        // Keep inactive tab labels readable against the shared panel background.
+        // The front-tab indicator already communicates which tab is active.
+        const float alpha = button.isFrontTab() || isMouseOver || isMouseDown ? 1.0f : 0.9f;
         g.setColour (textColour.withMultipliedAlpha (alpha));
         g.drawFittedText (button.getButtonText(), button.getTextArea(),
                           juce::Justification::centred, 1);
@@ -41,8 +43,9 @@ public:
     void drawTabAreaBehindFrontButton (juce::TabbedButtonBar&, juce::Graphics& g,
                                        int width, int height) override
     {
-        g.fillAll (backgroundColour);
-        juce::ignoreUnused (width, height);
+        // This component is layered above inactive tab buttons and behind the
+        // front tab. Filling its entire bounds would hide their labels.
+        juce::ignoreUnused (g, width, height);
     }
 
 private:
