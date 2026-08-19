@@ -8,6 +8,7 @@ TerminalPanel::TerminalPanel (const juce::File& wd)
 
     addAndMakeVisible (tabs);
     tabs.setOutline (0);
+    tabs.setColour (juce::TabbedComponent::backgroundColourId, juce::Colours::black);
 
     addAndMakeVisible (addButton);
     addButton.setTooltip ("Open another terminal");
@@ -32,7 +33,7 @@ void TerminalPanel::addTerminal()
     const auto name = "Terminal " + juce::String (nextTerminalNumber++);
 
     tabs.addTab (name,
-                 findColour (juce::CodeEditorComponent::backgroundColourId),
+                 juce::Colours::black,
                  new TerminalView (workingDirectory),
                  true);
 
@@ -62,7 +63,7 @@ void TerminalPanel::focusCurrentTerminal()
 
 void TerminalPanel::paint (juce::Graphics& g)
 {
-    g.fillAll (findColour (juce::CodeEditorComponent::backgroundColourId));
+    g.fillAll (juce::Colours::black);
 
     // A hairline along the top, so the panel reads as a separate region even
     // before the user notices the resizer sitting on it.

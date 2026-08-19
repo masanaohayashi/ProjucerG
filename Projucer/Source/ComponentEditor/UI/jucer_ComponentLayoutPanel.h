@@ -423,7 +423,7 @@ private:
             g.fillRoundedRectangle (banner.toFloat(), 8.0f);
 
             g.setColour (Colours::white);
-            g.setFont (Font (15.0f, Font::bold));
+            g.setFont (FontOptions { 15.0f, Font::bold });
             g.drawText (panel.getLiveEditStatusText(), banner.reduced (14, 8), Justification::centredLeft, false);
 
             for (size_t i = 0; i < panel.getNumLiveEditPreviews(); ++i)

@@ -77,6 +77,8 @@ inline TerminalGridSize getTerminalGridSize (int width, int height,
 }
 
 /** What one cell of the grid draws as. Colours are 0xRRGGBB. */
+inline constexpr uint32_t terminalDefaultBackgroundRGB = 0x000000;
+
 struct TerminalCellStyle
 {
     uint32_t character;         /**< 0 means "draw nothing", including for a plain space. */

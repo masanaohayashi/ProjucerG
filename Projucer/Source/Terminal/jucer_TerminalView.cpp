@@ -248,7 +248,7 @@ void TerminalView::timerCallback()
 //==============================================================================
 void TerminalView::paint (juce::Graphics& g)
 {
-    const auto defaultBackground = findColour (juce::CodeEditorComponent::backgroundColourId);
+    const auto defaultBackground = juce::Colour ((juce::uint32) (0xff000000u | terminalDefaultBackgroundRGB));
     const auto defaultForeground = findColour (juce::CodeEditorComponent::defaultTextColourId);
 
     const auto defaultBackgroundRGB = defaultBackground.getARGB() & 0xffffff;

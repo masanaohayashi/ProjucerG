@@ -101,6 +101,8 @@ static void expectKey (const char* label, VTermKey special, uint32_t character,
 //==============================================================================
 int main (void)
 {
+    CHECK ("terminal default background is black", terminalDefaultBackgroundRGB == 0x000000);
+
     vt = vterm_new (24, 80);
     vterm_set_utf8 (vt, 1);
     screen = vterm_obtain_screen (vt);
