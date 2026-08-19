@@ -19,7 +19,7 @@
     <key>CFBundleExecutable</key>
     <string>${EXECUTABLE_NAME}</string>
     <key>CFBundleIdentifier</key>
-    <string>com.juce.theprojucer</string>
+    <string>tokyo.studio-r.juce.theprojucer</string>
     <key>CFBundleName</key>
     <string>Projucer</string>
     <key>CFBundleDisplayName</key>

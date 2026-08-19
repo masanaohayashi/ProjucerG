@@ -1385,7 +1385,7 @@
 				OTHER_CFLAGS = "$(inherited)";
 				OTHER_CPLUSPLUSFLAGS = "$(inherited)";
 				OTHER_LDFLAGS = "$(inherited)";
-				PRODUCT_BUNDLE_IDENTIFIER = com.juce.theprojucer;
+				PRODUCT_BUNDLE_IDENTIFIER = tokyo.studio-r.juce.theprojucer;
 				PRODUCT_NAME = "Projucer";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				USE_HEADERMAP = NO;
@@ -1462,7 +1462,7 @@
 				OTHER_CFLAGS = "$(inherited)";
 				OTHER_CPLUSPLUSFLAGS = "$(inherited)";
 				OTHER_LDFLAGS = "$(inherited)";
-				PRODUCT_BUNDLE_IDENTIFIER = com.juce.theprojucer;
+				PRODUCT_BUNDLE_IDENTIFIER = tokyo.studio-r.juce.theprojucer;
 				PRODUCT_NAME = "Projucer";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				USE_HEADERMAP = NO;

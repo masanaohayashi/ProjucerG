@@ -31,7 +31,7 @@
 # ==============================================================================
 
 juce_add_gui_app(Projucer
-    BUNDLE_ID                           com.juce.theprojucer
+    BUNDLE_ID                           tokyo.studio-r.juce.theprojucer
     ICON_BIG                            ${CMAKE_CURRENT_SOURCE_DIR}/Source/BinaryData/Icons/juce_icon.png
     ICON_COMPOSER_BUNDLE                "${CMAKE_CURRENT_SOURCE_DIR}/Source/Assets/AppIcon.icon"
     DOCUMENT_EXTENSIONS                 jucer

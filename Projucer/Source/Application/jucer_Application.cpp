@@ -116,7 +116,7 @@ bool ProjucerApplication::initialiseLogger (const char* filePrefix)
        #if JUCE_LINUX || JUCE_BSD
         String folder = "~/.config/Projucer/Logs";
        #else
-        String folder = "com.juce.projucer";
+        String folder = "tokyo.studio-r.juce.projucer";
        #endif
 
         logger.reset (FileLogger::createDateStampedLogger (folder, filePrefix, ".txt",
