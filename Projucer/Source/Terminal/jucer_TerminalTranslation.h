@@ -78,6 +78,83 @@ inline TerminalGridSize getTerminalGridSize (int width, int height,
 
 /** What one cell of the grid draws as. Colours are 0xRRGGBB. */
 inline constexpr uint32_t terminalDefaultBackgroundRGB = 0x000000;
+inline constexpr uint32_t terminalDefaultForegroundRGB = 0xc0c0c0;
+
+struct TerminalViewportRow
+{
+    bool fromScrollback;
+    int sourceRow;
+};
+
+/** Maps one visible row onto the combined scrollback + live-screen timeline. */
+inline TerminalViewportRow getTerminalViewportRow (int scrollbackSize, int liveRows,
+                                                   int scrollOffset, int visibleRow)
+{
+    scrollbackSize = std::max (0, scrollbackSize);
+    liveRows = std::max (1, liveRows);
+    scrollOffset = std::clamp (scrollOffset, 0, scrollbackSize);
+    visibleRow = std::clamp (visibleRow, 0, liveRows - 1);
+
+    const int logicalRow = scrollbackSize - scrollOffset + visibleRow;
+
+    if (logicalRow < scrollbackSize)
+        return { true, logicalRow };
+
+    return { false, logicalRow - scrollbackSize };
+}
+
+/** Converts even very small trackpad deltas into a useful row movement. */
+inline int getTerminalWheelRows (float deltaY)
+{
+    if (deltaY == 0.0f)
+        return 0;
+
+    const int scaled = (int) std::lround (deltaY * 5.0f);
+    return scaled != 0 ? scaled : (deltaY > 0.0f ? 1 : -1);
+}
+
+struct TerminalSelectionPoint
+{
+    int row;
+    int column;
+};
+
+inline bool operator< (TerminalSelectionPoint a, TerminalSelectionPoint b)
+{
+    return a.row < b.row || (a.row == b.row && a.column < b.column);
+}
+
+/** Maps a cell in the visible viewport to the combined scrollback + live-screen timeline. */
+inline TerminalSelectionPoint getTerminalSelectionPoint (int scrollbackSize, int liveRows,
+                                                         int scrollOffset, int visibleRow,
+                                                         int column)
+{
+    const auto viewportRow = getTerminalViewportRow (scrollbackSize, liveRows,
+                                                     scrollOffset, visibleRow);
+
+    return { viewportRow.fromScrollback ? viewportRow.sourceRow
+                                        : scrollbackSize + viewportRow.sourceRow,
+             std::max (0, column) };
+}
+
+/** Returns the selected half-open column range for one logical row. */
+inline std::pair<int, int> getTerminalSelectedColumns (TerminalSelectionPoint a,
+                                                       TerminalSelectionPoint b,
+                                                       int row, int numColumns)
+{
+    if (b < a)
+        std::swap (a, b);
+
+    numColumns = std::max (1, numColumns);
+
+    if (row < a.row || row > b.row)
+        return { 0, 0 };
+
+    const int start = row == a.row ? std::clamp (a.column, 0, numColumns) : 0;
+    const int end = row == b.row ? std::clamp (b.column + 1, 0, numColumns) : numColumns;
+
+    return { std::min (start, end), std::max (start, end) };
+}
 
 struct TerminalCellStyle
 {

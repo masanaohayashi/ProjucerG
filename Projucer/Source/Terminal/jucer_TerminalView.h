@@ -3,6 +3,9 @@
 #include "jucer_PseudoTerminal.h"
 #include "jucer_TerminalTranslation.h"
 
+#include <deque>
+#include <vector>
+
 //==============================================================================
 /**
     One terminal: a shell, an emulator, and the grid of cells they produce.
@@ -14,6 +17,9 @@
     busy program like top repaints two lines rather than the whole window.
 */
 class TerminalView final : public juce::Component,
+                           public juce::TextInputTarget,
+                           public juce::ApplicationCommandTarget,
+                           private juce::ScrollBar::Listener,
                            private juce::Timer,
                            private juce::AsyncUpdater
 {
@@ -25,6 +31,26 @@ public:
     void resized() override;
     bool keyPressed (const juce::KeyPress&) override;
     void mouseDown (const juce::MouseEvent&) override;
+    void mouseDrag (const juce::MouseEvent&) override;
+    void mouseUp (const juce::MouseEvent&) override;
+    void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
+
+    juce::ApplicationCommandTarget* getNextCommandTarget() override;
+    void getAllCommands (juce::Array<juce::CommandID>&) override;
+    void getCommandInfo (juce::CommandID, juce::ApplicationCommandInfo&) override;
+    bool perform (const InvocationInfo&) override;
+
+    bool isTextInputActive() const override;
+    juce::Range<int> getHighlightedRegion() const override;
+    void setHighlightedRegion (const juce::Range<int>&) override;
+    void setTemporaryUnderlining (const juce::Array<juce::Range<int>>&) override;
+    juce::String getTextInRange (const juce::Range<int>&) const override;
+    void insertTextAtCaret (const juce::String&) override;
+    int getCaretPosition() const override;
+    juce::Rectangle<int> getCaretRectangleForCharIndex (int) const override;
+    int getTotalNumChars() const override;
+    int getCharIndexForPoint (juce::Point<int>) const override;
+    juce::RectangleList<int> getTextBounds (juce::Range<int>) const override;
 
     // libvterm calls these back on the message thread, from inside
     // vterm_input_write(). They are public only because the callback table
@@ -43,6 +69,16 @@ private:
     void consumePendingBytes();
     void sendToShell (const char* bytes, int numBytes);
     void updateGridSizeFromBounds();
+    void updateScrollBar();
+    void setScrollOffset (int);
+    void scrollBarMoved (juce::ScrollBar*, double newRangeStart) override;
+    void clearSelection();
+    void copySelectionToClipboard() const;
+    void pasteFromClipboard();
+    juce::String getSelectedText() const;
+    bool getCell (int logicalRow, int column, VTermScreenCell&) const;
+    TerminalSelectionPoint getSelectionPoint (juce::Point<int>) const;
+    juce::Rectangle<int> getTerminalBounds() const;
     juce::Rectangle<int> getCellBounds (int row, int column, int widthInCells = 1) const;
 
     PseudoTerminal pty;
@@ -74,6 +110,25 @@ private:
 
     juce::String statusMessage;
     std::string pendingOutput;
+
+    juce::ScrollBar scrollBar { true };
+
+    struct ScrollbackLine
+    {
+        std::vector<VTermScreenCell> cells;
+    };
+
+    std::deque<ScrollbackLine> scrollback;
+    int scrollOffset = 0;
+    static constexpr int maxScrollbackLines = 10000;
+
+    TerminalSelectionPoint selectionAnchor {};
+    TerminalSelectionPoint selectionEnd {};
+    bool terminalSelectionActive = false;
+
+    juce::String textInputBuffer;
+    juce::Range<int> textInputSelection;
+    juce::Array<juce::Range<int>> temporaryUnderlines;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TerminalView)
 };

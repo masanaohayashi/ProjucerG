@@ -23,14 +23,18 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    void lookAndFeelChanged() override;
 
     static constexpr int defaultHeight = 220;
     static constexpr int minimumHeight = 80;
 
 private:
+    class TabLookAndFeel;
+
     TerminalView* getCurrentTerminal() const;
 
     juce::File workingDirectory;
+    std::unique_ptr<TabLookAndFeel> tabLookAndFeel;
     juce::TabbedComponent tabs { juce::TabbedButtonBar::TabsAtTop };
     juce::TextButton addButton { "+" };
     juce::TextButton closeButton { "x" };

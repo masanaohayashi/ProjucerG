@@ -102,6 +102,43 @@ static void expectKey (const char* label, VTermKey special, uint32_t character,
 int main (void)
 {
     CHECK ("terminal default background is black", terminalDefaultBackgroundRGB == 0x000000);
+    CHECK ("terminal default foreground is light grey", terminalDefaultForegroundRGB == 0xc0c0c0);
+
+    {
+        const auto live = getTerminalViewportRow (100, 24, 0, 0);
+        CHECK ("live viewport starts at live row zero", ! live.fromScrollback && live.sourceRow == 0);
+
+        const auto newestHistory = getTerminalViewportRow (100, 24, 1, 0);
+        CHECK ("one wheel row reveals the newest history line",
+               newestHistory.fromScrollback && newestHistory.sourceRow == 99);
+
+        const auto shiftedLive = getTerminalViewportRow (100, 24, 1, 1);
+        CHECK ("partial scroll shifts the live screen down",
+               ! shiftedLive.fromScrollback && shiftedLive.sourceRow == 0);
+
+        const auto oldestHistory = getTerminalViewportRow (100, 24, 100, 0);
+        CHECK ("maximum scroll reaches the oldest history line",
+               oldestHistory.fromScrollback && oldestHistory.sourceRow == 0);
+
+        CHECK ("small upward trackpad motion still scrolls one row",
+               getTerminalWheelRows (0.01f) == 1);
+        CHECK ("small downward trackpad motion still scrolls one row",
+               getTerminalWheelRows (-0.01f) == -1);
+
+        const TerminalSelectionPoint anchor = getTerminalSelectionPoint (100, 24, 10, 3, 7);
+        const TerminalSelectionPoint caret  = getTerminalSelectionPoint (100, 24, 10, 5, 2);
+        CHECK ("selection points use combined history and live rows",
+               anchor.row == 93 && anchor.column == 7 && caret.row == 95 && caret.column == 2);
+
+        const auto first = getTerminalSelectedColumns (anchor, caret, 93, 80);
+        const auto middle = getTerminalSelectedColumns (anchor, caret, 94, 80);
+        const auto last = getTerminalSelectedColumns (caret, anchor, 95, 80);
+        const auto outside = getTerminalSelectedColumns (anchor, caret, 96, 80);
+        CHECK ("selection starts at the anchor column", first.first == 7 && first.second == 80);
+        CHECK ("selection includes complete middle rows", middle.first == 0 && middle.second == 80);
+        CHECK ("reverse drags normalize and include the final cell", last.first == 0 && last.second == 3);
+        CHECK ("rows outside a selection are empty", outside.first == 0 && outside.second == 0);
+    }
 
     vt = vterm_new (24, 80);
     vterm_set_utf8 (vt, 1);
