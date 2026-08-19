@@ -303,6 +303,71 @@ int main()
         }
     }
 
+    /* B1/B2 regression check: stop() must hang up civilly (SIGHUP, with a
+       real grace period for the child to react) and must not discard the
+       reaped exit code. Point SHELL at a tiny stub script instead of using
+       the real login shell, so this doesn't depend on - or fight - any
+       interactive shell's prompt/integration hooks: `trap 'exit 42' HUP` +
+       `sleep 300 & wait` deterministically turns a graceful SIGHUP into a
+       known exit(42). `sleep 300 & wait` (not a bare `sleep 300`) matters:
+       POSIX sh defers trap handling until the current foreground command
+       finishes, so a bare `sleep` would swallow the HUP until it woke up on
+       its own; backgrounding it and blocking in the `wait` builtin instead
+       is what makes the trap fire promptly. If stop() ever goes back to an
+       unconditional SIGKILL (B1) the trap never gets to run and the shell
+       dies by signal, not exit() - exitCode stays -1. If stop() ever goes
+       back to discarding waitpid's status (B2), exitCode stays -1 even
+       though the trap did run and call exit(42). Either regression shows up
+       as the same wrong value here, which is what this checks. */
+    {
+        const char* previousShell = getenv ("SHELL");
+        const std::string previousShellCopy = previousShell != nullptr ? previousShell : "";
+        const bool hadShell = previousShell != nullptr;
+
+        setenv ("SHELL", "@@HUP_STUB_SHELL_PATH@@", 1);
+
+        PseudoTerminal stubPty;
+        const bool started = stubPty.start (juce::File ("/tmp"), 80, 24);
+
+        if (hadShell) setenv ("SHELL", previousShellCopy.c_str(), 1);
+        else          unsetenv ("SHELL");
+
+        if (! started)
+        {
+            printf ("FAIL: start() failed for the B1/B2 stub-shell test: %s\n", stubPty.getLastError().toRawUTF8());
+            return 1;
+        }
+
+        /* Wait for the stub to confirm its trap is installed and it has
+           reached `wait` before we hang up on it - a fixed sleep here was
+           flaky (~100ms wasn't reliably enough for fork/exec/shebang
+           re-exec to land; a marker is the same technique the other tests
+           in this file already use). */
+        std::string stubOut;
+        for (int attempt = 0; attempt < 2000 && stubOut.find ("READY") == std::string::npos; ++attempt)
+        {
+            char buffer[256];
+            const int numRead = stubPty.readBytes (buffer, sizeof (buffer));
+
+            if (numRead > 0) stubOut.append (buffer, (size_t) numRead);
+            else              usleep (5000);
+        }
+
+        if (stubOut.find ("READY") == std::string::npos)
+        {
+            printf ("FAIL: stub shell never confirmed its HUP trap was installed\n");
+            return 1;
+        }
+
+        stubPty.stop();
+
+        if (stubPty.getExitCode() != 42)
+        {
+            printf ("FAIL: expected exit code 42 (graceful SIGHUP handled by trap) after stop(), got %d\n", stubPty.getExitCode());
+            return 1;
+        }
+    }
+
     /* A bad working directory is a user-visible failure, not a crash. */
     PseudoTerminal broken;
     broken.start (juce::File ("/definitely/not/a/real/directory"), 80, 24);
@@ -326,8 +391,19 @@ def main():
         source = source.replace('#include "../Application/jucer_Headers.h"', '')
         source = source.replace('#include "jucer_PseudoTerminal.h"', '')
 
+        # A tiny stub shell for the B1/B2 grace-period + exit-code test.
+        # start() reads SHELL via getenv(), so pointing that at this script
+        # (instead of the real, possibly-customized login shell) makes the
+        # HUP-trap behaviour deterministic and independent of the test
+        # machine's shell config. Cleaned up automatically with `tmp`.
+        stub_shell = tmp / "hup_stub.sh"
+        stub_shell.write_text("#!/bin/sh\ntrap 'exit 42' HUP\necho READY\nsleep 300 &\nwait\n")
+        stub_shell.chmod(0o755)
+
+        driver = DRIVER.replace("@@HUP_STUB_SHELL_PATH@@", str(stub_shell))
+
         combined = tmp / "combined.cpp"
-        combined.write_text(STUBS + header + source + DRIVER)
+        combined.write_text(STUBS + header + source + driver)
 
         binary = tmp / "driver"
         result = subprocess.run(
