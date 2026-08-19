@@ -65,6 +65,7 @@
 #include "Components/jucer_ImageButtonHandler.h"
 #include "Components/jucer_ImageComponentHandler.h"
 #include "Components/jucer_MidiKeyboardComponentHandler.h"
+#include "Components/jucer_SeparatorComponentHandler.h"
 
 namespace ObjectTypes
 {
@@ -155,6 +156,7 @@ static DrawableButtonHandler drawableButtonHandler;
 static ImageButtonHandler imageButtonHandler;
 static ImageComponentHandler imageComponentHandler;
 static MidiKeyboardComponentHandler midiKeyboardComponentHandler;
+static SeparatorComponentHandler separatorComponentHandler;
 
 static ComponentTypeHandler* const compTypes[] =
 {
@@ -175,6 +177,7 @@ static ComponentTypeHandler* const compTypes[] =
     &imageButtonHandler,
     &imageComponentHandler,
     &midiKeyboardComponentHandler,
+    &separatorComponentHandler,
     nullptr
 };
 

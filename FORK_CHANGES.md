@@ -19,6 +19,11 @@ components and workflows that are limited or missing in the original Projucer.
   binary resources are listed in the font selectors of Label and Text paint
   elements, previewed in the editor without being installed on the system, and
   loaded from `BinaryData` in the generated code.
+- Added a `Separator` component: a draggable splitter bar that resizes the two
+  components either side of it. The neighbours, minimum sizes, bar colour and
+  the behaviour on parent resize (both halves proportional, or one half kept at
+  a fixed size) are all set in the GUI editor, and the generated code carries a
+  self-contained `JucerSeparatorBar` class so no hand-written code is needed.
 
 ## Template Improvements
 

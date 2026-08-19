@@ -25,6 +25,7 @@
 
 #include "../../Application/jucer_Headers.h"
 #include "jucer_ComponentDocument.h"
+#include "../Components/jucer_SeparatorComponent.h"
 
 
 //==============================================================================
@@ -110,11 +111,16 @@ public:
 
         for (int i = 0; i < layout->getNumComponents(); ++i)
             addAndMakeVisible (layout->getComponent (i));
+
+        // separators only drag when they're being tested - in the layout editor the
+        // bar has to stay where the user put it
+        setSeparatorsLive (true);
     }
 
     ~NormalTestComponent() override
     {
         setLookAndFeel (nullptr);
+        setSeparatorsLive (false);
 
         for (int i = getNumChildComponents(); --i >= 0;)
             removeChildComponent (i);
@@ -160,6 +166,13 @@ public:
     }
 
 private:
+    void setSeparatorsLive (bool shouldBeLive)
+    {
+        for (auto* c : getChildren())
+            if (auto* s = dynamic_cast<SeparatorComponent*> (c))
+                s->setLiveMode (shouldBeLive);
+    }
+
     ComponentDocument* const document;
     const bool alwaysFillBackground;
     std::unique_ptr<LookAndFeel> previewLookAndFeel;
