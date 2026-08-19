@@ -16,3 +16,5 @@
 **/Builds/VisualStudio*/x64/
 **/Builds/VisualStudio*/ARM64/
 **/Builds/VisualStudio*/*.vcxproj.user
+__pycache__/
+*.pyc
