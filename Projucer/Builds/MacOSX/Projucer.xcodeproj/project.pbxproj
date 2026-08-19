@@ -79,6 +79,7 @@
 		95F56FB44C669F93AE77E465 /* jucer_SlidingPanelComponent.cpp */ = {isa = PBXBuildFile; fileRef = 0CECD562059DFD7FBFB37E3C; };
 		9B8ED9D50406E5D75DEE57F5 /* jucer_PaintRoutinePanel.cpp */ = {isa = PBXBuildFile; fileRef = FFE01768CF1C8DBDAA894F76; };
 		9CE407714FB31D5356903747 /* include_juce_audio_processors_headless_lv2_libs.cpp */ = {isa = PBXBuildFile; fileRef = 0CEA55A0904DBC8FF91FAB62; };
+		A119C0B7353189216C4CD014 /* jucer_libvterm_unity.c */ = {isa = PBXBuildFile; fileRef = 7DCC303F8A546ED3BEB8716C; };
 		A244ECDE066147A234A5D43B /* include_juce_graphics_libjpg_2.c */ = {isa = PBXBuildFile; fileRef = 16FA7F1761716EBFFF1F1FD7; };
 		A578EAD4BB55680E8097BE0F /* Accelerate.framework */ = {isa = PBXBuildFile; fileRef = 80D62B907248523E6943298B; };
 		A6A9D7624D002544ECB81D82 /* App */ = {isa = PBXBuildFile; fileRef = 09DE066936CF037E9709ADB1; };
@@ -260,6 +261,7 @@
 		78D0DBC4798FF040FDB90F6D /* jucer_GeneratedCode.cpp */ /* jucer_GeneratedCode.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = jucer_GeneratedCode.cpp; path = ../../Source/ComponentEditor/jucer_GeneratedCode.cpp; sourceTree = SOURCE_ROOT; };
 		7C2F4A961A17B2E2ADD1B407 /* icon.json */ /* icon.json */ = {isa = PBXFileReference; lastKnownFileType = file.json; name = icon.json; path = ../../Source/Assets/AppIcon.icon/icon.json; sourceTree = SOURCE_ROOT; };
 		7CA44FF0BA319517C6E39651 /* jucer_Application.cpp */ /* jucer_Application.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = jucer_Application.cpp; path = ../../Source/Application/jucer_Application.cpp; sourceTree = SOURCE_ROOT; };
+		7DCC303F8A546ED3BEB8716C /* jucer_libvterm_unity.c */ /* jucer_libvterm_unity.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = jucer_libvterm_unity.c; path = ../../Source/Terminal/jucer_libvterm_unity.c; sourceTree = SOURCE_ROOT; };
 		7E2013F425E231C6D865DDD0 /* jucer_ComponentChoiceProperty.h */ /* jucer_ComponentChoiceProperty.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = jucer_ComponentChoiceProperty.h; path = ../../Source/ComponentEditor/Properties/jucer_ComponentChoiceProperty.h; sourceTree = SOURCE_ROOT; };
 		7F0A5319912991615FC57945 /* jucer_ColourPropertyComponent.h */ /* jucer_ColourPropertyComponent.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = jucer_ColourPropertyComponent.h; path = ../../Source/ComponentEditor/Properties/jucer_ColourPropertyComponent.h; sourceTree = SOURCE_ROOT; };
 		7F1FF0675F6551381D5976BD /* include_juce_audio_devices.mm */ /* include_juce_audio_devices.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = include_juce_audio_devices.mm; path = ../../JuceLibraryCode/include_juce_audio_devices.mm; sourceTree = SOURCE_ROOT; };
@@ -932,6 +934,14 @@
 			name = Icons;
 			sourceTree = "<group>";
 		};
+		C91D27401E335A8BCA936C94 /* Terminal */ = {
+			isa = PBXGroup;
+			children = (
+				7DCC303F8A546ED3BEB8716C,
+			);
+			name = Terminal;
+			sourceTree = "<group>";
+		};
 		D3109994DA6AD871BE85C4E2 /* Projucer */ = {
 			isa = PBXGroup;
 			children = (
@@ -944,6 +954,7 @@
 				89E9055A179B4C2019B4E1AE,
 				4DCC5D64BBE8DE85360A3D57,
 				EC535A977A1A114BC5DAE7B3,
+				C91D27401E335A8BCA936C94,
 				2B1F885AA027E1A76A1C32E3,
 			);
 			name = Projucer;
@@ -1206,6 +1217,7 @@
 				4E6DC4778D583C48C3CCD4DC,
 				EE722B47BC36CC8A87E0FB76,
 				2DF375B40A64BB3778F7ABD1,
+				A119C0B7353189216C4CD014,
 				8BE478303CDF061B72F219E2,
 				BF913199032B4CE970E82AA3,
 				25EF9B3FECB4C9F0F522DCAA,
@@ -1314,13 +1326,14 @@
 					"$(SRCROOT)/../../JuceLibraryCode",
 					"$(SRCROOT)/../../../JUCE-9.0.0/modules",
 					"$(SRCROOT)/../../../JUCE-9.0.0/extras/Build",
+					"$(SRCROOT)/../../Source/Terminal/libvterm/include",
 					"$(inherited)",
 				);
 				INFOPLIST_FILE = Info-App.plist;
 				INFOPLIST_PREPROCESS = NO;
 				INSTALL_PATH = "$(HOME)/Applications";
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
-				MTL_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../JuceLibraryCode $(SRCROOT)/../../../JUCE-9.0.0/modules $(SRCROOT)/../../../JUCE-9.0.0/extras/Build";
+				MTL_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../JuceLibraryCode $(SRCROOT)/../../../JUCE-9.0.0/modules $(SRCROOT)/../../../JUCE-9.0.0/extras/Build $(SRCROOT)/../../Source/Terminal/libvterm/include";
 				OTHER_CFLAGS = "$(inherited) -Wall -Wcast-align -Wfloat-equal -Wno-ignored-qualifiers -Wsign-compare -Wsign-conversion -Wstrict-aliasing -Wswitch-enum -Wuninitialized -Wunreachable-code -Wunused-parameter -Wmissing-field-initializers -Wshadow-all -Wshorten-64-to-32 -Wconversion -Wint-conversion -Wconditional-uninitialized -Wconstant-conversion -Wbool-conversion -Wextra-semi -Wshift-sign-overflow -Wmissing-prototypes -Wnullable-to-nonnull-conversion -Wpedantic -Wdeprecated -Wunguarded-availability -Wunguarded-availability-new";
 				OTHER_CPLUSPLUSFLAGS = "$(inherited) -Woverloaded-virtual -Wreorder -Wzero-as-null-pointer-constant -Wunused-private-field -Winconsistent-missing-destructor-override -Wall -Wcast-align -Wfloat-equal -Wno-ignored-qualifiers -Wsign-compare -Wsign-conversion -Wstrict-aliasing -Wswitch-enum -Wuninitialized -Wunreachable-code -Wunused-parameter -Wmissing-field-initializers -Wshadow-all -Wshorten-64-to-32 -Wconversion -Wint-conversion -Wconditional-uninitialized -Wconstant-conversion -Wbool-conversion -Wextra-semi -Wshift-sign-overflow -Wmissing-prototypes -Wnullable-to-nonnull-conversion -Wpedantic -Wdeprecated -Wunguarded-availability -Wunguarded-availability-new";
 				OTHER_LDFLAGS = "$(inherited) -Wl,-weak_reference_mismatches,weak";
@@ -1392,13 +1405,14 @@
 					"$(SRCROOT)/../../JuceLibraryCode",
 					"$(SRCROOT)/../../../JUCE-9.0.0/modules",
 					"$(SRCROOT)/../../../JUCE-9.0.0/extras/Build",
+					"$(SRCROOT)/../../Source/Terminal/libvterm/include",
 					"$(inherited)",
 				);
 				INFOPLIST_FILE = Info-App.plist;
 				INFOPLIST_PREPROCESS = NO;
 				INSTALL_PATH = "$(HOME)/Applications";
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
-				MTL_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../JuceLibraryCode $(SRCROOT)/../../../JUCE-9.0.0/modules $(SRCROOT)/../../../JUCE-9.0.0/extras/Build";
+				MTL_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../JuceLibraryCode $(SRCROOT)/../../../JUCE-9.0.0/modules $(SRCROOT)/../../../JUCE-9.0.0/extras/Build $(SRCROOT)/../../Source/Terminal/libvterm/include";
 				OTHER_CFLAGS = "$(inherited) -Wall -Wcast-align -Wfloat-equal -Wno-ignored-qualifiers -Wsign-compare -Wsign-conversion -Wstrict-aliasing -Wswitch-enum -Wuninitialized -Wunreachable-code -Wunused-parameter -Wmissing-field-initializers -Wshadow-all -Wshorten-64-to-32 -Wconversion -Wint-conversion -Wconditional-uninitialized -Wconstant-conversion -Wbool-conversion -Wextra-semi -Wshift-sign-overflow -Wmissing-prototypes -Wnullable-to-nonnull-conversion -Wpedantic -Wdeprecated -Wunguarded-availability -Wunguarded-availability-new";
 				OTHER_CPLUSPLUSFLAGS = "$(inherited) -Woverloaded-virtual -Wreorder -Wzero-as-null-pointer-constant -Wunused-private-field -Winconsistent-missing-destructor-override -Wall -Wcast-align -Wfloat-equal -Wno-ignored-qualifiers -Wsign-compare -Wsign-conversion -Wstrict-aliasing -Wswitch-enum -Wuninitialized -Wunreachable-code -Wunused-parameter -Wmissing-field-initializers -Wshadow-all -Wshorten-64-to-32 -Wconversion -Wint-conversion -Wconditional-uninitialized -Wconstant-conversion -Wbool-conversion -Wextra-semi -Wshift-sign-overflow -Wmissing-prototypes -Wnullable-to-nonnull-conversion -Wpedantic -Wdeprecated -Wunguarded-availability -Wunguarded-availability-new";
 				OTHER_LDFLAGS = "$(inherited) -Wl,-weak_reference_mismatches,weak";

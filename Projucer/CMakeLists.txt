@@ -58,6 +58,7 @@ target_sources(Projucer PRIVATE
     Source/ProjectSaving/jucer_ResourceFile.cpp
     Source/Settings/jucer_AppearanceSettings.cpp
     Source/Settings/jucer_StoredSettings.cpp
+    Source/Terminal/jucer_libvterm_unity.c
     Source/Utility/Helpers/jucer_CodeHelpers.cpp
     Source/Utility/Helpers/jucer_FileHelpers.cpp
     Source/Utility/Helpers/jucer_MiscUtilities.cpp
@@ -152,6 +153,9 @@ juce_add_binary_data(ProjucerData SOURCES
     ../Build/CMake/UnityPluginGUIScript.cs.in
     ../Build/CMake/juce_runtime_arch_detection.cpp
     ../Build/CMake/juce_LinuxSubprocessHelper.cpp)
+
+target_include_directories(Projucer PRIVATE
+    Source/Terminal/libvterm/include)
 
 target_link_libraries(Projucer PRIVATE
     ProjucerData

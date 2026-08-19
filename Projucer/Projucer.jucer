@@ -11,9 +11,9 @@
                extraDefs="JUCE_SILENCE_XCODE_15_LINKER_WARNING=1" iconComposerIcon="NzgaRC">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" cppLibType="libc++"
-                       recommendedWarnings="LLVM"/>
+                       recommendedWarnings="LLVM" headerPath="../../Source/Terminal/libvterm/include"/>
         <CONFIGURATION name="Release" isDebug="0" targetName="Projucer" cppLibType="libc++"
-                       linkTimeOptimisation="0" recommendedWarnings="LLVM"/>
+                       linkTimeOptimisation="0" recommendedWarnings="LLVM" headerPath="../../Source/Terminal/libvterm/include"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../JUCE-9.0.0/modules"/>
@@ -36,9 +36,9 @@
             smallIcon="Zrx1Gl">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" useRuntimeLibDLL="0"
-                       winArchitecture="ARM64,x64"/>
+                       winArchitecture="ARM64,x64" headerPath="../../Source/Terminal/libvterm/include"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="Projucer"
-                       useRuntimeLibDLL="0" linkTimeOptimisation="0" winArchitecture="ARM64,x64"/>
+                       useRuntimeLibDLL="0" linkTimeOptimisation="0" winArchitecture="ARM64,x64" headerPath="../../Source/Terminal/libvterm/include"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../JUCE-9.0.0/modules"/>
@@ -61,9 +61,9 @@
             smallIcon="Zrx1Gl">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" useRuntimeLibDLL="0"
-                       winArchitecture="ARM64,x64"/>
+                       winArchitecture="ARM64,x64" headerPath="../../Source/Terminal/libvterm/include"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="Projucer"
-                       useRuntimeLibDLL="0" linkTimeOptimisation="0" winArchitecture="ARM64,x64"/>
+                       useRuntimeLibDLL="0" linkTimeOptimisation="0" winArchitecture="ARM64,x64" headerPath="../../Source/Terminal/libvterm/include"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../JUCE-9.0.0/modules"/>
@@ -86,9 +86,9 @@
             smallIcon="Zrx1Gl">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" useRuntimeLibDLL="0"
-                       winArchitecture="ARM64,x64"/>
+                       winArchitecture="ARM64,x64" headerPath="../../Source/Terminal/libvterm/include"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="Projucer"
-                       useRuntimeLibDLL="0" linkTimeOptimisation="0" winArchitecture="ARM64,x64"/>
+                       useRuntimeLibDLL="0" linkTimeOptimisation="0" winArchitecture="ARM64,x64" headerPath="../../Source/Terminal/libvterm/include"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../JUCE-9.0.0/modules"/>
@@ -109,8 +109,8 @@
     </VS2026>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" bigIcon="Zrx1Gl" smallIcon="Zrx1Gl">
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer"/>
-        <CONFIGURATION name="Release" isDebug="0" targetName="Projucer"/>
+        <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" headerPath="../../Source/Terminal/libvterm/include"/>
+        <CONFIGURATION name="Release" isDebug="0" targetName="Projucer" headerPath="../../Source/Terminal/libvterm/include"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../JUCE-9.0.0/modules"/>
@@ -629,6 +629,10 @@
             file="Source/Settings/jucer_StoredSettings.cpp"/>
       <FILE id="NM0cs9" name="jucer_StoredSettings.h" compile="0" resource="0"
             file="Source/Settings/jucer_StoredSettings.h"/>
+    </GROUP>
+    <GROUP id="{A1B2C3D4-0000-4000-8000-000000000001}" name="Terminal">
+      <FILE id="tRmVt1" name="jucer_libvterm_unity.c" compile="1" resource="0"
+            file="Source/Terminal/jucer_libvterm_unity.c"/>
     </GROUP>
     <GROUP id="{95DBFE17-0A31-0729-A633-C52B640801E5}" name="Utility">
       <GROUP id="{B7989E96-4C08-4D17-CBEA-4F3985A734D5}" name="Helpers">
