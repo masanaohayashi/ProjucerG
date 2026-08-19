@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <JUCERPROJECT id="M70qfTRRk" name="Projucer" projectType="guiapp" juceFolder="../JUCE-9.0.0"
-              version="9.0.0" bundleIdentifier="tokyo.studio-r.juce.theprojucer" companyName="Raw Material Software Limited"
-              companyCopyright="Raw Material Software Limited" useAppConfig="0"
-              addUsingNamespaceToJuceHeader="1" jucerFormatVersion="1">
+              version="9.0.0" bundleIdentifier="tokyo.studio-r.juce.theprojucer"
+              companyName="STUDIO-R" companyCopyright="STUDIO-R" useAppConfig="0"
+              addUsingNamespaceToJuceHeader="1" jucerFormatVersion="1" companyWebsite="studio-r.tokyo">
   <EXPORTFORMATS>
     <XCODE_MAC targetFolder="Builds/MacOSX" documentExtensions=".jucer" bigIcon="Zrx1Gl"
                microphonePermissionNeeded="1" cameraPermissionNeeded="1" smallIcon="Zrx1Gl"
@@ -134,8 +134,8 @@
     </LINUX_MAKE>
     <XCODE_IPHONE targetFolder="Builds/iOS" smallIcon="Zrx1Gl" bigIcon="Zrx1Gl"
                   UIFileSharingEnabled="1" UISupportsDocumentBrowser="1" UIStatusBarHidden="1"
-                  iosContentSharing="1" iosDevelopmentTeamID="P5G28RMWUN"
-                  iCloudPermissions="1" iCloudPublicDocuments="1">
+                  iosContentSharing="1" iosDevelopmentTeamID="P5G28RMWUN" iCloudPermissions="1"
+                  iCloudPublicDocuments="1">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" headerPath="../../Source/Terminal/libvterm/include"/>
         <CONFIGURATION isDebug="0" name="Release" headerPath="../../Source/Terminal/libvterm/include"/>

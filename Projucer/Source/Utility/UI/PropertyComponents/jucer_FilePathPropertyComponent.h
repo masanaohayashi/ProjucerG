@@ -128,7 +128,10 @@ private:
 
     void setTo (File f)
     {
-        if (isDirectory && ! f.isDirectory())
+        // Only step up for something we know is a file: a directory we cannot stat
+        // also reports isDirectory() == false, and silently storing its parent hides
+        // which path was actually chosen.
+        if (isDirectory && f.existsAsFile())
             f = f.getParentDirectory();
 
         auto pathName = (root == File()) ? f.getFullPathName()

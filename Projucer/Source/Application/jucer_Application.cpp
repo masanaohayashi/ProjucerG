@@ -37,6 +37,11 @@ PopupMenu createGUIEditorMenu();
 void handleGUIEditorMenuCommand (int);
 void registerGUIEditorCommands();
 
+#if JUCE_IOS
+ #include <objc/message.h>
+ #include <objc/runtime.h>
+#endif
+
 #include "../ComponentEditor/jucer_ObjectTypes.h"
 #include "../ComponentEditor/UI/jucer_JucerDocumentEditor.h"
 #include "../Automation/jucer_GuiDocumentAdapter.h"
@@ -166,8 +171,58 @@ void ProjucerApplication::handleAsyncUpdate()
     initialiseWindows (getCommandLineParameters());
 }
 
+#if JUCE_IOS
+namespace
+{
+    /*  The iCloud container only comes into existence once the app has asked for it,
+        and its Documents folder is what shows up in iCloud Drive (we set
+        NSUbiquitousContainerIsDocumentScopePublic). Everything inside it is an
+        ordinary local path that we own, so the rest of Projucer can walk it with
+        File as usual - unlike folders picked elsewhere in the Files browser, which
+        arrive as security-scoped URLs the sandbox will not even let us stat.
+
+        URLForUbiquityContainerIdentifier: can block, so this must not run on the
+        message thread.
+    */
+    void createICloudContainerFolder()
+    {
+        using Send       = id (*) (id, SEL);
+        using SendWithId = id (*) (id, SEL, id);
+
+        auto* fileManager = ((Send) objc_msgSend) ((id) objc_getClass ("NSFileManager"),
+                                                   sel_registerName ("defaultManager"));
+
+        if (fileManager == nullptr)
+            return;
+
+        auto* url = ((SendWithId) objc_msgSend) (fileManager,
+                                                 sel_registerName ("URLForUbiquityContainerIdentifier:"),
+                                                 nullptr);
+
+        if (url == nullptr)
+            return; // no iCloud account signed in, or the entitlement is missing
+
+        auto* path = ((Send) objc_msgSend) (url, sel_registerName ("path"));
+
+        if (path == nullptr)
+            return;
+
+        auto* utf8 = ((const char* (*) (id, SEL)) objc_msgSend) (path, sel_registerName ("UTF8String"));
+
+        if (utf8 == nullptr)
+            return;
+
+        File (String::fromUTF8 (utf8)).getChildFile ("Documents").createDirectory();
+    }
+}
+#endif
+
 void ProjucerApplication::doBasicApplicationSetup()
 {
+   #if JUCE_IOS
+    Thread::launch (createICloudContainerFolder);
+   #endif
+
     LookAndFeel::setDefaultLookAndFeel (&lookAndFeel);
     initCommandManager();
     icons = std::make_unique<Icons>();

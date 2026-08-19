@@ -1157,7 +1157,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1340;
-				ORGANIZATIONNAME = "Raw Material Software Limited";
+				ORGANIZATIONNAME = "STUDIO-R";
 				TargetAttributes = {
 					0039FE1A254FE518518BF8B8 = {
 						DevelopmentTeam = P5G28RMWUN;
