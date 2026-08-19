@@ -177,8 +177,7 @@ TerminalView::TerminalView (const juce::File& workingDirectory)
     scrollBar.addListener (this);
 
     font = getAppSettings().appearance.getCodeFont();
-    cellWidth  = juce::jmax (1.0f, juce::GlyphArrangement::getStringWidth (font, "M"));
-    cellHeight = juce::jmax (1, (int) std::ceil (font.getHeight()));
+    updateFontMetrics();
 
     vterm = vterm_new (numRows, numColumns);
     vterm_set_utf8 (vterm, 1);
@@ -339,6 +338,27 @@ juce::Rectangle<int> TerminalView::getTerminalBounds() const
     auto bounds = getLocalBounds();
     bounds.removeFromRight (scrollBar.getWidth());
     return bounds;
+}
+
+void TerminalView::updateFontMetrics()
+{
+    cellWidth  = juce::jmax (1.0f, juce::GlyphArrangement::getStringWidth (font, "M"));
+    cellHeight = juce::jmax (1, (int) std::ceil (font.getHeight()));
+}
+
+void TerminalView::changeFontSize (int steps)
+{
+    const auto oldHeight = font.getHeight();
+    const auto newHeight = getAdjustedTerminalFontHeight (oldHeight, steps);
+
+    if (std::abs (newHeight - oldHeight) < 0.01f)
+        return;
+
+    font = font.withHeight (newHeight);
+    updateFontMetrics();
+    clearSelection();
+    updateGridSizeFromBounds();
+    repaint();
 }
 
 void TerminalView::updateGridSizeFromBounds()
@@ -870,10 +890,24 @@ juce::RectangleList<int> TerminalView::getTextBounds (juce::Range<int> range) co
 
 bool TerminalView::keyPressed (const juce::KeyPress& key)
 {
+    const auto keyModifiers = key.getModifiers();
+
+   #if JUCE_MAC || JUCE_IOS
+    const auto fontSizeStep = getTerminalFontSizeStep (key.getKeyCode(),
+                                                       (uint32_t) key.getTextCharacter(),
+                                                       keyModifiers.isCommandDown(),
+                                                       keyModifiers.isCtrlDown(),
+                                                       keyModifiers.isAltDown());
+
+    if (fontSizeStep != 0)
+    {
+        changeFontSize (fontSizeStep);
+        return true;
+    }
+   #endif
+
     if (! shellRunning)
         return false;
-
-    const auto keyModifiers = key.getModifiers();
 
    #if JUCE_MAC || JUCE_IOS
     const bool isClipboardShortcut = keyModifiers.isCommandDown();

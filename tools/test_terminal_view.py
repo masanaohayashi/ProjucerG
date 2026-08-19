@@ -103,6 +103,22 @@ int main (void)
 {
     CHECK ("terminal default background is black", terminalDefaultBackgroundRGB == 0x000000);
     CHECK ("terminal default foreground is light grey", terminalDefaultForegroundRGB == 0xc0c0c0);
+    CHECK ("command-plus increases terminal font size",
+           getTerminalFontSizeStep ('+', '+', true, false, false) == 1);
+    CHECK ("command-equals also increases terminal font size",
+           getTerminalFontSizeStep ('=', 0, true, false, false) == 1);
+    CHECK ("command-minus decreases terminal font size",
+           getTerminalFontSizeStep ('-', '-', true, false, false) == -1);
+    CHECK ("plain plus is not a terminal font shortcut",
+           getTerminalFontSizeStep ('+', '+', false, false, false) == 0);
+    CHECK ("command-alt-plus is not a terminal font shortcut",
+           getTerminalFontSizeStep ('+', '+', true, false, true) == 0);
+    CHECK ("terminal font size changes in one-pixel steps",
+           getAdjustedTerminalFontHeight (14.0f, 1) == 15.0f
+            && getAdjustedTerminalFontHeight (14.0f, -1) == 13.0f);
+    CHECK ("terminal font size is clamped",
+           getAdjustedTerminalFontHeight (terminalMaximumFontHeight, 1) == terminalMaximumFontHeight
+            && getAdjustedTerminalFontHeight (terminalMinimumFontHeight, -1) == terminalMinimumFontHeight);
 
     {
         const auto live = getTerminalViewportRow (100, 24, 0, 0);
@@ -124,6 +140,9 @@ int main (void)
                getTerminalWheelRows (0.01f) == 1);
         CHECK ("small downward trackpad motion still scrolls one row",
                getTerminalWheelRows (-0.01f) == -1);
+        CHECK ("trackpad scrolling uses the faster three-times speed",
+               getTerminalWheelRows (0.2f) == 3
+                && getTerminalWheelRows (-0.2f) == -3);
 
         const TerminalSelectionPoint anchor = getTerminalSelectionPoint (100, 24, 10, 3, 7);
         const TerminalSelectionPoint caret  = getTerminalSelectionPoint (100, 24, 10, 5, 2);

@@ -68,6 +68,8 @@ private:
 
     void consumePendingBytes();
     void sendToShell (const char* bytes, int numBytes);
+    void updateFontMetrics();
+    void changeFontSize (int steps);
     void updateGridSizeFromBounds();
     void updateScrollBar();
     void setScrollOffset (int);

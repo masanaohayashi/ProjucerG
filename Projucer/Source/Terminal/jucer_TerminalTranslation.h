@@ -79,6 +79,30 @@ inline TerminalGridSize getTerminalGridSize (int width, int height,
 /** What one cell of the grid draws as. Colours are 0xRRGGBB. */
 inline constexpr uint32_t terminalDefaultBackgroundRGB = 0x000000;
 inline constexpr uint32_t terminalDefaultForegroundRGB = 0xc0c0c0;
+inline constexpr float terminalMinimumFontHeight = 8.0f;
+inline constexpr float terminalMaximumFontHeight = 48.0f;
+
+/** Returns +1/-1 for a terminal font-size shortcut, or zero for another key. */
+inline int getTerminalFontSizeStep (int keyCode, uint32_t textCharacter,
+                                    bool commandDown, bool controlDown, bool altDown)
+{
+    if (! commandDown || controlDown || altDown)
+        return 0;
+
+    if (textCharacter == '+' || keyCode == '+' || keyCode == '=')
+        return 1;
+
+    if (textCharacter == '-' || keyCode == '-')
+        return -1;
+
+    return 0;
+}
+
+inline float getAdjustedTerminalFontHeight (float currentHeight, int steps)
+{
+    return std::clamp (currentHeight + (float) steps,
+                       terminalMinimumFontHeight, terminalMaximumFontHeight);
+}
 
 struct TerminalViewportRow
 {
@@ -103,13 +127,13 @@ inline TerminalViewportRow getTerminalViewportRow (int scrollbackSize, int liveR
     return { false, logicalRow - scrollbackSize };
 }
 
-/** Converts even very small trackpad deltas into a useful row movement. */
+/** Converts trackpad deltas into a useful row movement at 3x the base speed. */
 inline int getTerminalWheelRows (float deltaY)
 {
     if (deltaY == 0.0f)
         return 0;
 
-    const int scaled = (int) std::lround (deltaY * 5.0f);
+    const int scaled = (int) std::lround (deltaY * 15.0f);
     return scaled != 0 ? scaled : (deltaY > 0.0f ? 1 : -1);
 }
 
