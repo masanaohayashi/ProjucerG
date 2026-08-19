@@ -209,7 +209,7 @@ private:
         PropertyListBuilder builder;
         auto isThisOS = isSelectedOSThisOS();
 
-        builder.add (new ChoicePropertyComponent (selectedOSValue, "OS", { "OSX", "Windows", "Linux" }, { "osx", "windows", "linux" }),
+        builder.add (new ChoicePropertyComponent (selectedOSValue, "OS", { "macOS / iOS", "Windows", "Linux" }, { "osx", "windows", "linux" }),
                      "Use this dropdown to set the global paths for different OSes. "
                      "\nN.B. These paths are stored locally and will only be used when "
                      "saving a project on this machine. Other machines will have their own "

@@ -286,6 +286,7 @@
 		827F0F0D8BD15F44ED1F1668 /* PIPConsole.cpp.in */ /* PIPConsole.cpp.in */ = {isa = PBXFileReference; lastKnownFileType = file.in; name = PIPConsole.cpp.in; path = "../../../JUCE-9.0.0/extras/Build/CMake/PIPConsole.cpp.in"; sourceTree = SOURCE_ROOT; };
 		82C18723A3D0E39BBD8F0F6E /* jucer_StartPageComponent.cpp */ /* jucer_StartPageComponent.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = jucer_StartPageComponent.cpp; path = ../../Source/Application/StartPage/jucer_StartPageComponent.cpp; sourceTree = SOURCE_ROOT; };
 		8336A43CE1C3C26D7C7B53D8 /* jucer_NewComponentTemplate.cpp */ /* jucer_NewComponentTemplate.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = jucer_NewComponentTemplate.cpp; path = ../../Source/BinaryData/Templates/jucer_NewComponentTemplate.cpp; sourceTree = SOURCE_ROOT; };
+		834B0B0A61FE876871A9F311 /* App.entitlements */ /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = App.entitlements; path = App.entitlements; sourceTree = SOURCE_ROOT; };
 		8418C615111664E352245A07 /* juce_graphics */ /* juce_graphics */ = {isa = PBXFileReference; lastKnownFileType = folder; name = juce_graphics; path = "../../../JUCE-9.0.0/modules/juce_graphics"; sourceTree = SOURCE_ROOT; };
 		846B2A670C5A19DE0039E11A /* jucer_Icons.cpp */ /* jucer_Icons.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = jucer_Icons.cpp; path = ../../Source/Utility/UI/jucer_Icons.cpp; sourceTree = SOURCE_ROOT; };
 		8475C65EBF2DA07FB35271A6 /* jucer_TerminalPanel.h */ /* jucer_TerminalPanel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = jucer_TerminalPanel.h; path = ../../Source/Terminal/jucer_TerminalPanel.h; sourceTree = SOURCE_ROOT; };
@@ -1165,6 +1166,9 @@
 							com.apple.ApplicationGroups.iOS = {
 								enabled = 0;
 							};
+							com.apple.com.apple.iCloud = {
+								enabled = 1;
+							};
 							com.apple.HardenedRuntime = {
 								enabled = 0;
 							};
@@ -1317,6 +1321,7 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_LINK_OBJC_RUNTIME = NO;
+				CODE_SIGN_ENTITLEMENTS = "App.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = "$(PROJECT_DIR)/build/$(CONFIGURATION)";
@@ -1394,6 +1399,7 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_LINK_OBJC_RUNTIME = NO;
+				CODE_SIGN_ENTITLEMENTS = "App.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = "$(PROJECT_DIR)/build/$(CONFIGURATION)";
