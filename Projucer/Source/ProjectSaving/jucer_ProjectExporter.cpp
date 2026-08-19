@@ -119,7 +119,7 @@ ProjectExporter::ExporterTypeInfo ProjectExporter::getTypeInfoForExporter (const
 void ProjectExporter::getCurrentPlatformExporterTypeInfos (std::vector<ExporterTypeInfo>& result)
 {
     const auto typeNames =
-       #if JUCE_MAC
+       #if JUCE_MAC || JUCE_IOS
         { XcodeProjectExporter::getValueTreeTypeNameMac(),
           XcodeProjectExporter::getValueTreeTypeNameiOS() };
        #elif JUCE_WINDOWS

@@ -1,0 +1,574 @@
+#!/usr/bin/env python3
+"""Self-check for PseudoTerminal.
+
+Compiles jucer_PseudoTerminal.cpp against minimal stubs for the two JUCE types
+it touches, then drives a real shell through a real pty: send a command, read
+the output back, and confirm the child exits. Run:
+    python3 tools/test_pseudo_terminal.py
+"""
+import pathlib, subprocess, sys, tempfile
+
+ROOT = pathlib.Path(__file__).parent.parent
+TERMINAL = ROOT / "Projucer/Source/Terminal"
+
+STUBS = r"""
+#include <string>
+#include <cstdio>
+
+/* The parts of JUCE that PseudoTerminal touches, and nothing else. */
+namespace juce
+{
+    class String
+    {
+    public:
+        String() = default;
+        String (const char* s) : text (s ? s : "") {}
+        String (const std::string& s) : text (s) {}
+        String& operator+= (const String& o) { text += o.text; return *this; }
+        String operator+ (const String& o) const { String r (*this); r += o; return r; }
+        bool isEmpty() const { return text.empty(); }
+        bool isNotEmpty() const { return ! text.empty(); }
+        const char* toRawUTF8() const { return text.c_str(); }
+        std::string text;
+    };
+
+    inline String operator+ (const char* lhs, const String& rhs)
+    {
+        return String (lhs) + rhs;
+    }
+
+    class File
+    {
+    public:
+        File() = default;
+        File (const String& p) : path (p) {}
+        String getFullPathName() const { return path; }
+        bool isDirectory() const { return ! path.isEmpty(); }
+        String path;
+    };
+
+    template <typename T> T jmax (T a, T b) { return a > b ? a : b; }
+}
+
+#define JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(C) \
+    C (const C&) = delete; C& operator= (const C&) = delete;
+
+#define JUCE_MAC 1
+"""
+
+DRIVER = r"""
+#include <cassert>
+#include <cstring>
+#include <cstdio>
+#include <cerrno>
+#include <string>
+#include <set>
+#include <vector>
+#include <unistd.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#include <dirent.h>
+#include <cstdlib>
+#include <sys/time.h>
+
+/* Every currently-open fd number, read from /dev/fd. No access to
+   PseudoTerminal's private members needed - this is how any other process
+   on the system would see the descriptor too. */
+static std::set<int> listOpenFds()
+{
+    std::set<int> fds;
+    DIR* dir = opendir ("/dev/fd");
+
+    if (dir != nullptr)
+    {
+        const int dirFd = dirfd (dir); // exclude the handle this call itself
+                                        // holds open, or every snapshot would
+                                        // see a "new" fd that is really just
+                                        // our own readdir() in progress.
+        while (auto* entry = readdir (dir))
+        {
+            char* end = nullptr;
+            const long fd = strtol (entry->d_name, &end, 10);
+
+            if (end != entry->d_name && *end == '\0' && (int) fd != dirFd)
+                fds.insert ((int) fd);
+        }
+
+        closedir (dir);
+    }
+
+    return fds;
+}
+
+int main()
+{
+    /* Nothing in this file may block indefinitely. stop() in particular runs
+       on the message thread in the real app, so a hang here is a frozen UI
+       there - and it has happened: a lost process-group signal used to leave
+       stop() parked in a blocking waitpid() with nothing coming. Without this
+       the suite wedges until the harness's own timeout and reports a Python
+       traceback instead of naming the test that hung. */
+    alarm (45);
+
+    /* I2 regression check: masterFd must be FD_CLOEXEC, so a ChildProcess
+       Projucer spawns afterwards (the compiler, git, ...) doesn't inherit
+       the pty master across its own fork/exec. Diff /dev/fd around start()
+       to find the new descriptor without touching any private member
+       (verified: with the FD_CLOEXEC fcntl() call removed, this fails). */
+    {
+        PseudoTerminal cloexecPty;
+        const auto before = listOpenFds();
+
+        if (! cloexecPty.start (juce::File ("/tmp"), 80, 24))
+        {
+            printf ("FAIL: start() failed for CLOEXEC test: %s\n", cloexecPty.getLastError().toRawUTF8());
+            return 1;
+        }
+
+        const auto after = listOpenFds();
+        std::vector<int> newFds;
+
+        for (int fd : after)
+            if (before.find (fd) == before.end())
+                newFds.push_back (fd);
+
+        if (newFds.empty())
+        {
+            printf ("FAIL: start() did not open any descriptor visible via /dev/fd\n");
+            return 1;
+        }
+
+        for (int fd : newFds)
+        {
+            const int flags = fcntl (fd, F_GETFD);
+
+            if (flags < 0 || (flags & FD_CLOEXEC) == 0)
+            {
+                printf ("FAIL: descriptor %d opened by start() is not FD_CLOEXEC\n", fd);
+                return 1;
+            }
+        }
+
+        cloexecPty.stop();
+    }
+
+    /* A marker set on *this* process before start(), so the only way the
+       child can see it is by inheriting our environment through envp. PATH
+       cannot be used for this on macOS: a login shell (`-l`, which is what
+       start() always passes) re-derives PATH from /etc/paths via
+       /usr/libexec/path_helper in /etc/zprofile regardless of what it
+       inherited, so a PATH=set check silently passes even when the rest of
+       the parent's environment was dropped - confirmed empirically by
+       stripping PATH from envp and re-running this test unmodified: it
+       still passed. A private variable name nothing else touches doesn't
+       have that problem. */
+    setenv ("PSEUDOTERM_ENV_PROBE", "present", 1);
+
+    PseudoTerminal pty;
+
+    if (! pty.start (juce::File ("/tmp"), 80, 24))
+    {
+        printf ("FAIL: start() failed: %s\n", pty.getLastError().toRawUTF8());
+        return 1;
+    }
+
+    /* Ask the shell to print a distinctive string, its TERM, and the probe
+       variable above, then leave. These are plain behaviour checks, not a
+       C1 regression test: C1 is about *when* the environment is assembled
+       (before fork(), via envp/execle(), vs. setenv() racing with other
+       threads between fork() and exec()) - a code-shape property that is
+       not black-box observable, because a setenv() done right would produce
+       the same TERM value seen here. C1 is verified by reading the child
+       branch (see the review), not by this test. What *is* genuinely
+       checked here: the probe fails if envp were ever rebuilt with only
+       TERM in it, which is the realistic way this rewrite would actually
+       break (verified: stripping everything but TERM from envp makes this
+       assertion fail). */
+    const char* cmd = "printf 'PTYOK TERM=%s PROBE=%s\\n' \"$TERM\" \"$PSEUDOTERM_ENV_PROBE\"; exit 0\n";
+    pty.writeBytes (cmd, (int) strlen (cmd));
+
+    /* Drain until we see our marker or the child goes away. Reading must never
+       block, so an empty read is normal and we simply try again. */
+    std::string collected;
+    for (int attempt = 0; attempt < 2000; ++attempt)
+    {
+        char buffer[1024];
+        const int numRead = pty.readBytes (buffer, sizeof (buffer));
+
+        if (numRead > 0)          collected.append (buffer, (size_t) numRead);
+        else if (numRead < 0)     break;
+        else                      usleep (5000);
+
+        if (collected.find ("PTYOK") != std::string::npos && ! pty.isRunning())
+            break;
+    }
+
+    if (collected.find ("PTYOK") == std::string::npos)
+    {
+        printf ("FAIL: never saw the marker. Got: [%s]\n", collected.c_str());
+        return 1;
+    }
+
+    if (collected.find ("TERM=xterm-256color") == std::string::npos)
+    {
+        printf ("FAIL: child TERM was not xterm-256color. Got: [%s]\n", collected.c_str());
+        return 1;
+    }
+
+    if (collected.find ("PROBE=present") == std::string::npos)
+    {
+        printf ("FAIL: child did not inherit the parent's environment. Got: [%s]\n", collected.c_str());
+        return 1;
+    }
+
+    /* Resizing a live pty must not throw or corrupt the descriptor. */
+    pty.setSize (100, 40);
+
+    pty.stop();
+    if (pty.isRunning())
+    {
+        printf ("FAIL: still running after stop()\n");
+        return 1;
+    }
+
+    /* I4 regression check: a foreground grandchild (like vim or top under the
+       shell) must not be orphaned when stop() hangs up the shell - it has to
+       go down with the pty too. The grandchild traps SIGHUP (`trap "" HUP`)
+       so it cannot be taken out by SIGHUP alone, and runs `sleep`, not
+       something that reads stdin, so it cannot be taken out by the pty EOF
+       either - this makes the test actually exercise stop()'s process-group
+       SIGKILL escalation instead of passing for the wrong reason (verified:
+       with the I4 fix removed entirely, this block reports the grandchild
+       survived). Spawn a shell that forks a second shell into this state,
+       record its pid, then confirm stop() takes it out along with the login
+       shell. */
+    {
+        PseudoTerminal gcPty;
+
+        if (! gcPty.start (juce::File ("/tmp"), 80, 24))
+        {
+            printf ("FAIL: start() failed for grandchild test: %s\n", gcPty.getLastError().toRawUTF8());
+            return 1;
+        }
+
+        char pidFileTemplate[] = "/tmp/pty_gc_pid_XXXXXX";
+        const int pidFileFd = mkstemp (pidFileTemplate);
+        assert (pidFileFd >= 0);
+        close (pidFileFd);
+
+        char gcCmd[256];
+        snprintf (gcCmd, sizeof (gcCmd), "sh -c 'trap \"\" HUP; echo $$ > %s; exec sleep 300'\n", pidFileTemplate);
+        gcPty.writeBytes (gcCmd, (int) strlen (gcCmd));
+
+        long grandchildPid = 0;
+
+        for (int attempt = 0; attempt < 200 && grandchildPid == 0; ++attempt)
+        {
+            char buffer[256];
+            gcPty.readBytes (buffer, sizeof (buffer)); // keep the pty drained
+
+            FILE* f = fopen (pidFileTemplate, "r");
+            if (f != nullptr)
+            {
+                if (fscanf (f, "%ld", &grandchildPid) != 1)
+                    grandchildPid = 0;
+                fclose (f);
+            }
+
+            if (grandchildPid == 0)
+                usleep (5000);
+        }
+
+        unlink (pidFileTemplate);
+
+        if (grandchildPid == 0)
+        {
+            printf ("FAIL: grandchild never reported its pid\n");
+            return 1;
+        }
+
+        if (kill ((pid_t) grandchildPid, 0) != 0)
+        {
+            printf ("FAIL: grandchild pid %ld was not alive before stop()\n", grandchildPid);
+            return 1;
+        }
+
+        gcPty.stop();
+
+        bool grandchildGone = false;
+        for (int attempt = 0; attempt < 200 && ! grandchildGone; ++attempt)
+        {
+            if (kill ((pid_t) grandchildPid, 0) != 0 && errno == ESRCH)
+                grandchildGone = true;
+            else
+                usleep (5000);
+        }
+
+        if (! grandchildGone)
+        {
+            printf ("FAIL: grandchild pid %ld survived stop() - orphaned\n", grandchildPid);
+            return 1;
+        }
+    }
+
+    /* B1/B2 regression check: stop() must hang up civilly (SIGHUP, with a
+       real grace period for the child to react) and must not discard the
+       reaped exit code. Point SHELL at a tiny stub script instead of using
+       the real login shell, so this doesn't depend on - or fight - any
+       interactive shell's prompt/integration hooks: `trap 'exit 42' HUP` +
+       `sleep 300 & wait` deterministically turns a graceful SIGHUP into a
+       known exit(42). `sleep 300 & wait` (not a bare `sleep 300`) matters:
+       POSIX sh defers trap handling until the current foreground command
+       finishes, so a bare `sleep` would swallow the HUP until it woke up on
+       its own; backgrounding it and blocking in the `wait` builtin instead
+       is what makes the trap fire promptly. If stop() ever goes back to an
+       unconditional SIGKILL (B1) the trap never gets to run and the shell
+       dies by signal, not exit() - exitCode stays -1. If stop() ever goes
+       back to discarding waitpid's status (B2), exitCode stays -1 even
+       though the trap did run and call exit(42). Either regression shows up
+       as the same wrong value here, which is what this checks. */
+    {
+        const char* previousShell = getenv ("SHELL");
+        const std::string previousShellCopy = previousShell != nullptr ? previousShell : "";
+        const bool hadShell = previousShell != nullptr;
+
+        setenv ("SHELL", "@@HUP_STUB_SHELL_PATH@@", 1);
+
+        PseudoTerminal stubPty;
+        const bool started = stubPty.start (juce::File ("/tmp"), 80, 24);
+
+        if (hadShell) setenv ("SHELL", previousShellCopy.c_str(), 1);
+        else          unsetenv ("SHELL");
+
+        if (! started)
+        {
+            printf ("FAIL: start() failed for the B1/B2 stub-shell test: %s\n", stubPty.getLastError().toRawUTF8());
+            return 1;
+        }
+
+        /* Wait for the stub to confirm its trap is installed and it has
+           reached `wait` before we hang up on it - a fixed sleep here was
+           flaky (~100ms wasn't reliably enough for fork/exec/shebang
+           re-exec to land; a marker is the same technique the other tests
+           in this file already use). */
+        std::string stubOut;
+        for (int attempt = 0; attempt < 2000 && stubOut.find ("READY") == std::string::npos; ++attempt)
+        {
+            char buffer[256];
+            const int numRead = stubPty.readBytes (buffer, sizeof (buffer));
+
+            if (numRead > 0) stubOut.append (buffer, (size_t) numRead);
+            else              usleep (5000);
+        }
+
+        if (stubOut.find ("READY") == std::string::npos)
+        {
+            printf ("FAIL: stub shell never confirmed its HUP trap was installed\n");
+            return 1;
+        }
+
+        stubPty.stop();
+
+        if (stubPty.getExitCode() != 42)
+        {
+            printf ("FAIL: expected exit code 42 (graceful SIGHUP handled by trap) after stop(), got %d\n", stubPty.getExitCode());
+            return 1;
+        }
+    }
+
+    /* stop() immediately after start(), with nothing in between. This is the
+       shape Task 3's destructor produces when a user opens the terminal panel
+       and closes it again straight away, and it used to be the worst case:
+       forkpty() returns to the parent as soon as fork() has happened, so the
+       child has not necessarily run its own setsid() yet and its pgid is not
+       yet childPid - killpg() returns ESRCH and the graceful SIGHUP is simply
+       dropped. Measured directly over 300 forkpty() calls: the group signal
+       was lost on 100% of them, so this is deterministic, not a rare race.
+
+       The child then survived the entire grace period and had to be SIGKILLed,
+       and the SIGKILL raced the same way; what stopped that from being a
+       permanent UI freeze was only the unbounded waitpid() happening to have
+       something coming. Two things are checked here:
+
+         - the suite-wide alarm() at the top of main(): stop() must never
+           block forever. If the wait goes unbounded again this dies of
+           SIGALRM instead of wedging the suite.
+         - the time budget: a signal that actually reaches the child ends this
+           in a poll or two, so 50 rounds cost ~0.35s. When the hangup is lost
+           every round instead burns the full grace period plus the escalation,
+           and 50 rounds cost ~3.5s. Measured on this machine: 6.6ms/round
+           with the fix, 70.5ms/round without it - the 30ms/round threshold
+           below sits an order of magnitude clear of both. */
+    {
+        const int numRounds = 50;
+
+        struct timeval startTime {}, endTime {};
+        gettimeofday (&startTime, nullptr);
+
+        for (int round = 0; round < numRounds; ++round)
+        {
+            PseudoTerminal quickPty;
+
+            if (! quickPty.start (juce::File ("/tmp"), 80, 24))
+            {
+                printf ("FAIL: start() failed on round %d of the immediate-stop test: %s\n",
+                        round, quickPty.getLastError().toRawUTF8());
+                return 1;
+            }
+
+            quickPty.stop();   // no delay whatsoever - that is the whole point
+
+            if (quickPty.isRunning())
+            {
+                printf ("FAIL: still running after an immediate stop() on round %d\n", round);
+                return 1;
+            }
+        }
+
+        gettimeofday (&endTime, nullptr);
+
+        const double elapsedMs = (double) (endTime.tv_sec - startTime.tv_sec) * 1000.0
+                               + (double) (endTime.tv_usec - startTime.tv_usec) / 1000.0;
+
+        if (elapsedMs > 30.0 * numRounds)
+        {
+            printf ("FAIL: %d immediate start()/stop() rounds took %.0f ms (%.1f ms each) - "
+                    "the hangup is not reaching the child\n", numRounds, elapsedMs, elapsedMs / numRounds);
+            return 1;
+        }
+    }
+
+    /* The escalation path, exercised rather than assumed: a shell that ignores
+       SIGHUP outright (`trap "" HUP`, what `nohup`-style setups and a few real
+       shells do) must still be gone when stop() returns, and stop() must still
+       be bounded while getting there. The stub blocks in `wait` on a
+       backgrounded sleep, so nothing else can take it down: not the pty EOF
+       (it never reads stdin) and not the hangup (ignored). Only the SIGKILL
+       escalation can, so if that is ever dropped this reports a survivor. */
+    {
+        const char* previousShell = getenv ("SHELL");
+        const std::string previousShellCopy = previousShell != nullptr ? previousShell : "";
+        const bool hadShell = previousShell != nullptr;
+
+        setenv ("SHELL", "@@HUP_IGNORE_SHELL_PATH@@", 1);
+
+        PseudoTerminal ignorePty;
+        const bool started = ignorePty.start (juce::File ("/tmp"), 80, 24);
+
+        if (hadShell) setenv ("SHELL", previousShellCopy.c_str(), 1);
+        else          unsetenv ("SHELL");
+
+        if (! started)
+        {
+            printf ("FAIL: start() failed for the SIGHUP-ignoring shell test: %s\n",
+                    ignorePty.getLastError().toRawUTF8());
+            return 1;
+        }
+
+        /* Wait until the stub has printed its own pid, which it only does once
+           `trap "" HUP` is installed. */
+        std::string ignoreOut;
+        long ignorePid = 0;
+
+        for (int attempt = 0; attempt < 2000 && ignorePid == 0; ++attempt)
+        {
+            char buffer[256];
+            const int numRead = ignorePty.readBytes (buffer, sizeof (buffer));
+
+            if (numRead > 0) ignoreOut.append (buffer, (size_t) numRead);
+            else             usleep (5000);
+
+            const auto marker = ignoreOut.find ("IGNORING ");
+            const auto eol    = marker == std::string::npos ? std::string::npos
+                                                            : ignoreOut.find ('\n', marker);
+            if (eol != std::string::npos)
+                ignorePid = strtol (ignoreOut.c_str() + marker + 9, nullptr, 10);
+        }
+
+        if (ignorePid <= 0)
+        {
+            printf ("FAIL: the SIGHUP-ignoring stub never reported its pid. Got: [%s]\n", ignoreOut.c_str());
+            return 1;
+        }
+
+        ignorePty.stop();
+
+        if (ignorePty.isRunning())
+        {
+            printf ("FAIL: SIGHUP-ignoring shell still running after stop()\n");
+            return 1;
+        }
+
+        if (kill ((pid_t) ignorePid, 0) == 0)
+        {
+            printf ("FAIL: SIGHUP-ignoring shell pid %ld survived stop() - escalation never happened\n", ignorePid);
+            return 1;
+        }
+    }
+
+    /* A bad working directory is a user-visible failure, not a crash. */
+    PseudoTerminal broken;
+    broken.start (juce::File ("/definitely/not/a/real/directory"), 80, 24);
+    broken.stop();
+
+    printf ("all pseudo terminal checks passed\n");
+    return 0;
+}
+"""
+
+
+def main():
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = pathlib.Path(tmp)
+        source = (TERMINAL / "jucer_PseudoTerminal.cpp").read_text()
+        header = (TERMINAL / "jucer_PseudoTerminal.h").read_text()
+
+        # Splice the real header and implementation between our stubs and the
+        # driver, so the code under test is compiled exactly as it ships.
+        header = header.replace('#pragma once', '')
+        source = source.replace('#include "../Application/jucer_Headers.h"', '')
+        source = source.replace('#include "jucer_PseudoTerminal.h"', '')
+
+        # A tiny stub shell for the B1/B2 grace-period + exit-code test.
+        # start() reads SHELL via getenv(), so pointing that at this script
+        # (instead of the real, possibly-customized login shell) makes the
+        # HUP-trap behaviour deterministic and independent of the test
+        # machine's shell config. Cleaned up automatically with `tmp`.
+        stub_shell = tmp / "hup_stub.sh"
+        stub_shell.write_text("#!/bin/sh\ntrap 'exit 42' HUP\necho READY\nsleep 300 &\nwait\n")
+        stub_shell.chmod(0o755)
+
+        # A second stub for the escalation test: this one *ignores* SIGHUP, so
+        # only stop()'s SIGKILL escalation can ever end it. It prints its own
+        # pid once the trap is installed, so the driver can confirm the process
+        # itself is gone rather than only trusting isRunning().
+        ignore_shell = tmp / "hup_ignore.sh"
+        ignore_shell.write_text('#!/bin/sh\ntrap "" HUP\necho IGNORING $$\nsleep 300 &\nwait\n')
+        ignore_shell.chmod(0o755)
+
+        driver = DRIVER.replace("@@HUP_STUB_SHELL_PATH@@", str(stub_shell))
+        driver = driver.replace("@@HUP_IGNORE_SHELL_PATH@@", str(ignore_shell))
+
+        combined = tmp / "combined.cpp"
+        combined.write_text(STUBS + header + source + driver)
+
+        binary = tmp / "driver"
+        result = subprocess.run(
+            ["c++", "-std=c++17", "-o", str(binary), str(combined)],
+            capture_output=True, text=True)
+        if result.returncode != 0:
+            sys.exit("compile failed:\n" + result.stdout + result.stderr)
+
+        result = subprocess.run([str(binary)], capture_output=True, text=True, timeout=90)
+        print(result.stdout, end="")
+        if result.returncode < 0:
+            sys.exit("pseudo terminal check hung and was killed by signal %d - "
+                     "the last check printed above is the one that blocked"
+                     % -result.returncode)
+        if result.returncode != 0:
+            sys.exit("pseudo terminal check failed:\n" + result.stderr)
+
+
+if __name__ == "__main__":
+    main()

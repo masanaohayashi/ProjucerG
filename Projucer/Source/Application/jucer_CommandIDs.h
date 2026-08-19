@@ -72,6 +72,7 @@ namespace CommandIDs
         showModulesPanel        = 0x300034,
         showExportersPanel      = 0x300035,
         showExporterSettings    = 0x300036,
+        showTerminal            = 0x300037,
 
         closeWindow             = 0x300040,
         closeAllWindows         = 0x300041,

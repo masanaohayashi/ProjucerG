@@ -548,8 +548,8 @@ void LatestVersionCheckerAndUpdater::addNotificationToOpenProjects (const Versio
 //==============================================================================
 static void restartProcess (const File& targetFolder)
 {
-   #if JUCE_MAC || JUCE_LINUX || JUCE_BSD
-    #if JUCE_MAC
+   #if JUCE_MAC || JUCE_IOS || JUCE_LINUX || JUCE_BSD
+    #if JUCE_MAC || JUCE_IOS
      auto newProcess = targetFolder.getChildFile ("Projucer.app").getChildFile ("Contents").getChildFile ("MacOS").getChildFile ("Projucer");
     #elif JUCE_LINUX || JUCE_BSD
      auto newProcess = targetFolder.getChildFile ("Projucer");

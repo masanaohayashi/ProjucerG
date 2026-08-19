@@ -74,6 +74,9 @@
     <Filter Include="Projucer\Settings">
       <UniqueIdentifier>{FAD9788E-4FE6-172B-0E32-913C0C8FC2FB}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Projucer\Terminal">
+      <UniqueIdentifier>{43859776-9E6D-3374-CC84-2C0100D72CE4}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Projucer\Utility\Helpers">
       <UniqueIdentifier>{A353D068-8C43-A573-8460-59B6BA167F83}</UniqueIdentifier>
     </Filter>
@@ -1098,6 +1101,18 @@
     </ClCompile>
     <ClCompile Include="..\..\Source\Settings\jucer_StoredSettings.cpp">
       <Filter>Projucer\Settings</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Terminal\jucer_libvterm_unity.c">
+      <Filter>Projucer\Terminal</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Terminal\jucer_PseudoTerminal.cpp">
+      <Filter>Projucer\Terminal</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Terminal\jucer_TerminalView.cpp">
+      <Filter>Projucer\Terminal</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Terminal\jucer_TerminalPanel.cpp">
+      <Filter>Projucer\Terminal</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\Utility\Helpers\jucer_CodeHelpers.cpp">
       <Filter>Projucer\Utility\Helpers</Filter>
@@ -4748,6 +4763,18 @@
     </ClInclude>
     <ClInclude Include="..\..\Source\Settings\jucer_StoredSettings.h">
       <Filter>Projucer\Settings</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Terminal\jucer_PseudoTerminal.h">
+      <Filter>Projucer\Terminal</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Terminal\jucer_TerminalTranslation.h">
+      <Filter>Projucer\Terminal</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Terminal\jucer_TerminalView.h">
+      <Filter>Projucer\Terminal</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Terminal\jucer_TerminalPanel.h">
+      <Filter>Projucer\Terminal</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\Utility\Helpers\jucer_CodeHelpers.h">
       <Filter>Projucer\Utility\Helpers</Filter>
