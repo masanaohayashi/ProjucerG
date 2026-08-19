@@ -1403,6 +1403,14 @@ public:
                 array->createNewChildElement ("string")->addTextElement (value.trim());
     }
 
+    String getResolvedBundleIdentifier() const
+    {
+        const auto exporterBundleIdentifier = exporterBundleIdentifierValue.get().toString();
+
+        return exporterBundleIdentifier.isNotEmpty() ? exporterBundleIdentifier
+                                                     : project.getBundleIdentifierString();
+    }
+
     StringArray getiCloudContainerIdsWithDefault() const
     {
         auto containers = getiCloudContainerIds();
@@ -1446,7 +1454,11 @@ public:
 
             for (const auto& container : getiCloudContainerIdsWithDefault())
             {
-                containersDict->createNewChildElement ("key")->addTextElement (container);
+                // Xcode expands build settings in Info.plist values but not in keys, so the
+                // container identifier has to be written out in full here. The entitlements
+                // are expanded at signing time and can keep the variable.
+                containersDict->createNewChildElement ("key")
+                              ->addTextElement (container.replace ("$(CFBundleIdentifier)", getResolvedBundleIdentifier()));
                 auto* containerDict = containersDict->createNewChildElement ("dict");
 
                 addPlistBoolKeyIfMissing (*containerDict, "NSUbiquitousContainerIsDocumentScopePublic", isiCloudPublicDocumentsEnabled());
