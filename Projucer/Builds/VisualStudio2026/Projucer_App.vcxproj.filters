@@ -1144,6 +1144,9 @@
     <ClCompile Include="..\..\Source\Utility\UI\jucer_SlidingPanelComponent.cpp">
       <Filter>Projucer\Utility\UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Source\Utility\UI\jucer_TouchSupport.cpp">
+      <Filter>Projucer\Utility\UI</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\JUCE-9.0.0\modules\juce_audio_basics\audio_play_head\juce_AudioPlayHead.cpp">
       <Filter>JUCE Modules\juce_audio_basics\audio_play_head</Filter>
     </ClCompile>
@@ -4828,6 +4831,9 @@
       <Filter>Projucer\Utility\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\Utility\UI\jucer_ProjucerLookAndFeel.h">
+      <Filter>Projucer\Utility\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Utility\UI\jucer_TouchSupport.h">
       <Filter>Projucer\Utility\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\Utility\UI\jucer_SlidingPanelComponent.h">

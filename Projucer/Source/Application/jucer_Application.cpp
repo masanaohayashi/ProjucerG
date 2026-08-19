@@ -691,7 +691,7 @@ static String getPlatformSpecificFileExtension()
     return ".app";
    #elif JUCE_WINDOWS
     return ".exe";
-   #elif JUCE_LINUX || JUCE_BSD
+   #elif JUCE_LINUX || JUCE_BSD || JUCE_IOS || JUCE_ANDROID
     return {};
    #else
     jassertfalse;
@@ -714,6 +714,9 @@ static File getPlatformSpecificProjectFolder()
     return buildsFolder.getChildFile ("VisualStudio2022");
    #elif JUCE_LINUX || JUCE_BSD
     return buildsFolder.getChildFile ("LinuxMakefile");
+   #elif JUCE_IOS || JUCE_ANDROID
+    // there is no DemoRunner build for these
+    return {};
    #else
     jassertfalse;
     return {};

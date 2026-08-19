@@ -208,6 +208,11 @@ private:
 
     //==============================================================================
     std::unique_ptr<TooltipWindow> tooltipWindow;
+
+   #if JUCE_IOS
+    LongPressToRightClick longPressToRightClick;
+   #endif
+
     AvailableModulesList jucePathModulesList, userPathsModulesList;
 
     std::unique_ptr<Component> utf8Window, svgPathWindow, aboutWindow, pathsWindow,

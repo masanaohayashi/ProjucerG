@@ -37,6 +37,7 @@
 #include "../Utility/PIPs/jucer_PIPGenerator.h"
 #include "../Project/jucer_Project.h"
 #include "../CodeEditor/jucer_OpenDocumentManager.h"
+#include "../Utility/UI/jucer_TouchSupport.h"
 
 class ProjectContentComponent;
 
@@ -81,6 +82,10 @@ public:
 
     void activeWindowStatusChanged() override;
 
+    void resized() override;
+    void parentSizeChanged() override;
+    BorderSize<int> getContentComponentBorder() const override;
+
     ProjectContentComponent* getProjectContentComponent() const;
 
     //==============================================================================
@@ -107,6 +112,13 @@ private:
     Value projectNameValue;
 
     std::unique_ptr<Component> blurOverlayComponent;
+
+   #if JUCE_IOS
+    void goFullScreenOnDevice();
+    Rectangle<int> getDeviceMenuBarBounds() const;
+    bool isUpdatingFullScreen = false;
+    std::unique_ptr<TouchAssistBar> touchAssistBar;
+   #endif
 
     ScopedMessageBox messageBox;
 

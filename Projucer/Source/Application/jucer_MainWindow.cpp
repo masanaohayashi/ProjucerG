@@ -131,9 +131,17 @@ MainWindow::MainWindow()
                       DocumentWindow::allButtons,
                       false)
 {
+   #if JUCE_IOS
+    // On iOS the window always fills the screen, so there is no title bar and nothing to resize.
+    setUsingNativeTitleBar (false);
+    setTitleBarHeight (0);
+    setResizable (false, false);
+    setDropShadowEnabled (false);
+   #else
     setUsingNativeTitleBar (true);
     setResizable (true, false);
     setResizeLimits (600, 500, 32000, 32000);
+   #endif
 
    #if ! JUCE_MAC
     setMenuBar (ProjucerApplication::getApp().getMenuModel());
@@ -167,11 +175,24 @@ MainWindow::MainWindow()
 
     projectNameValue.addListener (this);
 
+   #if JUCE_IOS
+    touchAssistBar = std::make_unique<TouchAssistBar>();
+    touchAssistBar->setAlwaysOnTop (true);
+    Component::addAndMakeVisible (*touchAssistBar);
+    goFullScreenOnDevice();
+   #else
     centreWithSize (800, 600);
+   #endif
 }
 
 MainWindow::~MainWindow()
 {
+   #if JUCE_IOS
+    // Must be given up while we still have a peer.
+    if (Desktop::getInstance().getKioskModeComponent() == this)
+        Desktop::getInstance().setKioskModeComponent (nullptr);
+   #endif
+
    #if ! JUCE_MAC
     setMenuBar (nullptr);
    #endif
@@ -213,7 +234,13 @@ void MainWindow::makeVisible()
 {
     setVisible (true);
     addToDesktop();
+
+   #if JUCE_IOS
+    goFullScreenOnDevice();
+   #else
     restoreWindowPosition();
+   #endif
+
     updateTitleBarIcon();
     getContentComponent()->grabKeyboardFocus();
 }
@@ -589,9 +616,138 @@ void MainWindow::activeWindowStatusChanged()
     ProjucerApplication::getApp().openDocumentManager.reloadModifiedFiles();
 }
 
+#if JUCE_IOS
+namespace
+{
+    /*  The area the OS is currently covering up: notch/home indicator, plus the
+        on-screen keyboard when it is showing.
+    */
+    BorderSize<int> getDeviceInsets()
+    {
+        if (auto* display = Desktop::getInstance().getDisplays().getPrimaryDisplay())
+        {
+            const auto safe = display->safeAreaInsets;
+            const auto keys = display->keyboardInsets;
+
+            return { jmax (safe.getTop(),    keys.getTop()),
+                     jmax (safe.getLeft(),   keys.getLeft()),
+                     jmax (safe.getBottom(), keys.getBottom()),
+                     jmax (safe.getRight(),  keys.getRight()) };
+        }
+
+        return {};
+    }
+}
+
+Rectangle<int> MainWindow::getDeviceMenuBarBounds() const
+{
+    if (! isKioskMode() || getMenuBarComponent() == nullptr)
+        return {};
+
+    // In kiosk mode DocumentWindow gives the menu bar a zero-sized title bar area to sit
+    // under, so it has to be placed by hand.
+    return { 0, 0, getWidth(), getLookAndFeel().getDefaultMenuBarHeight() };
+}
+
+void MainWindow::goFullScreenOnDevice()
+{
+    // refresh() below re-enters us via parentSizeChanged().
+    if (isUpdatingFullScreen)
+        return;
+
+    const ScopedValueSetter<bool> guard (isUpdatingFullScreen, true);
+
+    // Kiosk mode is what actually hides the status bar; before we have a peer it's
+    // not available, so just claim the whole screen for now.
+    if (getPeer() == nullptr)
+    {
+        setFullScreen (true);
+        return;
+    }
+
+    // After a rotation the cached display info can still describe the old orientation,
+    // and everything below sizes us from it.
+    const_cast<Displays&> (Desktop::getInstance().getDisplays()).refresh();
+
+    Desktop::getInstance().setKioskModeComponent (this, false);
+
+    // Go through the peer rather than ResizableWindow::setFullScreen, which does nothing
+    // when it already believes we are full screen - exactly the state that gets stuck
+    // after a rotation.
+    if (auto* peer = getPeer())
+        peer->setFullScreen (true);
+
+    resized();
+}
+#endif
+
+BorderSize<int> MainWindow::getContentComponentBorder() const
+{
+    auto border = DocumentWindow::getContentComponentBorder();
+
+   #if JUCE_IOS
+    // Kiosk mode stops DocumentWindow reserving room for the menu bar, but we still draw one.
+    // Keep the content clear of that, the system UI, the keyboard, and the touch assist bar.
+    const auto insets = getDeviceInsets();
+
+    border = { border.getTop()    + insets.getTop() + getDeviceMenuBarBounds().getHeight(),
+               border.getLeft()   + insets.getLeft(),
+               border.getBottom() + insets.getBottom() + TouchAssistBar::barHeight,
+               border.getRight()  + insets.getRight() };
+   #endif
+
+    return border;
+}
+
+void MainWindow::resized()
+{
+    DocumentWindow::resized();
+
+   #if JUCE_IOS
+    if (auto* menu = getMenuBarComponent())
+        if (const auto menuBounds = getDeviceMenuBarBounds(); ! menuBounds.isEmpty())
+            menu->setBounds (menuBounds);
+
+    if (touchAssistBar != nullptr)
+    {
+        auto r = getLocalBounds();
+        r.removeFromBottom (getDeviceInsets().getBottom());
+        touchAssistBar->setBounds (r.removeFromBottom (TouchAssistBar::barHeight));
+    }
+   #endif
+}
+
+void MainWindow::parentSizeChanged()
+{
+    DocumentWindow::parentSizeChanged();
+
+   #if JUCE_IOS
+    // The keyboard appearing doesn't change our bounds, so re-run the layout by hand.
+    resized();
+
+    if (isUpdatingFullScreen)
+        return;
+
+    goFullScreenOnDevice();
+
+    // UIKit can still be reporting the pre-rotation screen size while the rotation
+    // animates, so have one more go once it has settled.
+    Timer::callAfterDelay (350, [safe = SafePointer<MainWindow> (this)]
+    {
+        if (safe != nullptr)
+            safe->goFullScreenOnDevice();
+    });
+   #endif
+}
+
 void MainWindow::initialiseProjectWindow()
 {
+   #if JUCE_IOS
+    goFullScreenOnDevice();
+   #else
     setResizable (true, false);
+   #endif
+
     updateTitleBarIcon();
 }
 
@@ -606,7 +762,12 @@ void MainWindow::showStartPage()
     setResizable (false, false);
     setName ("New Project");
     addToDesktop();
+
+   #if JUCE_IOS
+    goFullScreenOnDevice();
+   #else
     centreWithSize (getContentComponent()->getWidth(), getContentComponent()->getHeight());
+   #endif
 
     setVisible (true);
     getContentComponent()->grabKeyboardFocus();
@@ -930,8 +1091,11 @@ MainWindow* MainWindowList::getMainWindowForFile (const File& file)
     return nullptr;
 }
 
-void MainWindowList::checkWindowBounds (MainWindow& windowToCheck)
+void MainWindowList::checkWindowBounds ([[maybe_unused]] MainWindow& windowToCheck)
 {
+   #if JUCE_IOS
+    return; // always full screen
+   #else
     auto avoidSuperimposedWindows = [&]
     {
         for (auto* otherWindow : windows)
@@ -977,6 +1141,7 @@ void MainWindowList::checkWindowBounds (MainWindow& windowToCheck)
 
     avoidSuperimposedWindows();
     ensureWindowIsFullyOnscreen();
+   #endif
 }
 
 void MainWindowList::saveCurrentlyOpenProjectList()

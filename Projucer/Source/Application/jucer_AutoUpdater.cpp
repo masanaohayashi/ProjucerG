@@ -251,6 +251,8 @@ void LatestVersionCheckerAndUpdater::run()
         return "linux";
        #elif JUCE_BSD
         return "bsd";
+       #elif JUCE_IOS
+        return "ios";
        #else
         jassertfalse;
         return "Unknown";

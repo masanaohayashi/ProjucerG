@@ -389,6 +389,7 @@
     <ClCompile Include="..\..\Source\Utility\UI\jucer_JucerTreeViewBase.cpp"/>
     <ClCompile Include="..\..\Source\Utility\UI\jucer_ProjucerLookAndFeel.cpp"/>
     <ClCompile Include="..\..\Source\Utility\UI\jucer_SlidingPanelComponent.cpp"/>
+    <ClCompile Include="..\..\Source\Utility\UI\jucer_TouchSupport.cpp"/>
     <ClCompile Include="..\..\..\JUCE-9.0.0\modules\juce_audio_basics\audio_play_head\juce_AudioPlayHead.cpp">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
@@ -3544,6 +3545,7 @@
     <ClInclude Include="..\..\Source\Utility\UI\jucer_Icons.h"/>
     <ClInclude Include="..\..\Source\Utility\UI\jucer_JucerTreeViewBase.h"/>
     <ClInclude Include="..\..\Source\Utility\UI\jucer_ProjucerLookAndFeel.h"/>
+    <ClInclude Include="..\..\Source\Utility\UI\jucer_TouchSupport.h"/>
     <ClInclude Include="..\..\Source\Utility\UI\jucer_SlidingPanelComponent.h"/>
     <ClInclude Include="..\..\..\JUCE-9.0.0\modules\juce_audio_basics\audio_play_head\juce_AudioPlayHead.h"/>
     <ClInclude Include="..\..\..\JUCE-9.0.0\modules\juce_audio_basics\buffers\juce_AudioChannelSet.h"/>

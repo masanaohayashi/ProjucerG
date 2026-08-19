@@ -36,6 +36,7 @@
 		3696758747ADD2C7992972C8 /* include_juce_audio_processors_headless_ara.cpp */ = {isa = PBXBuildFile; fileRef = F187F18D7971CA50446CA56F; };
 		37D582DA2227E004BFA237EC /* jucer_PaintRoutineEditor.cpp */ = {isa = PBXBuildFile; fileRef = 6E70C1FA80F02D4C310F63AA; };
 		3C5267E06A897B0DC0F7EA50 /* BinaryData.cpp */ = {isa = PBXBuildFile; fileRef = 472F9A90F685220D730EBF6C; };
+		3F368194BE180E83BB9D6900 /* jucer_TouchSupport.cpp */ = {isa = PBXBuildFile; fileRef = ED3CFE6A43219E8DBCBF1BDA; };
 		44AD0D81A65C5EAE3BE588FD /* jucer_VersionInfo.cpp */ = {isa = PBXBuildFile; fileRef = FF3A6A384D536E1AEF47CD54; };
 		4581B3A9A0D92FC01D4149EF /* jucer_NewFileWizard.cpp */ = {isa = PBXBuildFile; fileRef = E4532338917106FA0B61A429; };
 		45A53AF13B0D663050632E8C /* jucer_BinaryResources.cpp */ = {isa = PBXBuildFile; fileRef = 9EF583A6201DBC813C2F63C4; };
@@ -260,6 +261,7 @@
 		6E70C1FA80F02D4C310F63AA /* jucer_PaintRoutineEditor.cpp */ /* jucer_PaintRoutineEditor.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = jucer_PaintRoutineEditor.cpp; path = ../../Source/ComponentEditor/UI/jucer_PaintRoutineEditor.cpp; sourceTree = SOURCE_ROOT; };
 		6F02C3B7FEA3B50692A70DE5 /* jucer_EditingPanelBase.cpp */ /* jucer_EditingPanelBase.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = jucer_EditingPanelBase.cpp; path = ../../Source/ComponentEditor/UI/jucer_EditingPanelBase.cpp; sourceTree = SOURCE_ROOT; };
 		6FD8DBC0FF42C87D8BEE2452 /* jucer_TranslationHelpers.h */ /* jucer_TranslationHelpers.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = jucer_TranslationHelpers.h; path = ../../Source/Utility/Helpers/jucer_TranslationHelpers.h; sourceTree = SOURCE_ROOT; };
+		6FFE247A99C2B3CAEDE77B6F /* jucer_TouchSupport.h */ /* jucer_TouchSupport.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = jucer_TouchSupport.h; path = ../../Source/Utility/UI/jucer_TouchSupport.h; sourceTree = SOURCE_ROOT; };
 		7031E8CB6D4D84BD980A0BD0 /* jucer_PaintElementImage.h */ /* jucer_PaintElementImage.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = jucer_PaintElementImage.h; path = ../../Source/ComponentEditor/PaintElements/jucer_PaintElementImage.h; sourceTree = SOURCE_ROOT; };
 		705DE88C5C4CC6C871E951B1 /* jucer_GroupComponentHandler.h */ /* jucer_GroupComponentHandler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = jucer_GroupComponentHandler.h; path = ../../Source/ComponentEditor/Components/jucer_GroupComponentHandler.h; sourceTree = SOURCE_ROOT; };
 		70D3399C01D1EF2CD059B2A4 /* jucer_Sidebar.h */ /* jucer_Sidebar.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = jucer_Sidebar.h; path = ../../Source/Project/UI/Sidebar/jucer_Sidebar.h; sourceTree = SOURCE_ROOT; };
@@ -422,6 +424,7 @@
 		EAC1731150A7F79D59BAA0B6 /* export_visualStudio.svg */ /* export_visualStudio.svg */ = {isa = PBXFileReference; lastKnownFileType = file.svg; name = export_visualStudio.svg; path = ../../Source/BinaryData/Icons/export_visualStudio.svg; sourceTree = SOURCE_ROOT; };
 		EB2E723DC3DB150A8A644D08 /* jucer_GlobalPathsWindowComponent.h */ /* jucer_GlobalPathsWindowComponent.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = jucer_GlobalPathsWindowComponent.h; path = ../../Source/Application/Windows/jucer_GlobalPathsWindowComponent.h; sourceTree = SOURCE_ROOT; };
 		ED03BEF4B9B0FC8316FBEA7E /* include_juce_audio_processors.mm */ /* include_juce_audio_processors.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = include_juce_audio_processors.mm; path = ../../JuceLibraryCode/include_juce_audio_processors.mm; sourceTree = SOURCE_ROOT; };
+		ED3CFE6A43219E8DBCBF1BDA /* jucer_TouchSupport.cpp */ /* jucer_TouchSupport.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = jucer_TouchSupport.cpp; path = ../../Source/Utility/UI/jucer_TouchSupport.cpp; sourceTree = SOURCE_ROOT; };
 		ED5EAC91D8A0A1911BE9F482 /* wizard_ConsoleApp.svg */ /* wizard_ConsoleApp.svg */ = {isa = PBXFileReference; lastKnownFileType = file.svg; name = wizard_ConsoleApp.svg; path = ../../Source/BinaryData/Icons/wizard_ConsoleApp.svg; sourceTree = SOURCE_ROOT; };
 		ED69863B3D591FB3F0CA50E4 /* jucer_PaintRoutineEditor.h */ /* jucer_PaintRoutineEditor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = jucer_PaintRoutineEditor.h; path = ../../Source/ComponentEditor/UI/jucer_PaintRoutineEditor.h; sourceTree = SOURCE_ROOT; };
 		EE690110171E1648FF2118B8 /* jucer_Application.h */ /* jucer_Application.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = jucer_Application.h; path = ../../Source/Application/jucer_Application.h; sourceTree = SOURCE_ROOT; };
@@ -1028,6 +1031,8 @@
 				0F8C000E5FF4A2DAC1FEF8EB,
 				FE20FE5805A02A4843048200,
 				0CECD562059DFD7FBFB37E3C,
+				ED3CFE6A43219E8DBCBF1BDA,
+				6FFE247A99C2B3CAEDE77B6F,
 				3D6FD9C0065BF16568EC0AB7,
 			);
 			name = UI;
@@ -1154,6 +1159,8 @@
 				ORGANIZATIONNAME = "Raw Material Software Limited";
 				TargetAttributes = {
 					0039FE1A254FE518518BF8B8 = {
+						DevelopmentTeam = P5G28RMWUN;
+						ProvisioningStyle = Automatic;
 						SystemCapabilities = {
 							com.apple.ApplicationGroups.iOS = {
 								enabled = 0;
@@ -1264,6 +1271,7 @@
 				468548FB21D264DC12321327,
 				6ECB2F11D2F593FACCCF99DB,
 				95F56FB44C669F93AE77E465,
+				3F368194BE180E83BB9D6900,
 				3C5267E06A897B0DC0F7EA50,
 				D7EA184A1F39578072598055,
 				CF2443A471A06B6F52DBE031,
@@ -1309,10 +1317,12 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_LINK_OBJC_RUNTIME = NO;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = "$(PROJECT_DIR)/build/$(CONFIGURATION)";
 				DEAD_CODE_STRIPPING = YES;
 				DEPLOYMENT_POSTPROCESSING = NO;
+				DEVELOPMENT_TEAM = P5G28RMWUN;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				GCC_OPTIMIZATION_LEVEL = 3;
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -1372,6 +1382,7 @@
 				OTHER_LDFLAGS = "$(inherited)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.juce.theprojucer;
 				PRODUCT_NAME = "Projucer";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				USE_HEADERMAP = NO;
 			};
 			name = Release;
@@ -1383,10 +1394,12 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_LINK_OBJC_RUNTIME = NO;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = "$(PROJECT_DIR)/build/$(CONFIGURATION)";
 				COPY_PHASE_STRIP = NO;
 				DEPLOYMENT_POSTPROCESSING = NO;
+				DEVELOPMENT_TEAM = P5G28RMWUN;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -1445,6 +1458,7 @@
 				OTHER_LDFLAGS = "$(inherited)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.juce.theprojucer;
 				PRODUCT_NAME = "Projucer";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				USE_HEADERMAP = NO;
 			};
 			name = Debug;
@@ -1471,6 +1485,7 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = NO;
@@ -1520,6 +1535,7 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = NO;

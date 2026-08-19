@@ -71,7 +71,8 @@ target_sources(Projucer PRIVATE
     Source/Utility/UI/jucer_Icons.cpp
     Source/Utility/UI/jucer_JucerTreeViewBase.cpp
     Source/Utility/UI/jucer_ProjucerLookAndFeel.cpp
-    Source/Utility/UI/jucer_SlidingPanelComponent.cpp)
+    Source/Utility/UI/jucer_SlidingPanelComponent.cpp
+    Source/Utility/UI/jucer_TouchSupport.cpp)
 
 target_compile_definitions(Projucer PRIVATE
     JUCE_ALLOW_STATIC_NULL_VARIABLES=0

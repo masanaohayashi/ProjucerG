@@ -125,6 +125,7 @@ OBJECTS_APP := \
   $(JUCE_OBJDIR)/jucer_JucerTreeViewBase_9b9f2ff0.o \
   $(JUCE_OBJDIR)/jucer_ProjucerLookAndFeel_3b20291d.o \
   $(JUCE_OBJDIR)/jucer_SlidingPanelComponent_4e7dc07e.o \
+  $(JUCE_OBJDIR)/jucer_TouchSupport_3ed03e3.o \
   $(JUCE_OBJDIR)/BinaryData_ce4232d4.o \
   $(JUCE_OBJDIR)/include_juce_audio_basics_8a4e984a.o \
   $(JUCE_OBJDIR)/include_juce_audio_devices_63111d02.o \
@@ -434,6 +435,11 @@ $(JUCE_OBJDIR)/jucer_ProjucerLookAndFeel_3b20291d.o: ../../Source/Utility/UI/juc
 $(JUCE_OBJDIR)/jucer_SlidingPanelComponent_4e7dc07e.o: ../../Source/Utility/UI/jucer_SlidingPanelComponent.cpp
 	-$(V_AT)mkdir -p $(@D)
 	@echo "Compiling jucer_SlidingPanelComponent.cpp"
+	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/jucer_TouchSupport_3ed03e3.o: ../../Source/Utility/UI/jucer_TouchSupport.cpp
+	-$(V_AT)mkdir -p $(@D)
+	@echo "Compiling jucer_TouchSupport.cpp"
 	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
 
 $(JUCE_OBJDIR)/BinaryData_ce4232d4.o: ../../JuceLibraryCode/BinaryData.cpp
