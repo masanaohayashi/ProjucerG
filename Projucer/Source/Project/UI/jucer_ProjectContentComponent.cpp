@@ -36,6 +36,7 @@
 #include "jucer_ProjectContentComponent.h"
 
 #include "Sidebar/jucer_Sidebar.h"
+#include "../../Terminal/jucer_TerminalPanel.h"
 
 struct WizardHolder
 {
@@ -43,6 +44,13 @@ struct WizardHolder
 };
 
 NewFileWizard::Type* createGUIComponentWizard (Project&);
+
+namespace
+{
+constexpr auto terminalPanelHeightProperty = "terminalPanelHeight";
+constexpr int minimumMainContentHeight = 100;
+constexpr int maximumTerminalPanelHeight = 4000;
+}
 
 //==============================================================================
 ProjectContentComponent::ProjectContentComponent()
@@ -90,6 +98,19 @@ void ProjectContentComponent::resized()
 
     r.removeFromTop (10);
 
+    if (terminalPanel != nullptr && terminalPanel->isVisible())
+    {
+        const auto maximumHeight = jmax (TerminalPanel::minimumHeight, r.getHeight() - minimumMainContentHeight);
+        const auto height = jlimit (TerminalPanel::minimumHeight,
+                                    maximumHeight,
+                                    terminalPanel->getHeight());
+
+        auto terminalArea = r.removeFromBottom (height);
+        terminalPanel->setBounds (terminalArea);
+        terminalResizerBar->setBounds (terminalArea.getX(), terminalArea.getY() - 2,
+                                       terminalArea.getWidth(), 5);
+    }
+
     auto sidebarArea = r.removeFromLeft (sidebar != nullptr && sidebar->getWidth() != 0 ? sidebar->getWidth()
                                                                                         : r.getWidth() / 4);
 
@@ -114,7 +135,10 @@ void ProjectContentComponent::lookAndFeelChanged()
 
 void ProjectContentComponent::childBoundsChanged (Component* child)
 {
-    if (child == sidebar.get())
+    if (child == terminalPanel.get())
+        getGlobalProperties().setValue (terminalPanelHeightProperty, terminalPanel->getHeight());
+
+    if (child == sidebar.get() || child == terminalPanel.get())
         resized();
 }
 
@@ -126,6 +150,8 @@ void ProjectContentComponent::setProject (Project* newProject)
             project->removeChangeListener (this);
 
         hideEditor();
+        terminalResizerBar = nullptr;
+        terminalPanel = nullptr;
         resizerBar = nullptr;
         sidebar = nullptr;
 
@@ -662,6 +688,7 @@ void ProjectContentComponent::getAllCommands (Array <CommandID>& commands)
                          CommandIDs::showModulesPanel,
                          CommandIDs::showExportersPanel,
                          CommandIDs::showExporterSettings,
+                         CommandIDs::showTerminal,
                          CommandIDs::openInIDE,
                          CommandIDs::saveAndOpenInIDE,
                          CommandIDs::createNewExporter,
@@ -787,6 +814,15 @@ void ProjectContentComponent::getCommandInfo (const CommandID commandID, Applica
         result.defaultKeypresses.add ({ 'e', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 0 });
         break;
 
+    case CommandIDs::showTerminal:
+        result.setInfo ("Show Terminal",
+                        "Shows or hides the terminal panel at the bottom of the window",
+                        CommandCategories::general, 0);
+        result.setActive (project != nullptr);
+        result.setTicked (isTerminalVisible());
+        result.defaultKeypresses.add ({ '`', cmdCtrl, 0 });
+        break;
+
     case CommandIDs::openInIDE:
         result.setInfo ("Open in IDE...",
                         "Launches the project in an external IDE",
@@ -883,6 +919,7 @@ bool ProjectContentComponent::perform (const InvocationInfo& info)
         case CommandIDs::showModulesPanel:          showModulesPanel();             break;
         case CommandIDs::showExportersPanel:        showExportersPanel();           break;
         case CommandIDs::showExporterSettings:      showCurrentExporterSettings();  break;
+        case CommandIDs::showTerminal:              toggleTerminal();               break;
 
         case CommandIDs::openInIDE:                 openInSelectedIDE (false);      break;
         case CommandIDs::saveAndOpenInIDE:          openInSelectedIDE (true);       break;
@@ -921,6 +958,46 @@ void ProjectContentComponent::addNewGUIFile()
         wizardHolder->wizard.reset (createGUIComponentWizard (*project));
         wizardHolder->wizard->createNewFile (*project, project->getMainGroup());
     }
+}
+
+bool ProjectContentComponent::isTerminalVisible() const
+{
+    return terminalPanel != nullptr && terminalPanel->isVisible();
+}
+
+void ProjectContentComponent::toggleTerminal()
+{
+    if (project == nullptr)
+        return;
+
+    if (terminalPanel == nullptr)
+    {
+        terminalPanel = std::make_unique<TerminalPanel> (project->getProjectFolder());
+        terminalPanel->setSize (getWidth(),
+                                getGlobalProperties().getIntValue (terminalPanelHeightProperty,
+                                                                   TerminalPanel::defaultHeight));
+        addAndMakeVisible (terminalPanel.get());
+
+        terminalSizeConstrainer.setMinimumHeight (TerminalPanel::minimumHeight);
+        terminalSizeConstrainer.setMaximumHeight (maximumTerminalPanelHeight);
+
+        terminalResizerBar = std::make_unique<ResizableEdgeComponent> (terminalPanel.get(),
+                                                                      &terminalSizeConstrainer,
+                                                                      ResizableEdgeComponent::topEdge);
+        addAndMakeVisible (terminalResizerBar.get());
+        terminalResizerBar->setAlwaysOnTop (true);
+    }
+    else
+    {
+        const auto nowVisible = ! terminalPanel->isVisible();
+        terminalPanel->setVisible (nowVisible);
+        terminalResizerBar->setVisible (nowVisible);
+    }
+
+    resized();
+
+    if (isTerminalVisible())
+        terminalPanel->focusCurrentTerminal();
 }
 
 //==============================================================================

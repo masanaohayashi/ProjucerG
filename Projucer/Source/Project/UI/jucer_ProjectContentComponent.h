@@ -40,6 +40,7 @@
 #include "jucer_ContentViewComponent.h"
 
 class Sidebar;
+class TerminalPanel;
 struct WizardHolder;
 
 //==============================================================================
@@ -96,6 +97,9 @@ public:
     void showExporterSettings (const String& exporterName);
     void showModule (const String& moduleID);
 
+    void toggleTerminal();
+    bool isTerminalVisible() const;
+
     void deleteSelectedTreeItems();
 
     void refreshProjectTreeFileStatuses();
@@ -148,6 +152,9 @@ private:
 
     std::unique_ptr<ResizableEdgeComponent> resizerBar;
     ComponentBoundsConstrainer sidebarSizeConstrainer;
+    std::unique_ptr<TerminalPanel> terminalPanel;
+    std::unique_ptr<ResizableEdgeComponent> terminalResizerBar;
+    ComponentBoundsConstrainer terminalSizeConstrainer;
     std::unique_ptr<Component> translationTool;
     BubbleMessageComponent bubbleMessage;
 

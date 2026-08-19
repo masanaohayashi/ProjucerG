@@ -12,6 +12,10 @@
 **/Builds/MacOSX/DerivedData/
 **/Builds/MacOSX/*.xcodeproj/project.xcworkspace/
 **/Builds/MacOSX/*.xcodeproj/xcuserdata/
+**/Builds/iOS/build/
+**/Builds/iOS/DerivedData/
+**/Builds/iOS/*.xcodeproj/project.xcworkspace/
+**/Builds/iOS/*.xcodeproj/xcuserdata/
 **/Builds/VisualStudio*/.vs/
 **/Builds/VisualStudio*/x64/
 **/Builds/VisualStudio*/ARM64/

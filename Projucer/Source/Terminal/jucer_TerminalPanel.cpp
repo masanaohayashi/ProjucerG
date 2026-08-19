@@ -56,7 +56,7 @@ TerminalView* TerminalPanel::getCurrentTerminal() const
 
 void TerminalPanel::focusCurrentTerminal()
 {
-    if (auto* terminal = getCurrentTerminal())
+    if (auto* terminal = getCurrentTerminal(); terminal != nullptr && terminal->isShowing())
         terminal->grabKeyboardFocus();
 }
 

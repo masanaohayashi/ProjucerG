@@ -38,7 +38,8 @@
         <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" useRuntimeLibDLL="0"
                        winArchitecture="ARM64,x64" headerPath="../../Source/Terminal/libvterm/include"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="Projucer"
-                       useRuntimeLibDLL="0" linkTimeOptimisation="0" winArchitecture="ARM64,x64" headerPath="../../Source/Terminal/libvterm/include"/>
+                       useRuntimeLibDLL="0" linkTimeOptimisation="0" winArchitecture="ARM64,x64"
+                       headerPath="../../Source/Terminal/libvterm/include"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../JUCE-9.0.0/modules"/>
@@ -63,7 +64,8 @@
         <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" useRuntimeLibDLL="0"
                        winArchitecture="ARM64,x64" headerPath="../../Source/Terminal/libvterm/include"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="Projucer"
-                       useRuntimeLibDLL="0" linkTimeOptimisation="0" winArchitecture="ARM64,x64" headerPath="../../Source/Terminal/libvterm/include"/>
+                       useRuntimeLibDLL="0" linkTimeOptimisation="0" winArchitecture="ARM64,x64"
+                       headerPath="../../Source/Terminal/libvterm/include"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../JUCE-9.0.0/modules"/>
@@ -88,7 +90,8 @@
         <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" useRuntimeLibDLL="0"
                        winArchitecture="ARM64,x64" headerPath="../../Source/Terminal/libvterm/include"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="Projucer"
-                       useRuntimeLibDLL="0" linkTimeOptimisation="0" winArchitecture="ARM64,x64" headerPath="../../Source/Terminal/libvterm/include"/>
+                       useRuntimeLibDLL="0" linkTimeOptimisation="0" winArchitecture="ARM64,x64"
+                       headerPath="../../Source/Terminal/libvterm/include"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../JUCE-9.0.0/modules"/>
@@ -129,6 +132,30 @@
         <MODULEPATH id="juce_build_tools" path="../JUCE-9.0.0/extras/Build"/>
       </MODULEPATHS>
     </LINUX_MAKE>
+    <XCODE_IPHONE targetFolder="Builds/iOS" smallIcon="Zrx1Gl" bigIcon="Zrx1Gl"
+                  UIFileSharingEnabled="1" UISupportsDocumentBrowser="1" UIStatusBarHidden="1"
+                  iosContentSharing="1">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" headerPath="../../Source/Terminal/libvterm/include"/>
+        <CONFIGURATION isDebug="0" name="Release" headerPath="../../Source/Terminal/libvterm/include"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_build_tools" path="../JUCE-9.0.0/extras/Build"/>
+        <MODULEPATH id="juce_core" path="../JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_cryptography" path="../JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_events" path="../JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_graphics" path="../JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../JUCE-9.0.0/modules"/>
+      </MODULEPATHS>
+    </XCODE_IPHONE>
   </EXPORTFORMATS>
   <MAINGROUP name="Projucer" id="NhrJq66R">
     <GROUP id="{9E4C4E0D-7BAB-EB6F-87DA-FB264EC2AE68}" name="Application">

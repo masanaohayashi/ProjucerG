@@ -183,7 +183,7 @@ public:
     //==============================================================================
     bool mayCompileOnCurrentOS() const
     {
-       #if JUCE_MAC
+       #if JUCE_MAC || JUCE_IOS
         return isOSX() || isAndroid() || isiOS();
        #elif JUCE_WINDOWS
         return isWindows() || isAndroid();

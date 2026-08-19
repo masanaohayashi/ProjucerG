@@ -94,12 +94,14 @@ void ProjucerApplication::initialise (const String& commandLine)
         isRunningCommandLine = false;
     }
 
+   #if ! (JUCE_IOS || JUCE_ANDROID)
     if (sendCommandLineToPreexistingInstance())
     {
         DBG ("Another instance is running - quitting...");
         quit();
         return;
     }
+   #endif
 
     doBasicApplicationSetup();
 
@@ -429,6 +431,9 @@ PopupMenu ProjucerApplication::createViewMenu()
     menu.addCommandItem (commandManager.get(), CommandIDs::showModulesPanel);
     menu.addCommandItem (commandManager.get(), CommandIDs::showExportersPanel);
     menu.addCommandItem (commandManager.get(), CommandIDs::showExporterSettings);
+
+    menu.addSeparator();
+    menu.addCommandItem (commandManager.get(), CommandIDs::showTerminal);
 
     menu.addSeparator();
     createColourSchemeItems (menu);
@@ -819,7 +824,7 @@ File ProjucerApplication::tryToFindDemoRunnerProject()
         return {};
     }
 
-   #if JUCE_MAC
+   #if JUCE_MAC || JUCE_IOS
     auto demoRunnerProjectFile = projectFolder.getChildFile ("DemoRunner.xcodeproj");
    #elif JUCE_WINDOWS
     auto demoRunnerProjectFile = projectFolder.getChildFile ("DemoRunner.sln");
@@ -827,7 +832,7 @@ File ProjucerApplication::tryToFindDemoRunnerProject()
     auto demoRunnerProjectFile = projectFolder.getChildFile ("Makefile");
    #endif
 
-   #if JUCE_MAC
+   #if JUCE_MAC || JUCE_IOS
     if (! demoRunnerProjectFile.exists())
    #else
     if (! demoRunnerProjectFile.existsAsFile())
