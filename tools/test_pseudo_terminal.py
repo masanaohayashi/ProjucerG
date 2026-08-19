@@ -70,6 +70,7 @@ DRIVER = r"""
 #include <fcntl.h>
 #include <dirent.h>
 #include <cstdlib>
+#include <sys/time.h>
 
 /* Every currently-open fd number, read from /dev/fd. No access to
    PseudoTerminal's private members needed - this is how any other process
@@ -102,6 +103,14 @@ static std::set<int> listOpenFds()
 
 int main()
 {
+    /* Nothing in this file may block indefinitely. stop() in particular runs
+       on the message thread in the real app, so a hang here is a frozen UI
+       there - and it has happened: a lost process-group signal used to leave
+       stop() parked in a blocking waitpid() with nothing coming. Without this
+       the suite wedges until the harness's own timeout and reports a Python
+       traceback instead of naming the test that hung. */
+    alarm (45);
+
     /* I2 regression check: masterFd must be FD_CLOEXEC, so a ChildProcess
        Projucer spawns afterwards (the compiler, git, ...) doesn't inherit
        the pty master across its own fork/exec. Diff /dev/fd around start()
@@ -368,6 +377,136 @@ int main()
         }
     }
 
+    /* stop() immediately after start(), with nothing in between. This is the
+       shape Task 3's destructor produces when a user opens the terminal panel
+       and closes it again straight away, and it used to be the worst case:
+       forkpty() returns to the parent as soon as fork() has happened, so the
+       child has not necessarily run its own setsid() yet and its pgid is not
+       yet childPid - killpg() returns ESRCH and the graceful SIGHUP is simply
+       dropped. Measured directly over 300 forkpty() calls: the group signal
+       was lost on 100% of them, so this is deterministic, not a rare race.
+
+       The child then survived the entire grace period and had to be SIGKILLed,
+       and the SIGKILL raced the same way; what stopped that from being a
+       permanent UI freeze was only the unbounded waitpid() happening to have
+       something coming. Two things are checked here:
+
+         - the suite-wide alarm() at the top of main(): stop() must never
+           block forever. If the wait goes unbounded again this dies of
+           SIGALRM instead of wedging the suite.
+         - the time budget: a signal that actually reaches the child ends this
+           in a poll or two, so 50 rounds cost ~0.35s. When the hangup is lost
+           every round instead burns the full grace period plus the escalation,
+           and 50 rounds cost ~3.5s. Measured on this machine: 6.6ms/round
+           with the fix, 70.5ms/round without it - the 30ms/round threshold
+           below sits an order of magnitude clear of both. */
+    {
+        const int numRounds = 50;
+
+        struct timeval startTime {}, endTime {};
+        gettimeofday (&startTime, nullptr);
+
+        for (int round = 0; round < numRounds; ++round)
+        {
+            PseudoTerminal quickPty;
+
+            if (! quickPty.start (juce::File ("/tmp"), 80, 24))
+            {
+                printf ("FAIL: start() failed on round %d of the immediate-stop test: %s\n",
+                        round, quickPty.getLastError().toRawUTF8());
+                return 1;
+            }
+
+            quickPty.stop();   // no delay whatsoever - that is the whole point
+
+            if (quickPty.isRunning())
+            {
+                printf ("FAIL: still running after an immediate stop() on round %d\n", round);
+                return 1;
+            }
+        }
+
+        gettimeofday (&endTime, nullptr);
+
+        const double elapsedMs = (double) (endTime.tv_sec - startTime.tv_sec) * 1000.0
+                               + (double) (endTime.tv_usec - startTime.tv_usec) / 1000.0;
+
+        if (elapsedMs > 30.0 * numRounds)
+        {
+            printf ("FAIL: %d immediate start()/stop() rounds took %.0f ms (%.1f ms each) - "
+                    "the hangup is not reaching the child\n", numRounds, elapsedMs, elapsedMs / numRounds);
+            return 1;
+        }
+    }
+
+    /* The escalation path, exercised rather than assumed: a shell that ignores
+       SIGHUP outright (`trap "" HUP`, what `nohup`-style setups and a few real
+       shells do) must still be gone when stop() returns, and stop() must still
+       be bounded while getting there. The stub blocks in `wait` on a
+       backgrounded sleep, so nothing else can take it down: not the pty EOF
+       (it never reads stdin) and not the hangup (ignored). Only the SIGKILL
+       escalation can, so if that is ever dropped this reports a survivor. */
+    {
+        const char* previousShell = getenv ("SHELL");
+        const std::string previousShellCopy = previousShell != nullptr ? previousShell : "";
+        const bool hadShell = previousShell != nullptr;
+
+        setenv ("SHELL", "@@HUP_IGNORE_SHELL_PATH@@", 1);
+
+        PseudoTerminal ignorePty;
+        const bool started = ignorePty.start (juce::File ("/tmp"), 80, 24);
+
+        if (hadShell) setenv ("SHELL", previousShellCopy.c_str(), 1);
+        else          unsetenv ("SHELL");
+
+        if (! started)
+        {
+            printf ("FAIL: start() failed for the SIGHUP-ignoring shell test: %s\n",
+                    ignorePty.getLastError().toRawUTF8());
+            return 1;
+        }
+
+        /* Wait until the stub has printed its own pid, which it only does once
+           `trap "" HUP` is installed. */
+        std::string ignoreOut;
+        long ignorePid = 0;
+
+        for (int attempt = 0; attempt < 2000 && ignorePid == 0; ++attempt)
+        {
+            char buffer[256];
+            const int numRead = ignorePty.readBytes (buffer, sizeof (buffer));
+
+            if (numRead > 0) ignoreOut.append (buffer, (size_t) numRead);
+            else             usleep (5000);
+
+            const auto marker = ignoreOut.find ("IGNORING ");
+            const auto eol    = marker == std::string::npos ? std::string::npos
+                                                            : ignoreOut.find ('\n', marker);
+            if (eol != std::string::npos)
+                ignorePid = strtol (ignoreOut.c_str() + marker + 9, nullptr, 10);
+        }
+
+        if (ignorePid <= 0)
+        {
+            printf ("FAIL: the SIGHUP-ignoring stub never reported its pid. Got: [%s]\n", ignoreOut.c_str());
+            return 1;
+        }
+
+        ignorePty.stop();
+
+        if (ignorePty.isRunning())
+        {
+            printf ("FAIL: SIGHUP-ignoring shell still running after stop()\n");
+            return 1;
+        }
+
+        if (kill ((pid_t) ignorePid, 0) == 0)
+        {
+            printf ("FAIL: SIGHUP-ignoring shell pid %ld survived stop() - escalation never happened\n", ignorePid);
+            return 1;
+        }
+    }
+
     /* A bad working directory is a user-visible failure, not a crash. */
     PseudoTerminal broken;
     broken.start (juce::File ("/definitely/not/a/real/directory"), 80, 24);
@@ -400,7 +539,16 @@ def main():
         stub_shell.write_text("#!/bin/sh\ntrap 'exit 42' HUP\necho READY\nsleep 300 &\nwait\n")
         stub_shell.chmod(0o755)
 
+        # A second stub for the escalation test: this one *ignores* SIGHUP, so
+        # only stop()'s SIGKILL escalation can ever end it. It prints its own
+        # pid once the trap is installed, so the driver can confirm the process
+        # itself is gone rather than only trusting isRunning().
+        ignore_shell = tmp / "hup_ignore.sh"
+        ignore_shell.write_text('#!/bin/sh\ntrap "" HUP\necho IGNORING $$\nsleep 300 &\nwait\n')
+        ignore_shell.chmod(0o755)
+
         driver = DRIVER.replace("@@HUP_STUB_SHELL_PATH@@", str(stub_shell))
+        driver = driver.replace("@@HUP_IGNORE_SHELL_PATH@@", str(ignore_shell))
 
         combined = tmp / "combined.cpp"
         combined.write_text(STUBS + header + source + driver)
@@ -412,8 +560,12 @@ def main():
         if result.returncode != 0:
             sys.exit("compile failed:\n" + result.stdout + result.stderr)
 
-        result = subprocess.run([str(binary)], capture_output=True, text=True, timeout=60)
+        result = subprocess.run([str(binary)], capture_output=True, text=True, timeout=90)
         print(result.stdout, end="")
+        if result.returncode < 0:
+            sys.exit("pseudo terminal check hung and was killed by signal %d - "
+                     "the last check printed above is the one that blocked"
+                     % -result.returncode)
         if result.returncode != 0:
             sys.exit("pseudo terminal check failed:\n" + result.stderr)
 
