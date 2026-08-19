@@ -61,6 +61,7 @@ target_sources(Projucer PRIVATE
     Source/Terminal/jucer_libvterm_unity.c
     Source/Terminal/jucer_PseudoTerminal.cpp
     Source/Terminal/jucer_TerminalView.cpp
+    Source/Terminal/jucer_TerminalPanel.cpp
     Source/Utility/Helpers/jucer_CodeHelpers.cpp
     Source/Utility/Helpers/jucer_FileHelpers.cpp
     Source/Utility/Helpers/jucer_MiscUtilities.cpp

@@ -643,6 +643,10 @@
             file="Source/Terminal/jucer_TerminalView.cpp"/>
       <FILE id="tRmTv2" name="jucer_TerminalView.h" compile="0" resource="0"
             file="Source/Terminal/jucer_TerminalView.h"/>
+      <FILE id="tRmTp1" name="jucer_TerminalPanel.cpp" compile="1" resource="0"
+            file="Source/Terminal/jucer_TerminalPanel.cpp"/>
+      <FILE id="tRmTp2" name="jucer_TerminalPanel.h" compile="0" resource="0"
+            file="Source/Terminal/jucer_TerminalPanel.h"/>
     </GROUP>
     <GROUP id="{95DBFE17-0A31-0729-A633-C52B640801E5}" name="Utility">
       <GROUP id="{B7989E96-4C08-4D17-CBEA-4F3985A734D5}" name="Helpers">

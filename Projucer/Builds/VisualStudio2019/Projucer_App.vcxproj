@@ -378,6 +378,7 @@
     <ClCompile Include="..\..\Source\Terminal\jucer_libvterm_unity.c"/>
     <ClCompile Include="..\..\Source\Terminal\jucer_PseudoTerminal.cpp"/>
     <ClCompile Include="..\..\Source\Terminal\jucer_TerminalView.cpp"/>
+    <ClCompile Include="..\..\Source\Terminal\jucer_TerminalPanel.cpp"/>
     <ClCompile Include="..\..\Source\Utility\Helpers\jucer_CodeHelpers.cpp"/>
     <ClCompile Include="..\..\Source\Utility\Helpers\jucer_FileHelpers.cpp"/>
     <ClCompile Include="..\..\Source\Utility\Helpers\jucer_MiscUtilities.cpp"/>
@@ -3524,6 +3525,7 @@
     <ClInclude Include="..\..\Source\Terminal\jucer_PseudoTerminal.h"/>
     <ClInclude Include="..\..\Source\Terminal\jucer_TerminalTranslation.h"/>
     <ClInclude Include="..\..\Source\Terminal\jucer_TerminalView.h"/>
+    <ClInclude Include="..\..\Source\Terminal\jucer_TerminalPanel.h"/>
     <ClInclude Include="..\..\Source\Utility\Helpers\jucer_CodeHelpers.h"/>
     <ClInclude Include="..\..\Source\Utility\Helpers\jucer_Colours.h"/>
     <ClInclude Include="..\..\Source\Utility\Helpers\jucer_FileHelpers.h"/>

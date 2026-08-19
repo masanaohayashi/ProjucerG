@@ -114,6 +114,7 @@ OBJECTS_APP := \
   $(JUCE_OBJDIR)/jucer_libvterm_unity_c62052e1.o \
   $(JUCE_OBJDIR)/jucer_PseudoTerminal_b56fec68.o \
   $(JUCE_OBJDIR)/jucer_TerminalView_de1eac0f.o \
+  $(JUCE_OBJDIR)/jucer_TerminalPanel_edc51824.o \
   $(JUCE_OBJDIR)/jucer_CodeHelpers_1e797672.o \
   $(JUCE_OBJDIR)/jucer_FileHelpers_54f12f83.o \
   $(JUCE_OBJDIR)/jucer_MiscUtilities_31fc8dd8.o \
@@ -378,6 +379,11 @@ $(JUCE_OBJDIR)/jucer_PseudoTerminal_b56fec68.o: ../../Source/Terminal/jucer_Pseu
 $(JUCE_OBJDIR)/jucer_TerminalView_de1eac0f.o: ../../Source/Terminal/jucer_TerminalView.cpp
 	-$(V_AT)mkdir -p $(@D)
 	@echo "Compiling jucer_TerminalView.cpp"
+	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/jucer_TerminalPanel_edc51824.o: ../../Source/Terminal/jucer_TerminalPanel.cpp
+	-$(V_AT)mkdir -p $(@D)
+	@echo "Compiling jucer_TerminalPanel.cpp"
 	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
 
 $(JUCE_OBJDIR)/jucer_CodeHelpers_1e797672.o: ../../Source/Utility/Helpers/jucer_CodeHelpers.cpp

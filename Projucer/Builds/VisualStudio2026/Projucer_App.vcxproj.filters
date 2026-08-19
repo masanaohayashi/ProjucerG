@@ -1111,6 +1111,9 @@
     <ClCompile Include="..\..\Source\Terminal\jucer_TerminalView.cpp">
       <Filter>Projucer\Terminal</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Source\Terminal\jucer_TerminalPanel.cpp">
+      <Filter>Projucer\Terminal</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Source\Utility\Helpers\jucer_CodeHelpers.cpp">
       <Filter>Projucer\Utility\Helpers</Filter>
     </ClCompile>
@@ -4768,6 +4771,9 @@
       <Filter>Projucer\Terminal</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\Terminal\jucer_TerminalView.h">
+      <Filter>Projucer\Terminal</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Terminal\jucer_TerminalPanel.h">
       <Filter>Projucer\Terminal</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\Utility\Helpers\jucer_CodeHelpers.h">
