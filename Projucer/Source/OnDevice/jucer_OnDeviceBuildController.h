@@ -10,4 +10,4 @@
 
 class ProjectExporter;
 
-void startOnDeviceBuild (ProjectExporter&);
+bool startOnDeviceBuild (ProjectExporter&);

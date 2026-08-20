@@ -95,8 +95,7 @@ public:
     bool launchProject() override
     {
        #if JUCE_IOS
-        startOnDeviceBuild (*this);
-        return true;
+        return startOnDeviceBuild (*this);
        #else
         return false;
        #endif

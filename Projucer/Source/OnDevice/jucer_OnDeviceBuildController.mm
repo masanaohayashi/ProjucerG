@@ -23,6 +23,7 @@
 #include "../../../OnDeviceBuild/include/OnDeviceBuild/ZipStore.h"
 
 #include <algorithm>
+#include <exception>
 
 namespace
 {
@@ -154,6 +155,22 @@ private:
     bool finished = false;
 };
 
+class OnDeviceBuildDialog final : public DialogWindow
+{
+public:
+    OnDeviceBuildDialog()
+        : DialogWindow ("Build & Install", Colours::lightgrey, false)
+    {
+        setUsingNativeTitleBar (true);
+        setResizable (true, false);
+    }
+
+    void closeButtonPressed() override
+    {
+        exitModalState (0);
+    }
+};
+
 class OnDeviceBuildController final
 {
 public:
@@ -163,13 +180,10 @@ public:
         return instance;
     }
 
-    void start (ProjectExporter& exporter)
+    bool start (ProjectExporter& exporter)
     {
         if (building)
-        {
-            appendLine ("build already running");
-            return;
-        }
+            return false;
 
         building = true;
         previousIdleTimerDisabled = UIApplication.sharedApplication.idleTimerDisabled;
@@ -179,14 +193,11 @@ public:
         panelPtr = panel;
         panel->setStartTime (Time::getMillisecondCounterHiRes() / 1000.0);
 
-        DialogWindow::LaunchOptions options;
-        options.content.setOwned (panel);
-        options.dialogTitle = "Build & Install";
-        options.escapeKeyTriggersCloseButton = false;
-        options.useNativeTitleBar = true;
-        options.resizable = true;
-        options.componentToCentreAround = nullptr;
-        dialog.reset (options.launchAsync());
+        auto* window = new OnDeviceBuildDialog();
+        window->setContentOwned (panel, true);
+        window->centreWithSize (window->getWidth(), window->getHeight());
+        window->enterModalState (true, nullptr, true);
+        dialogPtr = window;
 
         if (backgroundObserver == nil)
         {
@@ -207,8 +218,23 @@ public:
 
         std::thread ([this, documents, projectRoot, manifestFile, projectName]() mutable
         {
-            runBuild (documents, projectRoot, manifestFile, projectName);
+            try
+            {
+                runBuild (documents, projectRoot, manifestFile, projectName);
+            }
+            catch (const std::exception& e)
+            {
+                appendLine ("exception: " + String (e.what()));
+                finish (true);
+            }
+            catch (...)
+            {
+                appendLine ("unknown exception during on-device build");
+                finish (true);
+            }
         }).detach();
+
+        return true;
     }
 
 private:
@@ -467,7 +493,7 @@ private:
         });
     }
 
-    std::unique_ptr<DialogWindow> dialog;
+    Component::SafePointer<DialogWindow> dialogPtr;
     Component::SafePointer<OnDeviceProgressPanel> panelPtr;
     LoopbackServer* server = nil;
     id backgroundObserver = nil;
@@ -477,16 +503,17 @@ private:
 };
 } // namespace
 
-void startOnDeviceBuild (ProjectExporter& exporter)
+bool startOnDeviceBuild (ProjectExporter& exporter)
 {
-    OnDeviceBuildController::get().start (exporter);
+    return OnDeviceBuildController::get().start (exporter);
 }
 
 #else
 
-void startOnDeviceBuild (ProjectExporter& exporter)
+bool startOnDeviceBuild (ProjectExporter& exporter)
 {
     juce::ignoreUnused (exporter);
+    return false;
 }
 
 #endif
