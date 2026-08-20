@@ -25,8 +25,11 @@
 /** Serves @c data at @c path (e.g. "/manifest.plist") with @c contentType. */
 - (void) serveData: (NSData*) data atPath: (NSString*) path contentType: (NSString*) contentType;
 
-/** Returns NO and logs the reason on failure. */
+/** Returns NO and logs the reason on failure. Does not wait for the listener. */
 - (BOOL) startOnPort: (uint16_t) port;
+
+/** Blocks until nw_listener is ready, or until @c timeout elapses. */
+- (BOOL) waitUntilReadyWithTimeout: (NSTimeInterval) timeout;
 - (void) stop;
 
 @end

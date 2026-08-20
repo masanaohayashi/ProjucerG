@@ -18,8 +18,10 @@
     sec_identity_t identity;
     nw_listener_t listener;
     dispatch_queue_t queue;
+    dispatch_semaphore_t readySemaphore;
     NSMutableDictionary<NSString*, ServedResource*>* resources;
     void (^log)(NSString*);
+    BOOL listenerReady;
 }
 
 - (instancetype) initWithIdentityData: (NSData*) identityData
@@ -107,6 +109,8 @@
     }
 
     nw_listener_set_queue (listener, queue);
+    listenerReady = NO;
+    readySemaphore = dispatch_semaphore_create (0);
 
     nw_listener_set_state_changed_handler (listener, ^(nw_listener_state_t state, nw_error_t error)
     {
@@ -114,12 +118,16 @@
         {
             case nw_listener_state_ready:
                 self->log ([NSString stringWithFormat: @"listener ready on port %u", nw_listener_get_port (self->listener)]);
+                self->listenerReady = YES;
+                dispatch_semaphore_signal (self->readySemaphore);
                 break;
             case nw_listener_state_failed:
                 self->log ([NSString stringWithFormat: @"listener failed: %@", error]);
+                dispatch_semaphore_signal (self->readySemaphore);
                 break;
             case nw_listener_state_cancelled:
                 self->log (@"listener cancelled");
+                dispatch_semaphore_signal (self->readySemaphore);
                 break;
             default:
                 break;
@@ -133,6 +141,19 @@
 
     nw_listener_start (listener);
     return YES;
+}
+
+- (BOOL) waitUntilReadyWithTimeout: (NSTimeInterval) timeout
+{
+    if (listenerReady)
+        return YES;
+
+    if (readySemaphore == nil)
+        return NO;
+
+    dispatch_semaphore_wait (readySemaphore,
+                             dispatch_time (DISPATCH_TIME_NOW, (int64_t) (timeout * NSEC_PER_SEC)));
+    return listenerReady;
 }
 
 - (void) handleConnection: (nw_connection_t) connection
@@ -222,6 +243,9 @@
         nw_listener_cancel (listener);
         listener = nil;
     }
+
+    if (readySemaphore != nil)
+        dispatch_semaphore_signal (readySemaphore);
 }
 
 @end
@@ -249,6 +273,12 @@
 - (BOOL) startOnPort: (uint16_t) port
 {
     (void) port;
+    return NO;
+}
+
+- (BOOL) waitUntilReadyWithTimeout: (NSTimeInterval) timeout
+{
+    (void) timeout;
     return NO;
 }
 

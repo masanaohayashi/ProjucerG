@@ -28,6 +28,7 @@
 namespace
 {
 constexpr uint16_t kLoopbackPort = 8443;
+constexpr double kLoopbackReadyTimeoutSeconds = 5.0;
 constexpr const char* kBackloopPassphrase = "pocselfinstall";
 
 static String formatBytes (unsigned long long bytes)
@@ -58,16 +59,37 @@ static File clangResourceDir()
     return File (path.UTF8String);
 }
 
-static File firstMatchingFile (const File& folder, const String& pattern, bool skipModernP12)
+static bool isModernP12 (const File& file)
+{
+    return file.getFileName().contains (".modern.p12");
+}
+
+static File firstMatchingFile (const File& folder, const String& pattern)
 {
     if (! folder.isDirectory())
         return {};
 
     for (const auto& entry : RangedDirectoryIterator (folder, false, pattern, File::findFiles))
+        return entry.getFile();
+
+    return {};
+}
+
+static File chooseP12 (const File& signingDir)
+{
+    const auto modern = firstMatchingFile (signingDir, "*.modern.p12");
+
+    if (modern.existsAsFile())
+        return modern;
+
+    if (! signingDir.isDirectory())
+        return {};
+
+    for (const auto& entry : RangedDirectoryIterator (signingDir, false, "*.p12", File::findFiles))
     {
         const auto file = entry.getFile();
 
-        if (skipModernP12 && file.getFileName().contains (".modern.p12"))
+        if (isModernP12 (file))
             continue;
 
         return file;
@@ -76,17 +98,22 @@ static File firstMatchingFile (const File& folder, const String& pattern, bool s
     return {};
 }
 
-static String readPassword (const File& signingDir, const File& p12)
+static File sidecarPasswordFile (const File& p12)
 {
-    const auto sidecar = File (p12.getFullPathName().upToLastOccurrenceOf (".p12", false, false) + ".password");
+    return File (p12.getFullPathName().upToLastOccurrenceOf (".p12", false, false) + ".password");
+}
+
+static File passwordFileFor (const File& signingDir, const File& p12)
+{
+    const auto sidecar = sidecarPasswordFile (p12);
 
     if (sidecar.existsAsFile())
-        return sidecar.loadFileAsString().trim();
+        return sidecar;
 
     const auto shared = signingDir.getChildFile ("password.txt");
 
     if (shared.existsAsFile())
-        return shared.loadFileAsString().trim();
+        return shared;
 
     return {};
 }
@@ -285,13 +312,10 @@ private:
         NSString* backloopPath = [NSBundle.mainBundle pathForResource: @"backloop" ofType: @"p12"];
         const auto backloop = backloopPath != nil ? File (backloopPath.UTF8String) : File();
         const auto signingDir = documents.getChildFile ("OnDeviceSigning");
-        auto p12 = firstMatchingFile (signingDir, "*.p12", true);
-
-        if (! p12.existsAsFile())
-            p12 = firstMatchingFile (signingDir, "*.p12", false);
-
-        const auto provision = firstMatchingFile (signingDir, "*.mobileprovision", false);
+        const auto p12 = chooseP12 (signingDir);
+        const auto provision = firstMatchingFile (signingDir, "*.mobileprovision");
         const auto sdkZip = documents.getChildFile ("iPhoneOS.sdk.zip");
+        const auto passwordFile = p12.existsAsFile() ? passwordFileFor (signingDir, p12) : File();
 
         if (! sdkZip.existsAsFile())
             missing.add (sdkZip.getFullPathName());
@@ -301,6 +325,11 @@ private:
             missing.add (builtins.getFullPathName());
         if (! p12.existsAsFile())
             missing.add (signingDir.getChildFile ("*.p12").getFullPathName());
+        else if (! passwordFile.existsAsFile())
+        {
+            missing.add (sidecarPasswordFile (p12).getFullPathName());
+            missing.add (signingDir.getChildFile ("password.txt").getFullPathName());
+        }
         if (! provision.existsAsFile())
             missing.add (signingDir.getChildFile ("*.mobileprovision").getFullPathName());
         if (! backloop.existsAsFile())
@@ -326,6 +355,28 @@ private:
             return;
         }
 
+        const auto password = passwordFile.loadFileAsString().trim().toStdString();
+        auto modernP12 = p12;
+
+        if (! isModernP12 (p12))
+        {
+            modernP12 = p12.getSiblingFile (p12.getFileNameWithoutExtension() + ".modern.p12");
+            std::string reencodeError;
+            appendLine ("re-encoding PKCS#12 to AES-256-CBC");
+
+            if (! ondevice::reencodePkcs12Aes (stdStringFromFile (p12),
+                                               stdStringFromFile (modernP12),
+                                               password,
+                                               reencodeError))
+            {
+                appendLine ("PKCS#12 re-encode failed: " + juceStringFromStd (reencodeError));
+                appendLine ("Place an AES-256-CBC p12 named *.modern.p12 (or a re-encodable *.p12) in OnDeviceSigning.");
+                appendLine ("AES-256-CBC の p12（*.modern.p12）を OnDeviceSigning に置いてください。再エンコードに失敗したため clang を起動しません。");
+                finish (true);
+                return;
+            }
+        }
+
         auto sdk = ondevice::makeSdkStore (stdStringFromFile (documents));
         std::string extractError;
         appendLine ("unpacking iOS SDK if needed");
@@ -337,23 +388,6 @@ private:
                                    extractError))
         {
             appendLine ("SDK extract failed: " + juceStringFromStd (extractError));
-            finish (true);
-            return;
-        }
-
-        const auto password = readPassword (signingDir, p12).toStdString();
-        const auto modernP12 = p12.getFileName().contains (".modern.p12")
-                                   ? p12
-                                   : p12.getSiblingFile (p12.getFileNameWithoutExtension() + ".modern.p12");
-        std::string reencodeError;
-        appendLine ("re-encoding PKCS#12 to AES-256-CBC");
-
-        if (! ondevice::reencodePkcs12Aes (stdStringFromFile (p12),
-                                           stdStringFromFile (modernP12),
-                                           password,
-                                           reencodeError))
-        {
-            appendLine ("PKCS#12 re-encode failed: " + juceStringFromStd (reencodeError));
             finish (true);
             return;
         }
@@ -434,6 +468,8 @@ private:
         }
 
         NSData* identity = [NSData dataWithContentsOfFile: [NSBundle.mainBundle pathForResource: @"backloop" ofType: @"p12"]];
+        __block NSString* manifestURL = nil;
+        __block BOOL started = NO;
 
         dispatch_sync (dispatch_get_main_queue(), ^
         {
@@ -448,6 +484,7 @@ private:
             const auto host = [NSString stringWithFormat: @"%@.backloop.dev",
                                NSUUID.UUID.UUIDString.lowercaseString];
             const auto base = [NSString stringWithFormat: @"https://%@:%u", host, kLoopbackPort];
+            manifestURL = [base stringByAppendingString: @"/manifest.plist"];
 
             NSDictionary* plist = @{
                 @"items": @[@{
@@ -470,16 +507,28 @@ private:
                        atPath: @"/payload.ipa"
                   contentType: @"application/octet-stream"];
 
-            if (! [server startOnPort: kLoopbackPort])
-            {
-                appendLine ("loopback HTTPS server failed to start");
-                return;
-            }
+            started = [server startOnPort: kLoopbackPort];
+        });
 
+        if (! started)
+        {
+            appendLine ("loopback HTTPS server failed to start");
+            return;
+        }
+
+        if (! [server waitUntilReadyWithTimeout: kLoopbackReadyTimeoutSeconds])
+        {
+            appendLine ("loopback listener did not become ready; not opening itms-services");
+            dispatch_sync (dispatch_get_main_queue(), ^{ [server stop]; });
+            return;
+        }
+
+        dispatch_sync (dispatch_get_main_queue(), ^
+        {
             appendLine ("tap Install when prompted (itms-services)");
 
-            const auto encoded = [[base stringByAppendingString: @"/manifest.plist"]
-                stringByAddingPercentEncodingWithAllowedCharacters: NSCharacterSet.alphanumericCharacterSet];
+            const auto encoded = [manifestURL stringByAddingPercentEncodingWithAllowedCharacters:
+                                  NSCharacterSet.alphanumericCharacterSet];
             const auto url = [NSURL URLWithString: [NSString stringWithFormat:
                 @"itms-services://?action=download-manifest&url=%@", encoded]];
 
