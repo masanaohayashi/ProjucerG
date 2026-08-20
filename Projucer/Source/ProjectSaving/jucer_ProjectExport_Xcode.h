@@ -848,7 +848,7 @@ public:
 
         props.add (new TextPropertyComponentWithEnablement (iCloudContainerIdsValue, iCloudPermissionsValue, "iCloud Container IDs", 2048, false),
                    "The iCloud container identifiers to add to the entitlements and Info.plist. Multiple IDs can be separated by commas, semicolons, or whitespace. "
-                   "If empty, iCloud.$(CFBundleIdentifier) will be used.");
+                   "If empty, iCloud. followed by the bundle identifier will be used.");
 
         props.add (new TextPropertyComponentWithEnablement (iCloudContainerNameValue, iCloudPermissionsValue, "iCloud Container Name", 256, false),
                    "The display name used in NSUbiquitousContainers. If empty, $(PRODUCT_NAME) will be used.");
@@ -1420,6 +1420,13 @@ public:
 
         containers.trim();
         containers.removeEmptyStrings (true);
+
+        // Xcode expands build settings in Info.plist values but not in keys, and iOS only
+        // applies NSUbiquitousContainerIsDocumentScopePublic when the plist key matches the
+        // entitlement string exactly - so resolve the identifier here, for both.
+        for (auto& container : containers)
+            container = container.replace ("$(CFBundleIdentifier)", getResolvedBundleIdentifier());
+
         return containers;
     }
 
@@ -1454,11 +1461,7 @@ public:
 
             for (const auto& container : getiCloudContainerIdsWithDefault())
             {
-                // Xcode expands build settings in Info.plist values but not in keys, so the
-                // container identifier has to be written out in full here. The entitlements
-                // are expanded at signing time and can keep the variable.
-                containersDict->createNewChildElement ("key")
-                              ->addTextElement (container.replace ("$(CFBundleIdentifier)", getResolvedBundleIdentifier()));
+                containersDict->createNewChildElement ("key")->addTextElement (container);
                 auto* containerDict = containersDict->createNewChildElement ("dict");
 
                 addPlistBoolKeyIfMissing (*containerDict, "NSUbiquitousContainerIsDocumentScopePublic", isiCloudPublicDocumentsEnabled());
