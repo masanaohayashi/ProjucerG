@@ -628,7 +628,7 @@ MenuBarModel* ProjucerApplication::getMenuModel()
 String ProjucerApplication::getProjectsMenuName()
 {
    #if JUCE_IOS
-    if (auto* window = mainWindowList.getFrontmostWindow (false))
+    if (auto* window = mainWindowList.getActiveWindow())
         if (auto* project = window->getProject())
             return project->getProjectNameString();
    #endif
@@ -822,7 +822,7 @@ PopupMenu ProjucerApplication::createWindowMenu()
     menu.addCommandItem (commandManager.get(), CommandIDs::closeWindow);
     menu.addSeparator();
 
-    const auto* frontmost = mainWindowList.getFrontmostWindow (false);
+    const auto* active = mainWindowList.getActiveWindow();
 
     for (int i = 0; i < mainWindowList.windows.size(); ++i)
     {
@@ -830,7 +830,7 @@ PopupMenu ProjucerApplication::createWindowMenu()
         // ones that happen to have a project - an empty start page window would shift it.
         if (auto* window = mainWindowList.windows[i])
             if (auto* project = window->getProject())
-                menu.addItem (openWindowsBaseID + i, project->getProjectNameString(), true, window == frontmost);
+                menu.addItem (openWindowsBaseID + i, project->getProjectNameString(), true, window == active);
     }
 
     menu.addSeparator();

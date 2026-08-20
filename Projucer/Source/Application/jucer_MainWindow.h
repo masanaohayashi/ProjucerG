@@ -145,6 +145,11 @@ public:
     */
     void showWindow (MainWindow*);
 
+    /** The window the user is actually looking at. Same as the frontmost one except on
+        iOS, where all but one are hidden.
+    */
+    MainWindow* getActiveWindow();
+
     void createWindowIfNoneAreOpen();
     void openDocument (OpenDocumentManager::Document*, bool grabFocus);
     void openFile (const File& file, std::function<void (bool)> callback, bool openInBackground = false);

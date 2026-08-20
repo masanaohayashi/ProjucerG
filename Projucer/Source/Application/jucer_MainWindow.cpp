@@ -660,6 +660,11 @@ void MainWindow::goFullScreenOnDevice()
     if (isUpdatingFullScreen)
         return;
 
+    // Only the window on screen may take kiosk mode. Without this the hidden windows
+    // keep grabbing it back and the two of them flicker at each other forever.
+    if (! isVisible())
+        return;
+
     const ScopedValueSetter<bool> guard (isUpdatingFullScreen, true);
 
     // Kiosk mode is what actually hides the status bar; before we have a peer it's
@@ -727,11 +732,11 @@ void MainWindow::parentSizeChanged()
     DocumentWindow::parentSizeChanged();
 
    #if JUCE_IOS
+    if (isUpdatingFullScreen || ! isVisible())
+        return;
+
     // The keyboard appearing doesn't change our bounds, so re-run the layout by hand.
     resized();
-
-    if (isUpdatingFullScreen)
-        return;
 
     goFullScreenOnDevice();
 
@@ -768,13 +773,16 @@ void MainWindow::showStartPage()
     setName ("New Project");
     addToDesktop();
 
-   #if JUCE_IOS
-    goFullScreenOnDevice();
-   #else
+   #if ! JUCE_IOS
     centreWithSize (getContentComponent()->getWidth(), getContentComponent()->getHeight());
    #endif
 
     setVisible (true);
+
+   #if JUCE_IOS
+    ProjucerApplication::getApp().mainWindowList.showWindow (this);
+   #endif
+
     getContentComponent()->grabKeyboardFocus();
 }
 
@@ -947,6 +955,19 @@ void MainWindowList::goToSiblingWindow (MainWindow* w, int delta)
 
     if (index >= 0)
         showWindow (windows[(index + delta + windows.size()) % windows.size()]);
+}
+
+MainWindow* MainWindowList::getActiveWindow()
+{
+   #if JUCE_IOS
+    for (auto* w : windows)
+        if (w != nullptr && w->isVisible())
+            return w;
+
+    return nullptr;
+   #else
+    return getFrontmostWindow (false);
+   #endif
 }
 
 void MainWindowList::showWindow (MainWindow* w)
