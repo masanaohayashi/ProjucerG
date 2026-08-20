@@ -82,6 +82,7 @@ public:
 
     //==============================================================================
     void rescanJUCEPathModules();
+    void downloadJUCE();
     void rescanUserPathModules();
 
     AvailableModulesList& getJUCEPathModulesList()     { return jucePathModulesList; }
@@ -162,6 +163,8 @@ private:
     void showAboutWindow();
     void showEditorColourSchemeWindow();
     void showPIPCreatorWindow();
+
+    void offerToDownloadJUCE();
 
     void launchForumBrowser();
     void launchModulesBrowser();

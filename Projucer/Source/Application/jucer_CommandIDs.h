@@ -66,6 +66,7 @@ namespace CommandIDs
         checkForNewVersion      = 0x300025,
         enableNewVersionCheck   = 0x300026,
         enableGUIEditor         = 0x300027,
+        downloadJUCE            = 0x300028,
 
         showProjectSettings     = 0x300030,
         showFileExplorerPanel   = 0x300033,

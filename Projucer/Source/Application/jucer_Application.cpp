@@ -145,6 +145,175 @@ void ProjucerApplication::initialiseWindows (const String& commandLine)
     mainWindowList.createWindowIfNoneAreOpen();
 }
 
+//==============================================================================
+/*  Fetches a JUCE release straight from GitHub and points the global paths at it.
+    On a tablet there is no practical way to get a checkout onto the device otherwise.
+*/
+class JUCEDownloader final : public ThreadWithProgressWindow
+{
+public:
+    JUCEDownloader (String versionToFetch, File folderToUnpackInto)
+        : ThreadWithProgressWindow ("Downloading JUCE " + versionToFetch, true, true),
+          version (std::move (versionToFetch)),
+          destination (std::move (folderToUnpackInto))
+    {
+    }
+
+    void run() override
+    {
+        const auto archive = destination.getChildFile ("JUCE-" + version + ".zip");
+        archive.deleteFile();
+
+        const auto ok = download (archive) && unpack (archive);
+        archive.deleteFile();
+
+        if (ok)
+            unpackedFolder = destination.getChildFile ("JUCE-" + version);
+    }
+
+    void threadComplete (bool userPressedCancel) override
+    {
+        if (! userPressedCancel)
+        {
+            if (unpackedFolder != File())
+            {
+                auto& settings = getAppSettings();
+                settings.getStoredPath (Ids::jucePath, TargetOS::getThisOS())
+                        .setValue (unpackedFolder.getFullPathName(), nullptr);
+                settings.getStoredPath (Ids::defaultJuceModulePath, TargetOS::getThisOS())
+                        .setValue (unpackedFolder.getChildFile ("modules").getFullPathName(), nullptr);
+
+                ProjucerApplication::getApp().rescanJUCEPathModules();
+
+                NativeMessageBox::showMessageBoxAsync (MessageBoxIconType::InfoIcon,
+                                                       "JUCE " + version + " installed",
+                                                       "The global paths now point at\n" + unpackedFolder.getFullPathName());
+            }
+            else
+            {
+                NativeMessageBox::showMessageBoxAsync (MessageBoxIconType::WarningIcon,
+                                                       "Could not install JUCE " + version,
+                                                       errorMessage);
+            }
+        }
+
+        delete this;
+    }
+
+private:
+    static constexpr int bufferSize = 64 * 1024;
+
+    bool download (const File& target)
+    {
+        setStatusMessage ("Contacting github.com...");
+
+        const URL url ("https://github.com/juce-framework/JUCE/archive/refs/tags/" + version + ".zip");
+
+        auto stream = url.createInputStream (URL::InputStreamOptions (URL::ParameterHandling::inAddress)
+                                                 .withConnectionTimeoutMs (30000)
+                                                 .withNumRedirectsToFollow (5));
+
+        if (stream == nullptr)
+        {
+            errorMessage = "Could not reach github.com, or there is no release tagged " + version + ".";
+            return false;
+        }
+
+        std::unique_ptr<FileOutputStream> out (target.createOutputStream());
+
+        if (out == nullptr)
+        {
+            errorMessage = "Could not write to " + target.getFullPathName() + ".";
+            return false;
+        }
+
+        const auto totalLength = stream->getTotalLength();
+        HeapBlock<char> buffer (bufferSize);
+        int64 numDownloaded = 0;
+
+        for (;;)
+        {
+            if (threadShouldExit())
+                return false;
+
+            const auto numRead = stream->read (buffer, bufferSize);
+
+            if (numRead <= 0)
+                break;
+
+            if (! out->write (buffer, (size_t) numRead))
+            {
+                errorMessage = "Ran out of space while downloading.";
+                return false;
+            }
+
+            numDownloaded += numRead;
+
+            setProgress (totalLength > 0 ? (double) numDownloaded / (double) totalLength : -1.0);
+            setStatusMessage ("Downloading... " + File::descriptionOfSizeInBytes (numDownloaded));
+        }
+
+        out.reset();
+
+        if (totalLength > 0 && numDownloaded != totalLength)
+        {
+            errorMessage = "The download stopped early.";
+            return false;
+        }
+
+        return true;
+    }
+
+    bool unpack (const File& archive)
+    {
+        setStatusMessage ("Extracting...");
+        setProgress (0.0);
+
+        ZipFile zip (archive);
+        const auto numEntries = zip.getNumEntries();
+
+        if (numEntries == 0)
+        {
+            errorMessage = "The downloaded file was not a valid archive.";
+            return false;
+        }
+
+        destination.getChildFile ("JUCE-" + version).deleteRecursively();
+
+        for (int i = 0; i < numEntries; ++i)
+        {
+            if (threadShouldExit())
+                return false;
+
+            setProgress ((double) i / (double) numEntries);
+
+            const auto result = zip.uncompressEntry (i, destination);
+
+            if (result.failed())
+            {
+                errorMessage = result.getErrorMessage();
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    const String version;
+    const File destination;
+    File unpackedFolder;
+    String errorMessage;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JUCEDownloader)
+};
+
+void ProjucerApplication::downloadJUCE()
+{
+    // matches the JUCE this Projucer was built from, and JUCE tags releases by bare version
+    (new JUCEDownloader (getApplicationVersion(),
+                         File::getSpecialLocation (File::userDocumentsDirectory)))->launchThread();
+}
+
 void ProjucerApplication::handleAsyncUpdate()
 {
     rescanJUCEPathModules();
@@ -169,6 +338,31 @@ void ProjucerApplication::handleAsyncUpdate()
         LatestVersionCheckerAndUpdater::getInstance()->checkForNewVersion (true);
 
     initialiseWindows (getCommandLineParameters());
+
+   #if JUCE_IOS
+    // There is no sensible way to get a JUCE checkout onto a tablet by hand, so offer
+    // to fetch one as soon as we know we haven't got one.
+    if (getAppSettings().isJUCEPathIncorrect())
+        offerToDownloadJUCE();
+   #endif
+}
+
+void ProjucerApplication::offerToDownloadJUCE()
+{
+    const auto options = MessageBoxOptions::makeOptionsOkCancel (MessageBoxIconType::QuestionIcon,
+                                                                 "JUCE not found",
+                                                                 "Projucer needs a copy of JUCE " + getApplicationVersion()
+                                                                   + " to work with.\n\n"
+                                                                     "Download it from GitHub now? It is a few hundred megabytes, "
+                                                                     "and will be unpacked into this app's Documents folder.",
+                                                                 "Download",
+                                                                 "Not now");
+
+    messageBox = AlertWindow::showScopedAsync (options, [parent = WeakReference { this }] (int result)
+    {
+        if (parent != nullptr && result != 0)
+            parent->downloadJUCE();
+    });
 }
 
 #if JUCE_IOS
@@ -634,6 +828,8 @@ PopupMenu ProjucerApplication::createToolsMenu()
     menu.addCommandItem (commandManager.get(), CommandIDs::showSVGPathTool);
     menu.addCommandItem (commandManager.get(), CommandIDs::showTranslationTool);
     menu.addSeparator();
+    menu.addCommandItem (commandManager.get(), CommandIDs::downloadJUCE);
+    menu.addSeparator();
     menu.addCommandItem (commandManager.get(), CommandIDs::enableGUIEditor);
    #if JUCE_DEBUG
     menu.addCommandItem (commandManager.get(), CommandIDs::addPrototypeLowpassSlider);
@@ -1032,6 +1228,7 @@ void ProjucerApplication::getAllCommands (Array <CommandID>& commands)
                               CommandIDs::clearRecentFiles,
                               CommandIDs::saveAll,
                               CommandIDs::showGlobalPathsWindow,
+                              CommandIDs::downloadJUCE,
                               CommandIDs::showUTF8Tool,
                               CommandIDs::showSVGPathTool,
                               CommandIDs::showAboutWindow,
@@ -1081,6 +1278,12 @@ void ProjucerApplication::getCommandInfo (CommandID commandID, ApplicationComman
     case CommandIDs::showGlobalPathsWindow:
         result.setInfo ("Global Paths...",
                         "Shows the window to change the stored global paths.",
+                        CommandCategories::general, 0);
+        break;
+
+    case CommandIDs::downloadJUCE:
+        result.setInfo ("Download JUCE...",
+                        "Downloads a JUCE release from GitHub and points the global paths at it.",
                         CommandCategories::general, 0);
         break;
 
@@ -1185,6 +1388,7 @@ bool ProjucerApplication::perform (const InvocationInfo& info)
         case CommandIDs::addPrototypeLowpassSlider: addPrototypeLowpassSlider(); break;
        #endif
         case CommandIDs::showGlobalPathsWindow:     showPathsWindow (false); break;
+        case CommandIDs::downloadJUCE:              downloadJUCE(); break;
         case CommandIDs::showAboutWindow:           showAboutWindow(); break;
         case CommandIDs::checkForNewVersion:        LatestVersionCheckerAndUpdater::getInstance()->checkForNewVersion (false); break;
         case CommandIDs::enableNewVersionCheck:     setAutomaticVersionCheckingEnabled (! isAutomaticVersionCheckingEnabled()); break;
