@@ -1,0 +1,14 @@
+{
+  "name": "MiniEngine",
+  "bundleId": "tokyo.studio-r.miniengine",
+  "minimumOSVersion": "17.0",
+  "defines": [],
+  "includes": [],
+  "sources": [
+    {"file": "uikit.mm", "language": "objective-c++"},
+    {"file": "link_main.cpp", "language": "c++"},
+    {"file": "plain.c", "language": "c"}
+  ],
+  "frameworks": ["UIKit", "Foundation"],
+  "libraries": ["System", "c++"]
+}
