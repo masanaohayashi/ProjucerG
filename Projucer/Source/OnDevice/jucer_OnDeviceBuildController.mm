@@ -103,12 +103,27 @@ static File sidecarPasswordFile (const File& p12)
     return File (p12.getFullPathName().upToLastOccurrenceOf (".p12", false, false) + ".password");
 }
 
+static File unmodernSidecarPasswordFile (const File& p12)
+{
+    const auto stem = p12.getFullPathName().upToLastOccurrenceOf (".p12", false, false);
+
+    if (! stem.endsWith (".modern"))
+        return {};
+
+    return File (stem.upToLastOccurrenceOf (".modern", false, false) + ".password");
+}
+
 static File passwordFileFor (const File& signingDir, const File& p12)
 {
     const auto sidecar = sidecarPasswordFile (p12);
 
     if (sidecar.existsAsFile())
         return sidecar;
+
+    const auto unmodern = unmodernSidecarPasswordFile (p12);
+
+    if (unmodern.existsAsFile())
+        return unmodern;
 
     const auto shared = signingDir.getChildFile ("password.txt");
 
@@ -328,6 +343,12 @@ private:
         else if (! passwordFile.existsAsFile())
         {
             missing.add (sidecarPasswordFile (p12).getFullPathName());
+
+            const auto unmodern = unmodernSidecarPasswordFile (p12);
+
+            if (unmodern != File())
+                missing.add (unmodern.getFullPathName());
+
             missing.add (signingDir.getChildFile ("password.txt").getFullPathName());
         }
         if (! provision.existsAsFile())
