@@ -243,6 +243,10 @@ void MainWindow::makeVisible()
 
     updateTitleBarIcon();
     getContentComponent()->grabKeyboardFocus();
+
+   #if JUCE_IOS
+    ProjucerApplication::getApp().mainWindowList.showWindow (this);
+   #endif
 }
 
 ProjectContentComponent* MainWindow::getProjectContentComponent() const
@@ -645,8 +649,9 @@ Rectangle<int> MainWindow::getDeviceMenuBarBounds() const
         return {};
 
     // In kiosk mode DocumentWindow gives the menu bar a zero-sized title bar area to sit
-    // under, so it has to be placed by hand.
-    return { 0, 0, getWidth(), getLookAndFeel().getDefaultMenuBarHeight() };
+    // under, so it has to be placed by hand. The desktop height is well under the size
+    // of a fingertip, hence the extra half.
+    return { 0, 0, getWidth(), roundToInt ((float) getLookAndFeel().getDefaultMenuBarHeight() * 1.5f) };
 }
 
 void MainWindow::goFullScreenOnDevice()
@@ -843,8 +848,13 @@ bool MainWindow::perform (const InvocationInfo& info)
 void MainWindow::valueChanged (Value& value)
 {
     if (value == projectNameValue)
+    {
         setName (currentProject != nullptr ? currentProject->getProjectNameString() + " - Projucer"
                                            : "Projucer");
+
+        if (auto* model = ProjucerApplication::getApp().getMenuModel())
+            model->menuItemsChanged();
+    }
 }
 
 void MainWindow::changeListenerCallback (ChangeBroadcaster* source)
@@ -925,6 +935,7 @@ void MainWindowList::closeWindow (MainWindow* w)
                                     {
                                         parent->windows.removeObject (w);
                                         parent->saveCurrentlyOpenProjectList();
+                                        parent->showWindow (parent->windows.getLast());
                                     }
                                 });
     }
@@ -935,8 +946,29 @@ void MainWindowList::goToSiblingWindow (MainWindow* w, int delta)
     auto index = windows.indexOf (w);
 
     if (index >= 0)
-        if (auto* next = windows[(index + delta + windows.size()) % windows.size()])
-            next->toFront (true);
+        showWindow (windows[(index + delta + windows.size()) % windows.size()]);
+}
+
+void MainWindowList::showWindow (MainWindow* w)
+{
+    if (w == nullptr)
+        return;
+
+   #if JUCE_IOS
+    // Several full-screen windows stacked on one another are unusable on a tablet, so
+    // only the one being shown stays visible.
+    for (auto* other : windows)
+        if (other != nullptr && other != w)
+            other->setVisible (false);
+
+    w->setVisible (true);
+    w->goFullScreenOnDevice();
+
+    if (auto* model = ProjucerApplication::getApp().getMenuModel())
+        model->menuItemsChanged();
+   #endif
+
+    w->toFront (true);
 }
 
 void MainWindowList::openDocument (OpenDocumentManager::Document* doc, bool grabFocus)

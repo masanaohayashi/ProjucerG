@@ -134,7 +134,8 @@ private:
     void clearRecentFiles();
 
     StringArray getMenuNames();
-    PopupMenu createMenu (const String& menuName);
+    PopupMenu createMenu (int topLevelIndex, const String& menuName);
+    String getProjectsMenuName();
     PopupMenu createFileMenu();
     PopupMenu createEditMenu();
     PopupMenu createViewMenu();

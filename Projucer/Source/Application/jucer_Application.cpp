@@ -60,9 +60,9 @@ struct ProjucerApplication::MainMenuModel final : public MenuBarModel
         return getApp().getMenuNames();
     }
 
-    PopupMenu getMenuForIndex (int /*topLevelMenuIndex*/, const String& menuName) override
+    PopupMenu getMenuForIndex (int topLevelMenuIndex, const String& menuName) override
     {
-        return getApp().createMenu (menuName);
+        return getApp().createMenu (topLevelMenuIndex, menuName);
     }
 
     void menuItemSelected (int menuItemID, int /*topLevelMenuIndex*/) override
@@ -609,6 +609,7 @@ ApplicationCommandManager& ProjucerApplication::getCommandManager()
 //==============================================================================
 enum
 {
+    projectsMenuIndex = 3,   // File, Edit, View, <projects>
     recentProjectsBaseID = 100,
     openWindowsBaseID = 300,
     activeDocumentsBaseID = 400,
@@ -621,9 +622,23 @@ MenuBarModel* ProjucerApplication::getMenuModel()
     return menuModel.get();
 }
 
+/*  On a tablet only one project is on screen at a time, so the menu that switches
+    between them is titled with the one you are looking at.
+*/
+String ProjucerApplication::getProjectsMenuName()
+{
+   #if JUCE_IOS
+    if (auto* window = mainWindowList.getFrontmostWindow (false))
+        if (auto* project = window->getProject())
+            return project->getProjectNameString();
+   #endif
+
+    return "Window";
+}
+
 StringArray ProjucerApplication::getMenuNames()
 {
-    StringArray currentMenuNames { "File", "Edit", "View", "Window", "Document", "GUI Editor", "Tools", "Help" };
+    StringArray currentMenuNames { "File", "Edit", "View", getProjectsMenuName(), "Document", "GUI Editor", "Tools", "Help" };
 
     if (! isGUIEditorEnabled())
         currentMenuNames.removeString ("GUI Editor");
@@ -631,8 +646,13 @@ StringArray ProjucerApplication::getMenuNames()
     return currentMenuNames;
 }
 
-PopupMenu ProjucerApplication::createMenu (const String& menuName)
+PopupMenu ProjucerApplication::createMenu (int topLevelIndex, const String& menuName)
 {
+    // The projects menu carries the current project's name, which could be anything at
+    // all, so it is matched by position rather than by name.
+    if (topLevelIndex == projectsMenuIndex)
+        return createWindowMenu();
+
     if (menuName == "File")
         return createFileMenu();
 
@@ -641,9 +661,6 @@ PopupMenu ProjucerApplication::createMenu (const String& menuName)
 
     if (menuName == "View")
         return createViewMenu();
-
-    if (menuName == "Window")
-        return createWindowMenu();
 
     if (menuName == "Document")
         return createDocumentMenu();
@@ -805,15 +822,15 @@ PopupMenu ProjucerApplication::createWindowMenu()
     menu.addCommandItem (commandManager.get(), CommandIDs::closeWindow);
     menu.addSeparator();
 
-    int counter = 0;
+    const auto* frontmost = mainWindowList.getFrontmostWindow (false);
 
-    for (auto* window : mainWindowList.windows)
+    for (int i = 0; i < mainWindowList.windows.size(); ++i)
     {
-        if (window != nullptr)
-        {
+        // The id has to carry the index into the window list, not a running count of the
+        // ones that happen to have a project - an empty start page window would shift it.
+        if (auto* window = mainWindowList.windows[i])
             if (auto* project = window->getProject())
-                menu.addItem (openWindowsBaseID + counter++, project->getProjectNameString());
-        }
+                menu.addItem (openWindowsBaseID + i, project->getProjectNameString(), true, window == frontmost);
     }
 
     menu.addSeparator();
@@ -1210,8 +1227,7 @@ void ProjucerApplication::handleMainMenuCommand (int menuItemID)
     }
     else if (menuItemID >= openWindowsBaseID && menuItemID < (openWindowsBaseID + 100))
     {
-        if (auto* window = mainWindowList.windows.getUnchecked (menuItemID - openWindowsBaseID))
-            window->toFront (true);
+        mainWindowList.showWindow (mainWindowList.windows[menuItemID - openWindowsBaseID]);
     }
     else if (menuItemID >= activeDocumentsBaseID && menuItemID < (activeDocumentsBaseID + 200))
     {

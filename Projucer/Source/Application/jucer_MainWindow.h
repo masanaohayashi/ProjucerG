@@ -88,6 +88,10 @@ public:
 
     ProjectContentComponent* getProjectContentComponent() const;
 
+   #if JUCE_IOS
+    void goFullScreenOnDevice();
+   #endif
+
     //==============================================================================
     ApplicationCommandTarget* getNextCommandTarget() override;
     void getAllCommands (Array <CommandID>& commands) override;
@@ -114,7 +118,6 @@ private:
     std::unique_ptr<Component> blurOverlayComponent;
 
    #if JUCE_IOS
-    void goFullScreenOnDevice();
     Rectangle<int> getDeviceMenuBarBounds() const;
     bool isUpdatingFullScreen = false;
     std::unique_ptr<TouchAssistBar> touchAssistBar;
@@ -136,6 +139,11 @@ public:
     void closeWindow (MainWindow*);
 
     void goToSiblingWindow (MainWindow*, int delta);
+
+    /** Brings a window to the front. On iOS, where only one project can be on
+        screen at a time, this also hides the others.
+    */
+    void showWindow (MainWindow*);
 
     void createWindowIfNoneAreOpen();
     void openDocument (OpenDocumentManager::Document*, bool grabFocus);
