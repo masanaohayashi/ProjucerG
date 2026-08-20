@@ -226,7 +226,27 @@ namespace
             const auto documents = File (String::fromUTF8 (utf8)).getChildFile ("Documents");
             const auto result = documents.createDirectory();
 
-            log (documents.getFullPathName() + (result.wasOk() ? " - ok" : " - " + result.getErrorMessage()));
+            if (result.failed())
+            {
+                log (documents.getFullPathName() + " - " + result.getErrorMessage());
+                return;
+            }
+
+            // iCloud Drive doesn't surface a container that has never had anything in it,
+            // so leave a note behind explaining what the folder is for.
+            const auto readme = documents.getChildFile ("README.txt");
+
+            if (! readme.existsAsFile())
+                readme.replaceWithText ("This folder is Projucer's iCloud storage. It appears on every device\n"
+                                        "signed in to the same iCloud account, so it is the place to keep JUCE\n"
+                                        "projects you want to move between an iPad and a Mac.\n"
+                                        "\n"
+                                        "Note that iOS can evict files here to free up space, replacing them with\n"
+                                        "placeholders until they are downloaded again. A JUCE modules folder is\n"
+                                        "large enough for that to be a nuisance, so it is usually better kept on\n"
+                                        "the device, under On My iPad > Projucer.\n");
+
+            log (documents.getFullPathName() + " - ok");
         }
     }
 }
