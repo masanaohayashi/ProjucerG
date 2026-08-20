@@ -38,8 +38,6 @@
     <true/>
     <key>UIFileSharingEnabled</key>
     <true/>
-    <key>UISupportsDocumentBrowser</key>
-    <true/>
     <key>UIStatusBarHidden</key>
     <true/>
     <key>UIRequiresFullScreen</key>
@@ -54,6 +52,8 @@
     <array/>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <true/>
     <key>NSUbiquitousContainers</key>
     <dict>
       <key>iCloud.tokyo.studio-r.juce.theprojucer</key>
@@ -63,7 +63,7 @@
         <key>NSUbiquitousContainerSupportedFolderLevels</key>
         <string>Any</string>
         <key>NSUbiquitousContainerName</key>
-        <string>$(PRODUCT_NAME)</string>
+        <string>Projucer</string>
       </dict>
     </dict>
   </dict>
