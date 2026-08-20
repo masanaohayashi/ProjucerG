@@ -168,7 +168,18 @@ public:
         archive.deleteFile();
 
         if (ok)
+        {
             unpackedFolder = destination.getChildFile ("JUCE-" + version);
+            log ("installed into " + unpackedFolder.getFullPathName());
+        }
+        else if (threadShouldExit())
+        {
+            log ("cancelled");
+        }
+        else
+        {
+            log ("FAILED - " + errorMessage);
+        }
     }
 
     void threadComplete (bool userPressedCancel) override
@@ -203,11 +214,15 @@ public:
 private:
     static constexpr int bufferSize = 64 * 1024;
 
+    static void log (const String& message)  { Logger::writeToLog ("JUCE download: " + message); }
+
     bool download (const File& target)
     {
         setStatusMessage ("Contacting github.com...");
 
         const URL url ("https://github.com/juce-framework/JUCE/archive/refs/tags/" + version + ".zip");
+
+        log (url.toString (false));
 
         auto stream = url.createInputStream (URL::InputStreamOptions (URL::ParameterHandling::inAddress)
                                                  .withConnectionTimeoutMs (30000)
@@ -228,6 +243,10 @@ private:
         }
 
         const auto totalLength = stream->getTotalLength();
+
+        log (totalLength > 0 ? "expecting " + File::descriptionOfSizeInBytes (totalLength)
+                             : "no content-length, size unknown");
+
         HeapBlock<char> buffer (bufferSize);
         int64 numDownloaded = 0;
 
@@ -261,6 +280,7 @@ private:
             return false;
         }
 
+        log ("downloaded " + File::descriptionOfSizeInBytes (numDownloaded));
         return true;
     }
 
@@ -291,11 +311,12 @@ private:
 
             if (result.failed())
             {
-                errorMessage = result.getErrorMessage();
+                errorMessage = "Extracting " + zip.getEntry (i)->filename + " failed - " + result.getErrorMessage();
                 return false;
             }
         }
 
+        log ("extracted " + String (numEntries) + " entries");
         return true;
     }
 
