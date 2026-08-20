@@ -136,7 +136,7 @@
                   UIFileSharingEnabled="1" UIStatusBarHidden="1"
                   iosContentSharing="1" iosDevelopmentTeamID="P5G28RMWUN" iCloudPermissions="1"
                   iCloudPublicDocuments="1" iCloudContainerIds="iCloud.tokyo.studio-r.juce.theprojucer"
-                  supportsOpeningDocumentsInPlace="1" iCloudContainerName="Projucer">
+                  supportsOpeningDocumentsInPlace="1" iCloudContainerName="Projucer" buildNumber="9.0.1">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" headerPath="../../Source/Terminal/libvterm/include"/>
         <CONFIGURATION isDebug="0" name="Release" headerPath="../../Source/Terminal/libvterm/include"/>
