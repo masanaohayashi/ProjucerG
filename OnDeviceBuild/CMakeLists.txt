@@ -1,7 +1,98 @@
 cmake_minimum_required(VERSION 3.20)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+endif()
+
 project(OnDeviceBuild C CXX OBJCXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(ONDEVICE_ENGINE_SOURCES
+    src/MachOCheck.cpp src/Compiler.cpp src/Linker.cpp
+    src/BundleBuilder.cpp src/Signer.cpp src/Pkcs12.cpp
+    src/ZipStore.cpp src/Engine.cpp src/BuildRunner.mm)
+
+set(ZSIGN_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/third_party/zsign")
+file(GLOB ZSIGN_SOURCES
+    ${ZSIGN_ROOT}/src/*.cpp
+    ${ZSIGN_ROOT}/src/common/*.cpp)
+list(REMOVE_ITEM ZSIGN_SOURCES ${ZSIGN_ROOT}/src/zsign.cpp)
+file(GLOB ZSIGN_THIRD_PARTY
+    ${ZSIGN_ROOT}/src/third-party/zlib/*.c
+    ${ZSIGN_ROOT}/src/third-party/minizip/*.c)
+list(REMOVE_ITEM ZSIGN_THIRD_PARTY ${ZSIGN_ROOT}/src/third-party/minizip/iowin32.c)
+
+set(ZSIGN_PRIVATE_INCLUDES
+    ${ZSIGN_ROOT}/src
+    ${ZSIGN_ROOT}/src/common
+    ${ZSIGN_ROOT}/src/third-party/zlib
+    ${ZSIGN_ROOT}/src/third-party/minizip)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    set(ONDEVICE_LLVM_IOS_ARCHIVE "$ENV{HOME}/Documents/src/PocClangIOS/build-ios/llvm-ios.a"
+        CACHE FILEPATH "Combined LLVM/Clang/lld archive for iOS")
+    set(ONDEVICE_OPENSSL_IOS "$ENV{HOME}/Documents/src/PocSignIOS/openssl-ios"
+        CACHE PATH "OpenSSL built for iOS")
+    set(ONDEVICE_LLVM_IOS_DIR "$ENV{HOME}/Documents/src/PocClangIOS/build-ios"
+        CACHE PATH "iOS LLVM build tree (generated headers)")
+    set(ONDEVICE_LLVM_SRC "$ENV{HOME}/Documents/src/PocClangIOS/llvm-project"
+        CACHE PATH "llvm-project source tree")
+
+    if(NOT EXISTS "${ONDEVICE_LLVM_IOS_ARCHIVE}")
+        message(FATAL_ERROR "iOS LLVM archive not found: ${ONDEVICE_LLVM_IOS_ARCHIVE}")
+    endif()
+    if(NOT EXISTS "${ONDEVICE_OPENSSL_IOS}/include/openssl/crypto.h")
+        message(FATAL_ERROR "iOS OpenSSL not found: ${ONDEVICE_OPENSSL_IOS}")
+    endif()
+
+    set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED NO)
+    set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED NO)
+    set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "")
+
+    add_library(crypto STATIC IMPORTED)
+    set_target_properties(crypto PROPERTIES
+        IMPORTED_LOCATION "${ONDEVICE_OPENSSL_IOS}/lib/libcrypto.a"
+        INTERFACE_INCLUDE_DIRECTORIES "${ONDEVICE_OPENSSL_IOS}/include")
+    add_library(ssl STATIC IMPORTED)
+    set_target_properties(ssl PROPERTIES
+        IMPORTED_LOCATION "${ONDEVICE_OPENSSL_IOS}/lib/libssl.a"
+        INTERFACE_INCLUDE_DIRECTORIES "${ONDEVICE_OPENSSL_IOS}/include")
+
+    add_library(zsign STATIC ${ZSIGN_SOURCES} ${ZSIGN_THIRD_PARTY})
+    target_include_directories(zsign PRIVATE ${ZSIGN_PRIVATE_INCLUDES} ${ONDEVICE_OPENSSL_IOS}/include)
+    set_target_properties(zsign PROPERTIES
+        C_STANDARD 11
+        C_STANDARD_REQUIRED ON
+        CXX_STANDARD 11
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS ON)
+    target_compile_options(zsign PRIVATE
+        $<$<COMPILE_LANGUAGE:CXX>:-std=gnu++11>
+        $<$<COMPILE_LANGUAGE:C>:-std=c11>)
+    target_link_libraries(zsign PUBLIC ssl crypto)
+
+    add_library(OnDeviceBuild STATIC ${ONDEVICE_ENGINE_SOURCES})
+    target_include_directories(OnDeviceBuild PUBLIC include
+        PRIVATE
+            ${ONDEVICE_LLVM_SRC}/llvm/include
+            ${ONDEVICE_LLVM_IOS_DIR}/include
+            ${ONDEVICE_LLVM_SRC}/clang/include
+            ${ONDEVICE_LLVM_IOS_DIR}/tools/clang/include
+            ${ONDEVICE_LLVM_SRC}/lld/include)
+    set_property(SOURCE src/Signer.cpp src/BundleBuilder.cpp
+        APPEND PROPERTY INCLUDE_DIRECTORIES ${ZSIGN_PRIVATE_INCLUDES})
+    target_compile_definitions(OnDeviceBuild PRIVATE
+        __STDC_CONSTANT_MACROS __STDC_FORMAT_MACROS __STDC_LIMIT_MACROS)
+    target_compile_options(OnDeviceBuild PRIVATE
+        $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
+        $<$<COMPILE_LANGUAGE:OBJCXX>:-fno-rtti>)
+    target_link_libraries(OnDeviceBuild PUBLIC
+        ${ONDEVICE_LLVM_IOS_ARCHIVE}
+        zsign
+        "-framework Foundation")
+    return()
+endif()
 
 add_library(OnDeviceBuildMachO STATIC src/MachOCheck.cpp)
 target_include_directories(OnDeviceBuildMachO PUBLIC include)
@@ -35,22 +126,6 @@ endif()
 find_package(OpenSSL REQUIRED)
 message(STATUS "Using OpenSSL ${OPENSSL_VERSION} from ${OPENSSL_INCLUDE_DIR}")
 
-set(ZSIGN_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/third_party/zsign")
-file(GLOB ZSIGN_SOURCES
-    ${ZSIGN_ROOT}/src/*.cpp
-    ${ZSIGN_ROOT}/src/common/*.cpp)
-list(REMOVE_ITEM ZSIGN_SOURCES ${ZSIGN_ROOT}/src/zsign.cpp)
-file(GLOB ZSIGN_THIRD_PARTY
-    ${ZSIGN_ROOT}/src/third-party/zlib/*.c
-    ${ZSIGN_ROOT}/src/third-party/minizip/*.c)
-list(REMOVE_ITEM ZSIGN_THIRD_PARTY ${ZSIGN_ROOT}/src/third-party/minizip/iowin32.c)
-
-set(ZSIGN_PRIVATE_INCLUDES
-    ${ZSIGN_ROOT}/src
-    ${ZSIGN_ROOT}/src/common
-    ${ZSIGN_ROOT}/src/third-party/zlib
-    ${ZSIGN_ROOT}/src/third-party/minizip)
-
 add_library(zsign STATIC ${ZSIGN_SOURCES} ${ZSIGN_THIRD_PARTY})
 target_include_directories(zsign PRIVATE ${ZSIGN_PRIVATE_INCLUDES} ${OPENSSL_INCLUDE_DIR})
 set_target_properties(zsign PROPERTIES
@@ -64,10 +139,7 @@ target_compile_options(zsign PRIVATE
     $<$<COMPILE_LANGUAGE:C>:-std=c11>)
 target_link_libraries(zsign PUBLIC OpenSSL::Crypto OpenSSL::SSL)
 
-add_library(OnDeviceBuild STATIC
-    src/MachOCheck.cpp src/Compiler.cpp src/Linker.cpp
-    src/BundleBuilder.cpp src/Signer.cpp src/Pkcs12.cpp
-    src/ZipStore.cpp src/Engine.cpp src/BuildRunner.mm)
+add_library(OnDeviceBuild STATIC ${ONDEVICE_ENGINE_SOURCES})
 target_include_directories(OnDeviceBuild PUBLIC include
     PRIVATE ${LLVM_INCLUDE_DIRS} ${CLANG_INCLUDE_DIRS} ${ONDEVICE_LLD_INCLUDE_DIR})
 set_property(SOURCE src/Signer.cpp src/BundleBuilder.cpp

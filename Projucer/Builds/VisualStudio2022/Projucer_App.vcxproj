@@ -3513,7 +3513,10 @@
     <ClInclude Include="..\..\Source\Project\UI\jucer_ProjectContentComponent.h"/>
     <ClInclude Include="..\..\Source\Project\UI\jucer_ProjectMessagesComponent.h"/>
     <ClInclude Include="..\..\Source\Project\jucer_Project.h"/>
+    <ClInclude Include="..\..\Source\OnDevice\jucer_OnDeviceBuildController.h"/>
+    <ClInclude Include="..\..\Source\OnDevice\jucer_LoopbackServer.h"/>
     <ClInclude Include="..\..\Source\ProjectSaving\jucer_ProjectExport_Android.h"/>
+    <ClInclude Include="..\..\Source\ProjectSaving\jucer_ProjectExport_OnDevice.h"/>
     <ClInclude Include="..\..\Source\ProjectSaving\jucer_ProjectExport_Make.h"/>
     <ClInclude Include="..\..\Source\ProjectSaving\jucer_ProjectExport_MSVC.h"/>
     <ClInclude Include="..\..\Source\ProjectSaving\jucer_ProjectExport_Xcode.h"/>

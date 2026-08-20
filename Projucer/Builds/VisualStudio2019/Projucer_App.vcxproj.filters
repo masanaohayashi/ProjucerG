@@ -68,6 +68,9 @@
     <Filter Include="Projucer\Project">
       <UniqueIdentifier>{BBF7BD20-FB7D-59E5-D1DD-3E6F1455CA02}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Projucer\OnDevice">
+      <UniqueIdentifier>{2B9D01F6-3C0D-5EDD-1E73-8EB72145084B}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Projucer\ProjectSaving">
       <UniqueIdentifier>{C4676327-23FA-ED8F-1881-BC5E53840936}</UniqueIdentifier>
     </Filter>
@@ -1086,6 +1089,12 @@
     </ClCompile>
     <ClCompile Include="..\..\Source\Project\jucer_Project.cpp">
       <Filter>Projucer\Project</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\OnDevice\jucer_OnDeviceBuildController.mm">
+      <Filter>Projucer\OnDevice</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\OnDevice\jucer_LoopbackServer.m">
+      <Filter>Projucer\OnDevice</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\ProjectSaving\jucer_ProjectExporter.cpp">
       <Filter>Projucer\ProjectSaving</Filter>
@@ -4737,7 +4746,16 @@
     <ClInclude Include="..\..\Source\Project\jucer_Project.h">
       <Filter>Projucer\Project</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\Source\OnDevice\jucer_OnDeviceBuildController.h">
+      <Filter>Projucer\OnDevice</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\OnDevice\jucer_LoopbackServer.h">
+      <Filter>Projucer\OnDevice</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\Source\ProjectSaving\jucer_ProjectExport_Android.h">
+      <Filter>Projucer\ProjectSaving</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\ProjectSaving\jucer_ProjectExport_OnDevice.h">
       <Filter>Projucer\ProjectSaving</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\ProjectSaving\jucer_ProjectExport_Make.h">

@@ -36,6 +36,10 @@
 
 #include "../../../OnDeviceBuild/include/OnDeviceBuild/Language.h"
 
+#if JUCE_IOS
+#include "../OnDevice/jucer_OnDeviceBuildController.h"
+#endif
+
 //==============================================================================
 class OnDeviceProjectExporter final : public ProjectExporter
 {
@@ -91,8 +95,6 @@ public:
     bool launchProject() override
     {
        #if JUCE_IOS
-        // Task 7 implements startOnDeviceBuild in jucer_OnDeviceBuildController.mm
-        extern void startOnDeviceBuild (ProjectExporter&);
         startOnDeviceBuild (*this);
         return true;
        #else

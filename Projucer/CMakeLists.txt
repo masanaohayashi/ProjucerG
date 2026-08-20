@@ -170,3 +170,32 @@ target_link_libraries(Projucer PRIVATE
     juce::juce_recommended_config_flags
     juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    target_sources(Projucer PRIVATE
+        Source/OnDevice/jucer_OnDeviceBuildController.mm
+        Source/OnDevice/jucer_LoopbackServer.m
+        Source/OnDevice/Assets/backloop.p12)
+    set_source_files_properties(Source/OnDevice/Assets/backloop.p12
+        PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    target_include_directories(Projucer PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../OnDeviceBuild/include)
+    if(NOT TARGET OnDeviceBuild)
+        add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../OnDeviceBuild
+                         ${CMAKE_BINARY_DIR}/OnDeviceBuild)
+    endif()
+    target_link_libraries(Projucer PRIVATE
+        OnDeviceBuild
+        "-framework Network"
+        "-framework Security")
+    set(_ondevice_clang_include "$ENV{HOME}/Documents/src/PocClangIOS/build-ios/lib/clang/22/include")
+    set(_ondevice_builtins "$ENV{HOME}/Documents/src/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.ios.a")
+    add_custom_command(TARGET Projucer POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${_ondevice_clang_include}
+            $<TARGET_BUNDLE_CONTENT_DIR:Projucer>/clang-resource/include
+        COMMAND ${CMAKE_COMMAND} -E copy
+            ${_ondevice_builtins}
+            $<TARGET_BUNDLE_CONTENT_DIR:Projucer>/clang-resource/lib/darwin/libclang_rt.ios.a
+        COMMENT "Bundling clang-resource headers and libclang_rt.ios.a")
+endif()

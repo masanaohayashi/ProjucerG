@@ -136,10 +136,17 @@
                   UIFileSharingEnabled="1" UIStatusBarHidden="1"
                   iosContentSharing="1" iosDevelopmentTeamID="P5G28RMWUN" iCloudPermissions="1"
                   iCloudPublicDocuments="1" iCloudContainerIds="iCloud.tokyo.studio-r.juce.theprojucer"
-                  supportsOpeningDocumentsInPlace="1" iCloudContainerName="Projucer" buildNumber="9.0.1">
+                  supportsOpeningDocumentsInPlace="1" iCloudContainerName="Projucer" buildNumber="9.0.1"
+                  extraFrameworks="Network,Security"
+                  extraLinkerFlags="-L../../../OnDeviceBuild/build-ios/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME) -L../../../OnDeviceBuild/build-ios/Release-iphoneos -lOnDeviceBuild -lzsign $(HOME)/Documents/src/PocClangIOS/build-ios/llvm-ios.a $(HOME)/Documents/src/PocSignIOS/openssl-ios/lib/libssl.a $(HOME)/Documents/src/PocSignIOS/openssl-ios/lib/libcrypto.a -lc++"
+                  postbuildCommand="DEST=&quot;${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/clang-resource&quot;; mkdir -p &quot;$DEST/include&quot; &quot;$DEST/lib/darwin&quot;; rsync -a --delete &quot;${HOME}/Documents/src/PocClangIOS/build-ios/lib/clang/22/include/&quot; &quot;$DEST/include/&quot;; cp -f &quot;${HOME}/Documents/src/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.ios.a&quot; &quot;$DEST/lib/darwin/libclang_rt.ios.a&quot;">
       <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug" headerPath="../../Source/Terminal/libvterm/include"/>
-        <CONFIGURATION isDebug="0" name="Release" headerPath="../../Source/Terminal/libvterm/include"/>
+        <CONFIGURATION isDebug="1" name="Debug" headerPath="../../Source/Terminal/libvterm/include&#10;../../../OnDeviceBuild/include"
+                       libraryPath="../../../OnDeviceBuild/build-ios/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)"
+                       iosDeploymentTarget="17.0"/>
+        <CONFIGURATION isDebug="0" name="Release" headerPath="../../Source/Terminal/libvterm/include&#10;../../../OnDeviceBuild/include"
+                       libraryPath="../../../OnDeviceBuild/build-ios/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)"
+                       iosDeploymentTarget="17.0"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../JUCE-9.0.0/modules"/>
@@ -624,6 +631,18 @@
       <FILE id="JT1rMJ" name="jucer_Project.cpp" compile="1" resource="0"
             file="Source/Project/jucer_Project.cpp"/>
       <FILE id="bUjtVS" name="jucer_Project.h" compile="0" resource="0" file="Source/Project/jucer_Project.h"/>
+    </GROUP>
+    <GROUP id="{A0B1C2D3-0NDE-0000-0000-000000000007}" name="OnDevice">
+      <FILE id="odCtlH1" name="jucer_OnDeviceBuildController.h" compile="0" resource="0"
+            file="Source/OnDevice/jucer_OnDeviceBuildController.h"/>
+      <FILE id="odCtlM1" name="jucer_OnDeviceBuildController.mm" compile="1" resource="0"
+            file="Source/OnDevice/jucer_OnDeviceBuildController.mm"/>
+      <FILE id="odLpbH1" name="jucer_LoopbackServer.h" compile="0" resource="0"
+            file="Source/OnDevice/jucer_LoopbackServer.h"/>
+      <FILE id="odLpbM1" name="jucer_LoopbackServer.m" compile="1" resource="0"
+            file="Source/OnDevice/jucer_LoopbackServer.m"/>
+      <FILE id="odBlp12" name="backloop.p12" compile="0" resource="0" xcodeResource="1"
+            file="Source/OnDevice/Assets/backloop.p12"/>
     </GROUP>
     <GROUP id="{00CEE998-91CD-5001-DE85-4F4895E99A32}" name="ProjectSaving">
       <FILE id="JBLk8Y" name="jucer_ProjectExport_Android.h" compile="0"
