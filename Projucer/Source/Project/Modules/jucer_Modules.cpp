@@ -145,13 +145,25 @@ void LibraryModule::addLibsToExporter (ProjectExporter& exporter) const
                 xcodeExporter.xcodeFrameworks.add ("AudioUnit");
         }
 
-        auto frameworks = moduleInfo[xcodeExporter.isOSX() ? "OSXFrameworks" : "iOSFrameworks"].toString();
-        xcodeExporter.xcodeFrameworks.addTokens (frameworks, ", ", {});
+        if (xcodeExporter.isOSX())
+        {
+            xcodeExporter.xcodeFrameworks.addTokens (moduleInfo["OSXFrameworks"].toString(), ", ", {});
+            xcodeExporter.xcodeWeakFrameworks.addTokens (moduleInfo["WeakOSXFrameworks"].toString(), ", ", {});
+            parseAndAddLibsToList (xcodeExporter.xcodeLibs, moduleInfo["OSXLibs"].toString());
+        }
+        else
+        {
+            xcodeExporter.xcodeWeakFrameworks.addTokens (moduleInfo["WeakiOSFrameworks"].toString(), ", ", {});
+        }
+    }
 
-        auto weakFrameworks = moduleInfo[xcodeExporter.isOSX() ? "WeakOSXFrameworks" : "WeakiOSFrameworks"].toString();
-        xcodeExporter.xcodeWeakFrameworks.addTokens (weakFrameworks, ", ", {});
+    if (exporter.isiOS())
+    {
+        if (auto* frameworksList = exporter.getiOSFrameworksList())
+            frameworksList->addTokens (moduleInfo["iOSFrameworks"].toString(), ", ", {});
 
-        parseAndAddLibsToList (xcodeExporter.xcodeLibs, moduleInfo[exporter.isOSX() ? "OSXLibs" : "iOSLibs"].toString());
+        if (auto* libsList = exporter.getiOSLibsList())
+            parseAndAddLibsToList (*libsList, moduleInfo["iOSLibs"].toString());
     }
     else if (exporter.isLinux())
     {

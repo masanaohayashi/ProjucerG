@@ -628,6 +628,8 @@
     <GROUP id="{00CEE998-91CD-5001-DE85-4F4895E99A32}" name="ProjectSaving">
       <FILE id="JBLk8Y" name="jucer_ProjectExport_Android.h" compile="0"
             resource="0" file="Source/ProjectSaving/jucer_ProjectExport_Android.h"/>
+      <FILE id="odExH1" name="jucer_ProjectExport_OnDevice.h" compile="0"
+            resource="0" file="Source/ProjectSaving/jucer_ProjectExport_OnDevice.h"/>
       <FILE id="wLX3RL" name="jucer_ProjectExport_Make.h" compile="0" resource="0"
             file="Source/ProjectSaving/jucer_ProjectExport_Make.h"/>
       <FILE id="rMbSVA" name="jucer_ProjectExport_MSVC.h" compile="0" resource="0"

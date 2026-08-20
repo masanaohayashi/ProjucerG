@@ -452,6 +452,9 @@ public:
     bool isOSX() const override                             { return ! iOS; }
     bool isiOS() const override                             { return iOS; }
 
+    StringArray* getiOSFrameworksList() override            { return iOS ? &xcodeFrameworks : nullptr; }
+    StringArray* getiOSLibsList() override                  { return iOS ? &xcodeLibs : nullptr; }
+
     Identifier getExporterIdentifier() const override
     {
         return iOS ? getValueTreeTypeNameiOS() : getValueTreeTypeNameMac();

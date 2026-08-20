@@ -40,6 +40,7 @@
 #include "jucer_ProjectExport_MSVC.h"
 #include "jucer_ProjectExport_Xcode.h"
 #include "jucer_ProjectExport_Android.h"
+#include "jucer_ProjectExport_OnDevice.h"
 
 #include "../Utility/UI/PropertyComponents/jucer_FilePathPropertyComponent.h"
 
@@ -90,6 +91,8 @@ std::vector<ProjectExporter::ExporterTypeInfo> ProjectExporter::getExporterTypeI
           XcodeProjectExporter::getTargetFolderNameiOS(),
           createIcon (export_xcode_svg, (size_t) export_xcode_svgSize) },
 
+        createExporterTypeInfo<OnDeviceProjectExporter> (export_xcode_svg, export_xcode_svgSize),
+
         createExporterTypeInfo<MSVCProjectExporterVC2026> (export_visualStudio_svg, export_visualStudio_svgSize),
         createExporterTypeInfo<MSVCProjectExporterVC2022> (export_visualStudio_svg, export_visualStudio_svgSize),
         createExporterTypeInfo<MSVCProjectExporterVC2019> (export_visualStudio_svg, export_visualStudio_svgSize),
@@ -119,7 +122,10 @@ ProjectExporter::ExporterTypeInfo ProjectExporter::getTypeInfoForExporter (const
 void ProjectExporter::getCurrentPlatformExporterTypeInfos (std::vector<ExporterTypeInfo>& result)
 {
     const auto typeNames =
-       #if JUCE_MAC || JUCE_IOS
+       #if JUCE_IOS
+        { OnDeviceProjectExporter::getValueTreeTypeName(),
+          XcodeProjectExporter::getValueTreeTypeNameiOS() };
+       #elif JUCE_MAC
         { XcodeProjectExporter::getValueTreeTypeNameMac(),
           XcodeProjectExporter::getValueTreeTypeNameiOS() };
        #elif JUCE_WINDOWS
@@ -168,6 +174,7 @@ std::unique_ptr<ProjectExporter> ProjectExporter::createExporterFromSettings (Pr
     return tryCreatingExporter (project,
                                 settings,
                                 Tag<XcodeProjectExporter>{},
+                                Tag<OnDeviceProjectExporter>{},
                                 Tag<MSVCProjectExporterVC2026>{},
                                 Tag<MSVCProjectExporterVC2022>{},
                                 Tag<MSVCProjectExporterVC2019>{},
@@ -184,6 +191,8 @@ bool ProjectExporter::canProjectBeLaunched (Project* project)
             #if JUCE_MAC
              XcodeProjectExporter::getValueTreeTypeNameMac(),
              XcodeProjectExporter::getValueTreeTypeNameiOS(),
+            #elif JUCE_IOS
+             OnDeviceProjectExporter::getValueTreeTypeName(),
             #elif JUCE_WINDOWS
              MSVCProjectExporterVC2026::getValueTreeTypeName(),
              MSVCProjectExporterVC2022::getValueTreeTypeName(),

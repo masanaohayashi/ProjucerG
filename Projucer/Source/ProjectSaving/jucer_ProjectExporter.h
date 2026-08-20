@@ -158,6 +158,10 @@ public:
     virtual bool isOSX() const     = 0;
     virtual bool isiOS() const     = 0;
 
+    /** iOS frameworks/libs from modules when isiOS(), including non-Xcode exporters. */
+    virtual StringArray* getiOSFrameworksList() { return nullptr; }
+    virtual StringArray* getiOSLibsList()       { return nullptr; }
+
     virtual String getNewLineString() const = 0;
     virtual String getDescription()  { return {}; }
 

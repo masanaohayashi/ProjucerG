@@ -270,6 +270,12 @@ void HeaderComponent::updateExporterButton()
     if (auto selectedExporter = getSelectedExporter())
     {
         auto selectedName = selectedExporter->getUniqueName();
+        const auto buttonName = selectedExporter->getExporterIdentifier() == Identifier ("ONDEVICE_IOS")
+                                    ? "Build & Install"
+                                    : "Save and Open in IDE";
+
+        saveAndOpenInIDEButton.setName (buttonName);
+        saveAndOpenInIDEButton.setTooltip (buttonName);
 
         for (auto info : ProjectExporter::getExporterTypeInfos())
         {

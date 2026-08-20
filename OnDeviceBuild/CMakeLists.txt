@@ -9,6 +9,9 @@ target_include_directories(OnDeviceBuildMachO PUBLIC include)
 add_executable(ondevice-test-macho tests/test_macho.cpp)
 target_link_libraries(ondevice-test-macho PRIVATE OnDeviceBuildMachO)
 
+add_executable(ondevice-test-language tests/test_language.cpp)
+target_include_directories(ondevice-test-language PRIVATE include)
+
 set(ONDEVICE_LLVM_DIR "$ENV{HOME}/Documents/src/PocClangIOS/build-host"
     CACHE PATH "LLVM build dir with LLVMConfig.cmake")
 find_package(LLVM REQUIRED CONFIG PATHS ${ONDEVICE_LLVM_DIR} NO_DEFAULT_PATH)
