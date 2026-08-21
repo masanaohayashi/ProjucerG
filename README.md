@@ -141,6 +141,137 @@ xcodebuild -project Projucer/Builds/MacOSX/Projucer.xcodeproj \
   -quiet build
 ```
 
+## Running on iPad / iOS
+
+### Requirements
+
+- macOS and Xcode with an iOS SDK that can build for iPadOS 17.0 or later. The
+  deployment target of this project is iOS 17.0.
+- A JUCE 9.0.0 checkout at `../JUCE-9.0.0` relative to this repository.
+- iOS LLVM/Clang and OpenSSL build artifacts at the paths referenced by the
+  generated Xcode project:
+
+```text
+~/Documents/src/PocClangIOS/build-ios/llvm-ios.a
+~/Documents/src/PocClangIOS/build-ios-simulator/llvm-ios-simulator.a
+~/Documents/src/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.ios.a
+~/Documents/src/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.iossim.a
+~/Documents/src/PocSignIOS/openssl-ios/lib/libssl.a
+~/Documents/src/PocSignIOS/openssl-ios/lib/libcrypto.a
+~/Documents/src/PocSignIOS/openssl-ios-simulator/lib/libssl.a
+~/Documents/src/PocSignIOS/openssl-ios-simulator/lib/libcrypto.a
+```
+
+If these dependencies are stored elsewhere, update the Xcode flags in the
+`.jucer` file and the cache values in `OnDeviceBuild/CMakeLists.txt`.
+
+Build the iOS static libraries after preparing the SDK and dependencies:
+
+```sh
+# Physical iPad
+cmake -S OnDeviceBuild -B OnDeviceBuild/build-ios -G Xcode \
+  -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphoneos \
+  -DCMAKE_OSX_ARCHITECTURES=arm64
+cmake --build OnDeviceBuild/build-ios --config Debug
+
+# iOS Simulator (Apple Silicon Mac)
+cmake -S OnDeviceBuild -B OnDeviceBuild/build-ios-simulator -G Xcode \
+  -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphonesimulator \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 -DONDEVICE_IOS_SIMULATOR=ON
+cmake --build OnDeviceBuild/build-ios-simulator --config Debug
+```
+
+### Files to place on the iPad
+
+Launch Projucer on the iPad once. The **On My iPad > Projucer** folder in the
+Files app corresponds to the app's `Documents` directory. Copy the following
+files there:
+
+```text
+iPhoneOS.sdk.zip
+OnDeviceSigning/
+  development.p12
+  development.password         # or password.txt
+  development.mobileprovision
+```
+
+- The device SDK archive must be named `iPhoneOS.sdk.zip`. It should contain the
+  contents of an Xcode `iPhoneOS*.sdk` directory.
+- `OnDeviceSigning/` must contain a `.p12` (or `.modern.p12`), its password file,
+  and a `.mobileprovision`. For `development.p12`, use either
+  `development.password` or the shared `password.txt`.
+- The provisioning profile must be a development profile containing the target
+  iPad UDID and the app's bundle identifier. Use your own Apple Developer Team
+  ID and provisioning profile, and update `iosDevelopmentTeamID` in
+  `Projucer/Projucer.jucer` accordingly.
+- Do not add SDK archives or signing files to the repository. They may contain
+  private or sensitive material and should remain in the app's `Documents`
+  directory.
+
+### Simulator SDK and one-click installation
+
+Create the Simulator SDK archive with:
+
+```sh
+./scripts/create_ios_simulator_sdk_zip.sh
+```
+
+The default output is
+`OnDeviceBuild/build-artifacts/iPhoneSimulator.sdk.zip`. Copy that archive to
+the Projucer app's `Documents` directory in the Simulator. Signing files are
+not required for Simulator builds.
+
+Build and launch `Projucer - App` from
+`Projucer/Builds/iOS/Projucer.xcodeproj` once with the `iphonesimulator` SDK.
+The post-build step starts `scripts/simulator_install_bridge.py` on the host
+Mac. The bridge listens on `127.0.0.1:38472` and invokes `xcrun simctl`, so the
+Simulator and Xcode must be running on that Mac. If it is not started
+automatically, run this from the repository root:
+
+```sh
+/usr/bin/python3 scripts/simulator_install_bridge.py
+```
+
+### Build and install
+
+To build the Xcode project directly:
+
+```sh
+# Physical iPad (signing required)
+xcodebuild -project Projucer/Builds/iOS/Projucer.xcodeproj \
+  -target 'Projucer - App' -configuration Debug -sdk iphoneos \
+  -destination 'generic/platform=iOS' build
+
+# Simulator (signing is disabled)
+xcodebuild -project Projucer/Builds/iOS/Projucer.xcodeproj \
+  -target 'Projucer - App' -configuration Debug -sdk iphonesimulator \
+  CODE_SIGNING_ALLOWED=NO build
+```
+
+Launch Projucer, open a `.jucer` project, select the iOS exporter, and press
+**Build & Install** to save, compile, link, and install in one operation.
+
+- On a physical iPad, approve the installation prompt on the iPad after signing.
+- On the Simulator, the host bridge runs `simctl install` and `simctl launch`
+  after the build. The Simulator app cannot invoke `simctl` directly, so the
+  bridge must be running.
+- The current bundle identifier is `tokyo.studio-r.juce.theprojucer`. If this
+  is distributed as a different app, keep the `.jucer`, provisioning profile,
+  and entitlements in sync.
+
+### Troubleshooting
+
+- If `iPhoneOS.sdk.zip` or `iPhoneSimulator.sdk.zip` is missing, check the exact
+  filename and the Projucer app's `Documents` directory on the iPad/Simulator.
+- For `info-output-file registered more than once`, make sure an old Projucer
+  instance is not running and rebuild the iOS app from the latest source.
+- For undefined symbols such as `UNUserNotificationCenter` or `UTType`,
+  regenerate the latest Xcode project and rebuild so the weak framework
+  settings are applied.
+- For `Simulator install bridge unavailable`, check that the Python bridge is
+  running on the Mac and that TCP port `38472` is not occupied by another
+  process.
+
 ## iPad / iOSで動かすための準備
 
 ### 必要な環境
