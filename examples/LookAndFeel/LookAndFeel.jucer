@@ -38,11 +38,11 @@
         <CONFIGURATION isDebug="0" name="Release" targetName="Test16"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
-        <MODULEPATH id="juce_core" path="../../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_data_structures" path="../../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_events" path="../../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_graphics" path="../../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_core" path="../../OnDeviceBuild/dependencies/JUCE/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../OnDeviceBuild/dependencies/JUCE/modules"/>
+        <MODULEPATH id="juce_events" path="../../OnDeviceBuild/dependencies/JUCE/modules"/>
+        <MODULEPATH id="juce_graphics" path="../../OnDeviceBuild/dependencies/JUCE/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../OnDeviceBuild/dependencies/JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
   </EXPORTFORMATS>

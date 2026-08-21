@@ -56,10 +56,9 @@ StoredSettings::StoredSettings()
     updateOldProjectSettingsFiles();
 
     reload();
+    checkJUCEPaths();
     changed (true);
     flush();
-
-    checkJUCEPaths();
 
     projectDefaults.addListener (this);
     fallbackPaths.addListener (this);
@@ -338,6 +337,31 @@ void StoredSettings::checkJUCEPaths()
 {
     auto moduleFolder = getStoredPath (Ids::defaultJuceModulePath, TargetOS::getThisOS()).get().toString();
     auto juceFolder   = getStoredPath (Ids::jucePath, TargetOS::getThisOS()).get().toString();
+
+#if JUCE_IOS
+    // The iOS application container path contains a UUID that can change when
+    // the app is reinstalled.  Prefer the canonical checkout in the current
+    // Documents directory so a stored path from the previous container does
+    // not make a valid JUCE checkout appear to be missing.
+    const auto currentDocumentsJuceFolder = File::getSpecialLocation (File::userDocumentsDirectory)
+                                                 .getChildFile ("JUCE");
+
+    if (isGlobalPathValid ({}, Ids::jucePath, currentDocumentsJuceFolder.getFullPathName()))
+    {
+        const auto currentDocumentsJucePath = currentDocumentsJuceFolder.getFullPathName();
+        const auto currentDocumentsModulePath = currentDocumentsJuceFolder
+                                                    .getChildFile ("modules")
+                                                    .getFullPathName();
+
+        if (juceFolder != currentDocumentsJucePath)
+            projectDefaults.getPropertyAsValue (Ids::jucePath, nullptr) = currentDocumentsJucePath;
+
+        if (moduleFolder != currentDocumentsModulePath)
+            projectDefaults.getPropertyAsValue (Ids::defaultJuceModulePath, nullptr) = currentDocumentsModulePath;
+
+        return;
+    }
+#endif
 
     auto validModuleFolder = isGlobalPathValid ({}, Ids::defaultJuceModulePath, moduleFolder);
     auto validJuceFolder   = isGlobalPathValid ({}, Ids::jucePath, juceFolder);

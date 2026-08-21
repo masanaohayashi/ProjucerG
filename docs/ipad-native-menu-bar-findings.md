@@ -13,7 +13,7 @@ the top edge). Can Projucer use the native one instead?
 JUCE has **no iOS native-menu support at all**:
 
 - No occurrence of `buildMenuWithBuilder:`, `UIMenuBuilder`, `UIMenuSystem`,
-  `UIDeferredMenuElement` or `UIKeyCommand` anywhere in `JUCE-9.0.0/modules`.
+  `UIDeferredMenuElement` or `UIKeyCommand` anywhere in `JUCE/modules`.
 - `MenuBarModel::setMacMainMenu()` is inside `#if JUCE_MAC`; there is no iOS
   counterpart.
 - The only native menu implementation is `juce_MainMenu_mac.mm`.

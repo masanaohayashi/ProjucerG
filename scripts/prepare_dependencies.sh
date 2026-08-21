@@ -13,7 +13,6 @@ LLVM_SOURCE_URL=${LLVM_SOURCE_URL:-"https://github.com/llvm/llvm-project/release
 OPENSSL_VERSION=${OPENSSL_VERSION:-3.5.4}
 OPENSSL_SOURCE_URL=${OPENSSL_SOURCE_URL:-"https://www.openssl.org/source/old/3.5/openssl-${OPENSSL_VERSION}.tar.gz"}
 
-legacy_juce_root="$IOS_SETUP_PROJECT_ROOT/JUCE-9.0.0"
 legacy_clang_root="$IOS_SETUP_PROJECT_ROOT/../PocClangIOS"
 legacy_sign_root="$IOS_SETUP_PROJECT_ROOT/../PocSignIOS"
 downloads_root="$IOS_SETUP_DEPENDENCY_ROOT/downloads"
@@ -114,6 +113,30 @@ move_legacy_dependency()
     return 1
 }
 
+find_existing_juce_root()
+{
+    local destination="$JUCE_ROOT"
+    local marker="modules/juce_core/juce_core.h"
+    local candidate
+
+    # Check only known dependency locations.  The marker prevents unrelated
+    # folders from being mistaken for a usable JUCE source tree.  JUCE-9.0.0
+    # is retained only as a one-time legacy migration source.
+    for candidate in \
+        "$IOS_SETUP_PROJECT_ROOT/JUCE" \
+        "$IOS_SETUP_PROJECT_ROOT/JUCE-9.0.0" \
+        "$IOS_SETUP_DEPENDENCY_ROOT/JUCE-9.0.0" \
+        "$IOS_SETUP_PROJECT_ROOT/../JUCE" \
+        "$IOS_SETUP_PROJECT_ROOT/../JUCE-9.0.0"; do
+        if [ "$candidate" != "$destination" ] && [ -f "$candidate/$marker" ]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 download_archive()
 {
     local label=$1
@@ -164,7 +187,20 @@ extract_single_root_archive()
 prepare_juce()
 {
     local destination="$JUCE_ROOT"
-    if move_legacy_dependency "JUCE" "$destination" "$legacy_juce_root" "modules/juce_core/juce_core.h"; then
+    local marker="modules/juce_core/juce_core.h"
+    local existing_root
+
+    if [ -f "$destination/$marker" ]; then
+        ios_setup_log "JUCE: using $destination"
+        return 0
+    fi
+
+    existing_root=$(find_existing_juce_root || true)
+    if [ -n "$existing_root" ]; then
+        ios_setup_log "JUCE: found existing source at $existing_root"
+    fi
+    if [ -n "$existing_root" ] && \
+        move_legacy_dependency "JUCE" "$destination" "$existing_root" "$marker"; then
         return 0
     fi
 

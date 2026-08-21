@@ -183,7 +183,7 @@ public:
 
     void run() override
     {
-        const auto archive = destination.getChildFile ("JUCE-" + version + ".zip");
+        const auto archive = destination.getChildFile ("JUCE.zip");
         archive.deleteFile();
 
         const auto ok = download (archive) && unpack (archive);
@@ -191,7 +191,7 @@ public:
 
         if (ok)
         {
-            unpackedFolder = destination.getChildFile ("JUCE-" + version);
+            unpackedFolder = destination.getChildFile ("JUCE");
             log ("installed into " + unpackedFolder.getFullPathName());
         }
         else if (threadShouldExit())
@@ -320,24 +320,80 @@ private:
             return false;
         }
 
-        destination.getChildFile ("JUCE-" + version).deleteRecursively();
+        const auto stagingDirectory = destination.getChildFile (".JUCE-download");
+        stagingDirectory.deleteRecursively();
+
+        if (stagingDirectory.createDirectory().failed())
+        {
+            errorMessage = "Could not create the temporary JUCE extraction directory.";
+            return false;
+        }
+
+        const auto cleanUpStagingDirectory = [&]
+        {
+            stagingDirectory.deleteRecursively();
+        };
 
         for (int i = 0; i < numEntries; ++i)
         {
             if (threadShouldExit())
+            {
+                cleanUpStagingDirectory();
                 return false;
+            }
 
             setProgress ((double) i / (double) numEntries);
 
-            const auto result = zip.uncompressEntry (i, destination);
+            const auto result = zip.uncompressEntry (i, stagingDirectory);
 
             if (result.failed())
             {
+                cleanUpStagingDirectory();
                 errorMessage = "Extracting " + zip.getEntry (i)->filename + " failed - " + result.getErrorMessage();
                 return false;
             }
         }
 
+        const auto extractedRoots = stagingDirectory.findChildFiles (File::findDirectories, false);
+
+        if (extractedRoots.size() != 1)
+        {
+            cleanUpStagingDirectory();
+            errorMessage = "The downloaded JUCE archive has an unexpected folder layout.";
+            return false;
+        }
+
+        const auto extractedRoot = extractedRoots.getFirst();
+
+        if (! extractedRoot.getChildFile ("modules").isDirectory())
+        {
+            cleanUpStagingDirectory();
+            errorMessage = "The downloaded JUCE archive does not contain a modules folder.";
+            return false;
+        }
+
+        unpackedFolder = destination.getChildFile ("JUCE");
+
+        if (unpackedFolder.exists() && ! unpackedFolder.deleteRecursively())
+        {
+            cleanUpStagingDirectory();
+            errorMessage = "Could not replace the existing JUCE folder.";
+            return false;
+        }
+
+        if (! extractedRoot.moveFileTo (unpackedFolder))
+        {
+            cleanUpStagingDirectory();
+            errorMessage = "Could not move the extracted JUCE folder into place.";
+            return false;
+        }
+
+        const auto legacyFolder = destination.getChildFile ("JUCE-" + version);
+
+        if (legacyFolder.exists() && ! legacyFolder.deleteRecursively())
+            log ("warning: could not remove legacy folder " + legacyFolder.getFullPathName());
+
+        cleanUpStagingDirectory();
         log ("extracted " + String (numEntries) + " entries");
         return true;
     }

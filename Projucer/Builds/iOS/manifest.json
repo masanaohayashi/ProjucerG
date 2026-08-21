@@ -34,8 +34,8 @@
   ],
   "includes": [
     "JuceLibraryCode",
-    "../OnDeviceBuild/dependencies/JUCE-9.0.0/modules",
-    "../OnDeviceBuild/dependencies/JUCE-9.0.0/extras/Build"
+    "../OnDeviceBuild/dependencies/JUCE/modules",
+    "../OnDeviceBuild/dependencies/JUCE/extras/Build"
   ],
   "sources": [
     {

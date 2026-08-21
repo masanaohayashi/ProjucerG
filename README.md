@@ -115,7 +115,7 @@ This branch keeps the JUCE 9.0.0 checkout inside this repository. The current
 development setup uses:
 
 ```text
-OnDeviceBuild/dependencies/JUCE-9.0.0
+OnDeviceBuild/dependencies/JUCE
 ```
 
 The Projucer project file is:
@@ -150,7 +150,7 @@ xcodebuild -project Projucer/Builds/MacOSX/Projucer.xcodeproj \
 - The repository may start without an `OnDeviceBuild/` directory. The tracked
   engine source is kept in `OnDeviceBuildSource/`, and setup creates the
   generated `OnDeviceBuild/` tree from it.
-- A JUCE 9.0.0 checkout at `OnDeviceBuild/dependencies/JUCE-9.0.0` after setup.
+- A JUCE 9.0.0 checkout at `OnDeviceBuild/dependencies/JUCE` after setup.
 - iOS LLVM/Clang and OpenSSL build artifacts under the same dependency root:
 
 ```text
@@ -210,12 +210,19 @@ IOS_SETUP_DEPENDENCY_ROOT=/path/to/OnDeviceBuild/dependencies \
 ./scripts/setup_ios.sh --target simulator
 ```
 
-The first run migrates the existing `JUCE-9.0.0`, `PocClangIOS`, and
-`PocSignIOS` directories from the repository's parent directory with a rename.
-If they are absent, the script downloads the pinned JUCE/LLVM/OpenSSL source
-archives and fetches zsign into `OnDeviceBuild`. It does not create an Apple
+The first run migrates existing `JUCE`, `PocClangIOS`, and `PocSignIOS`
+directories into `OnDeviceBuild/dependencies` with a rename. For compatibility
+with older setups, a legacy `JUCE-9.0.0` directory is also recognized and
+migrated to `OnDeviceBuild/dependencies/JUCE`. If the sources are absent, the
+script downloads the pinned JUCE/LLVM/OpenSSL source archives and fetches zsign
+into `OnDeviceBuild`. It does not create an Apple
 certificate or provisioning profile, or copy private signing files to an iPad.
 Set `ZSIGN_REPOSITORY` or `ZSIGN_COMMIT` to override the zsign source when needed.
+
+The Projucer **Download JUCE** command also installs the checkout as
+`Documents/JUCE`. The versioned root inside GitHub's release archive is
+normalized during extraction, and a matching legacy `JUCE-<version>` folder is
+removed after a successful install.
 
 Build the iOS static libraries after preparing the SDK and dependencies:
 
@@ -427,12 +434,17 @@ IOS_SETUP_DEPENDENCY_ROOT=/path/to/OnDeviceBuild/dependencies \
 ./scripts/setup_ios.sh --target simulator
 ```
 
-初回実行時、リポジトリの親ディレクトリにある `JUCE-9.0.0`、`PocClangIOS`、
-`PocSignIOS` はコピーではなくリネームで `OnDeviceBuild/dependencies` に移動する。
-存在しない場合は JUCE / LLVM / OpenSSL の固定版ソースをダウンロードし、zsign も
+初回実行時、リポジトリの親ディレクトリにある `JUCE`、`PocClangIOS`、`PocSignIOS` は
+コピーではなくリネームで `OnDeviceBuild/dependencies` に移動する。旧構成との互換性のため、
+`JUCE-9.0.0` という旧フォルダ名も検出し、`OnDeviceBuild/dependencies/JUCE` に移動する。
+ソースが存在しない場合は JUCE / LLVM / OpenSSL の固定版ソースをダウンロードし、zsign も
 `OnDeviceBuild` 配下に取得する。Apple 証明書・provisioning profile の作成と秘密の署名
 ファイルの iPad へのコピーは行わない。zsignの取得元やコミットを変更する場合は
 `ZSIGN_REPOSITORY` または `ZSIGN_COMMIT` を指定する。
+
+Projucer の **Download JUCE** も、ダウンロード後の展開先を `Documents/JUCE` に統一する。
+GitHub のリリース zip 内にあるバージョン付きルート名は展開時に正規化され、インストール成功後に
+同じバージョンの旧 `JUCE-<version>` フォルダが残っていれば削除される。
 
 ### Simulator 用 SDK とワンクリック実行
 
