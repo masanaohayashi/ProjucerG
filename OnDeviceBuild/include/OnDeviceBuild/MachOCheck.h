@@ -4,6 +4,9 @@
 
 namespace ondevice {
 
+constexpr unsigned PLATFORM_IOS = 2;
+constexpr unsigned PLATFORM_IOSSIMULATOR = 7;
+
 /** What a produced object file actually is.
 
     Producing *a* file proves nothing - the Gate is only PASS if the bytes are a
@@ -19,7 +22,7 @@ struct MachOInfo
     bool isObjectFile = false;      ///< MH_OBJECT
     bool isExecutable = false;      ///< MH_EXECUTE
     bool hasBuildVersion = false;   ///< an LC_BUILD_VERSION / LC_VERSION_MIN_* was present
-    unsigned platform = 0;          ///< PLATFORM_IOS == 2, PLATFORM_MACOS == 1
+    unsigned platform = 0;          ///< PLATFORM_IOS == 2, PLATFORM_IOSSIMULATOR == 7
     std::string platformName;
     std::string minOSVersion;
     unsigned long long fileSize = 0;
@@ -29,11 +32,21 @@ struct MachOInfo
         cannot disagree about what counts as a pass. */
     bool isIOSArm64Object() const      { return isIOSArm64() && isObjectFile; }
     bool isIOSArm64Executable() const  { return isIOSArm64() && isExecutable; }
+    bool isIosSimulatorArm64Object() const
+    {
+        return parsed && is64Bit && isArm64 && hasBuildVersion
+            && platform == PLATFORM_IOSSIMULATOR && isObjectFile;
+    }
+    bool isIosSimulatorArm64Executable() const
+    {
+        return parsed && is64Bit && isArm64 && hasBuildVersion
+            && platform == PLATFORM_IOSSIMULATOR && isExecutable;
+    }
 
 private:
     bool isIOSArm64() const
     {
-        return parsed && is64Bit && isArm64 && hasBuildVersion && platform == 2;
+        return parsed && is64Bit && isArm64 && hasBuildVersion && platform == PLATFORM_IOS;
     }
 
 public:

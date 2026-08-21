@@ -33,11 +33,28 @@ void notePeak (EngineResult& result)
 {
     result.peakResidentBytes = std::max (result.peakResidentBytes, getResidentMemoryBytes());
 }
+
+bool isCancelled (const EngineRequest& request)
+{
+    return request.shouldCancel && request.shouldCancel();
+}
+
+void cancel (EngineResult& result)
+{
+    result.cancelled = true;
+    result.failureMessage = "build cancelled";
+}
 } // namespace
 
 EngineResult buildSignedIpa (const EngineRequest& request)
 {
     EngineResult result;
+
+    if (isCancelled (request))
+    {
+        cancel (result);
+        return result;
+    }
 
     if (request.projectRoot.empty() || request.workDirectory.empty())
     {
@@ -68,11 +85,13 @@ EngineResult buildSignedIpa (const EngineRequest& request)
     compile.projectRoot = request.projectRoot;
     compile.manifestJson = request.manifestJson;
     compile.workDirectory = request.workDirectory;
+    compile.simulator = request.simulator;
     compile.sysroot = request.sysroot;
     compile.resourceDir = request.resourceDir;
     compile.minimumOSVersion = manifest.minimumOSVersion;
     compile.threads = threads;
     compile.onProgress = request.onProgress;
+    compile.shouldCancel = request.shouldCancel;
 
     progress (request, "compiling on " + std::to_string (threads) + " thread(s)");
 
@@ -82,7 +101,19 @@ EngineResult buildSignedIpa (const EngineRequest& request)
 
     if (! compiled.success)
     {
+        if (compiled.cancelled || isCancelled (request))
+        {
+            cancel (result);
+            return result;
+        }
+
         result.failureMessage = compiled.failureMessage.empty() ? "compile failed" : compiled.failureMessage;
+        return result;
+    }
+
+    if (isCancelled (request))
+    {
+        cancel (result);
         return result;
     }
 
@@ -97,6 +128,7 @@ EngineResult buildSignedIpa (const EngineRequest& request)
         if (! object.empty())
             link.objectFiles.push_back (object);
     link.outputPath = linkedPath;
+    link.simulator = request.simulator;
     link.sysroot = request.sysroot;
     link.minimumOSVersion = manifest.minimumOSVersion;
     link.sdkVersion = manifest.minimumOSVersion;
@@ -108,9 +140,21 @@ EngineResult buildSignedIpa (const EngineRequest& request)
 
     progress (request, "linking " + manifest.name);
 
+    if (isCancelled (request))
+    {
+        cancel (result);
+        return result;
+    }
+
     const auto linked = linkObjects (link);
     result.linkerCanRunAgain = linked.canRunAgain;
     notePeak (result);
+
+    if (isCancelled (request))
+    {
+        cancel (result);
+        return result;
+    }
 
     if (! linked.canRunAgain)
     {
@@ -134,6 +178,7 @@ EngineResult buildSignedIpa (const EngineRequest& request)
     bundle.bundleId = manifest.bundleId;
     bundle.name = manifest.name;
     bundle.minimumOSVersion = manifest.minimumOSVersion;
+    bundle.simulator = request.simulator;
 
     progress (request, "writing app bundle");
 
@@ -147,10 +192,20 @@ EngineResult buildSignedIpa (const EngineRequest& request)
 
     result.appFolder = appFolder;
 
+    if (isCancelled (request))
+    {
+        cancel (result);
+        return result;
+    }
+
     const auto bundledExec = (fs::path (appFolder) / manifest.name).string();
     const auto macho = inspectMachO (bundledExec);
 
-    if (! macho.isIOSArm64Executable())
+    const auto isExpectedExecutable = request.simulator
+                                        ? macho.isIosSimulatorArm64Executable()
+                                        : macho.isIOSArm64Executable();
+
+    if (! isExpectedExecutable)
     {
         result.failureMessage = "linked binary is not an arm64 iOS executable: " + macho.describe();
         return result;
@@ -158,7 +213,9 @@ EngineResult buildSignedIpa (const EngineRequest& request)
 
     progress (request, std::string ("linked: ") + macho.describe());
 
-    const bool skipSign = request.p12Path.empty() || request.provisionPath.empty();
+    const bool skipSign = request.simulator
+                       || request.p12Path.empty()
+                       || request.provisionPath.empty();
 
     if (! skipSign)
     {
@@ -184,7 +241,13 @@ EngineResult buildSignedIpa (const EngineRequest& request)
     }
     else
     {
-        progress (request, "skipping sign");
+        progress (request, request.simulator ? "skipping sign (simulator)" : "skipping sign");
+    }
+
+    if (isCancelled (request))
+    {
+        cancel (result);
+        return result;
     }
 
     const auto ipaPath = (fs::path (request.workDirectory) / (manifest.name + ".ipa")).string();
@@ -201,7 +264,11 @@ EngineResult buildSignedIpa (const EngineRequest& request)
 
     const auto afterIpa = inspectMachO (bundledExec);
 
-    if (! afterIpa.isIOSArm64Executable())
+    const auto isExpectedIpaExecutable = request.simulator
+                                           ? afterIpa.isIosSimulatorArm64Executable()
+                                           : afterIpa.isIOSArm64Executable();
+
+    if (! isExpectedIpaExecutable)
     {
         result.failureMessage = "executable is not arm64 iOS after IPA: " + afterIpa.describe();
         return result;

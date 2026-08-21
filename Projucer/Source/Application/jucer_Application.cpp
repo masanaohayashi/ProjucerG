@@ -123,7 +123,8 @@ void ProjucerApplication::initialise (const String& commandLine)
             readme.replaceWithText (
                 "On-device build files for Projucer\n"
                 "\n"
-                "Put iPhoneOS.sdk.zip in this folder (Documents).\n"
+                "Put iPhoneOS.sdk.zip here for device builds, or\n"
+                "iPhoneSimulator.sdk.zip here for Simulator builds.\n"
                 "Put signing files in OnDeviceSigning/:\n"
                 "  *.modern.p12   (or *.p12)\n"
                 "  *.mobileprovision\n"

@@ -30,6 +30,14 @@
 #
 # ==============================================================================
 
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS"
+   AND (CMAKE_OSX_SYSROOT MATCHES "iphonesimulator"
+        OR CMAKE_OSX_SYSROOT MATCHES "iPhoneSimulator"))
+    # The in-process compiler currently emits arm64 only.  Do not let an
+    # Xcode simulator configuration also ask it for an x86_64 slice.
+    set(CMAKE_OSX_ARCHITECTURES arm64 CACHE STRING "" FORCE)
+endif()
+
 juce_add_gui_app(Projucer
     BUNDLE_ID                           tokyo.studio-r.juce.theprojucer
     ICON_BIG                            ${CMAKE_CURRENT_SOURCE_DIR}/Source/BinaryData/Icons/juce_icon.png
@@ -188,14 +196,22 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
         OnDeviceBuild
         "-framework Network"
         "-framework Security")
-    set(_ondevice_clang_include "$ENV{HOME}/Documents/src/PocClangIOS/build-ios/lib/clang/22/include")
-    set(_ondevice_builtins "$ENV{HOME}/Documents/src/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.ios.a")
+    if(CMAKE_OSX_SYSROOT MATCHES "iphonesimulator"
+       OR CMAKE_OSX_SYSROOT MATCHES "iPhoneSimulator")
+        set(_ondevice_clang_include "$ENV{HOME}/Documents/src/PocClangIOS/build-ios-simulator/lib/clang/22/include")
+        set(_ondevice_builtins "$ENV{HOME}/Documents/src/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.iossim.a")
+        set(_ondevice_builtins_name "libclang_rt.iossim.a")
+    else()
+        set(_ondevice_clang_include "$ENV{HOME}/Documents/src/PocClangIOS/build-ios/lib/clang/22/include")
+        set(_ondevice_builtins "$ENV{HOME}/Documents/src/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.ios.a")
+        set(_ondevice_builtins_name "libclang_rt.ios.a")
+    endif()
     add_custom_command(TARGET Projucer POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${_ondevice_clang_include}
             $<TARGET_BUNDLE_CONTENT_DIR:Projucer>/clang-resource/include
         COMMAND ${CMAKE_COMMAND} -E copy
             ${_ondevice_builtins}
-            $<TARGET_BUNDLE_CONTENT_DIR:Projucer>/clang-resource/lib/darwin/libclang_rt.ios.a
-        COMMENT "Bundling clang-resource headers and libclang_rt.ios.a")
+            $<TARGET_BUNDLE_CONTENT_DIR:Projucer>/clang-resource/lib/darwin/${_ondevice_builtins_name}
+        COMMENT "Bundling clang-resource headers and the iOS runtime builtins")
 endif()

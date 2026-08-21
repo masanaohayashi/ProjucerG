@@ -151,9 +151,11 @@ bool ZipStore::ensureExtracted (const std::function<void (const std::string&)>& 
 
 unsigned long long ZipStore::getExtractedSize() const  { return directorySize (getRoot()); }
 
-ZipStore makeSdkStore (const std::string& documentsPath)
+ZipStore makeSdkStore (const std::string& documentsPath, bool simulator)
 {
-    return ZipStore (documentsPath, "iPhoneOS.sdk.zip", "sdk",
+    return ZipStore (documentsPath,
+                     simulator ? "iPhoneSimulator.sdk.zip" : "iPhoneOS.sdk.zip",
+                     simulator ? "sdk-simulator" : "sdk",
                      { "usr/lib/libSystem.tbd", "System/Library/Frameworks/UIKit.framework" });
 }
 

@@ -30,11 +30,33 @@ set(ZSIGN_PRIVATE_INCLUDES
     ${ZSIGN_ROOT}/src/third-party/minizip)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
-    set(ONDEVICE_LLVM_IOS_ARCHIVE "$ENV{HOME}/Documents/src/PocClangIOS/build-ios/llvm-ios.a"
+    option(ONDEVICE_IOS_SIMULATOR "Build the in-process engine for arm64 iOS Simulator" OFF)
+
+    if(CMAKE_OSX_SYSROOT MATCHES "iphonesimulator" OR CMAKE_OSX_SYSROOT MATCHES "iPhoneSimulator")
+        set(ONDEVICE_IOS_SIMULATOR ON CACHE BOOL "Build the in-process engine for arm64 iOS Simulator" FORCE)
+    elseif(CMAKE_OSX_SYSROOT MATCHES "iphoneos" OR CMAKE_OSX_SYSROOT MATCHES "iPhoneOS")
+        set(ONDEVICE_IOS_SIMULATOR OFF CACHE BOOL "Build the in-process engine for arm64 iOS Simulator" FORCE)
+    endif()
+
+    if(ONDEVICE_IOS_SIMULATOR)
+        set(_ondevice_llvm_default "$ENV{HOME}/Documents/src/PocClangIOS/build-ios-simulator/llvm-ios-simulator.a")
+        set(_ondevice_openssl_default "$ENV{HOME}/Documents/src/PocSignIOS/openssl-ios-simulator")
+        set(_ondevice_llvm_dir_default "$ENV{HOME}/Documents/src/PocClangIOS/build-ios-simulator")
+    else()
+        set(_ondevice_llvm_default "$ENV{HOME}/Documents/src/PocClangIOS/build-ios/llvm-ios.a")
+        set(_ondevice_openssl_default "$ENV{HOME}/Documents/src/PocSignIOS/openssl-ios")
+        set(_ondevice_llvm_dir_default "$ENV{HOME}/Documents/src/PocClangIOS/build-ios")
+    endif()
+
+    if(NOT CMAKE_OSX_ARCHITECTURES)
+        set(CMAKE_OSX_ARCHITECTURES arm64 CACHE STRING "" FORCE)
+    endif()
+
+    set(ONDEVICE_LLVM_IOS_ARCHIVE "${_ondevice_llvm_default}"
         CACHE FILEPATH "Combined LLVM/Clang/lld archive for iOS")
-    set(ONDEVICE_OPENSSL_IOS "$ENV{HOME}/Documents/src/PocSignIOS/openssl-ios"
+    set(ONDEVICE_OPENSSL_IOS "${_ondevice_openssl_default}"
         CACHE PATH "OpenSSL built for iOS")
-    set(ONDEVICE_LLVM_IOS_DIR "$ENV{HOME}/Documents/src/PocClangIOS/build-ios"
+    set(ONDEVICE_LLVM_IOS_DIR "${_ondevice_llvm_dir_default}"
         CACHE PATH "iOS LLVM build tree (generated headers)")
     set(ONDEVICE_LLVM_SRC "$ENV{HOME}/Documents/src/PocClangIOS/llvm-project"
         CACHE PATH "llvm-project source tree")

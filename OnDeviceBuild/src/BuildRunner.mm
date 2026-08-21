@@ -123,6 +123,7 @@ CompileManifestResult compileManifest (const CompileManifestRequest& request)
         outcome.objectFiles.resize ((size_t) sources.count);
 
         std::atomic<bool> failedFlag { false };
+        std::atomic<bool> cancelledFlag { false };
         std::atomic<unsigned long long> peakValue { 0 };
         std::string failureText;
 
@@ -131,6 +132,7 @@ CompileManifestResult compileManifest (const CompileManifestRequest& request)
         // holding them outlives every block: dispatch_group_wait does not return
         // until all of them have finished.
         auto* failed = &failedFlag;
+        auto* cancelled = &cancelledFlag;
         auto* peak = &peakValue;
         auto* results = &outcome.objectFiles;
         auto* failureMessage = &failureText;
@@ -144,6 +146,7 @@ CompileManifestResult compileManifest (const CompileManifestRequest& request)
         const std::string sysroot = request.sysroot, resourceDir = request.resourceDir;
         const std::string minimumOSVersion = request.minimumOSVersion.empty() ? "17.0" : request.minimumOSVersion;
         auto onProgress = request.onProgress;
+        auto shouldCancel = request.shouldCancel;
 
         const auto start = CFAbsoluteTimeGetCurrent();
 
@@ -151,7 +154,7 @@ CompileManifestResult compileManifest (const CompileManifestRequest& request)
         {
             dispatch_semaphore_wait (limit, DISPATCH_TIME_FOREVER);
 
-            if (*failed)
+            if (*failed || (shouldCancel && shouldCancel()))
             {
                 dispatch_semaphore_signal (limit);
                 break;
@@ -164,6 +167,26 @@ CompileManifestResult compileManifest (const CompileManifestRequest& request)
                                            ? (NSDictionary*) sourceObject : nil;
                 NSString* relative = source[@"file"];
                 NSString* language = source[@"language"];
+
+                if (shouldCancel && shouldCancel())
+                {
+                    dispatch_sync (reporting, ^
+                    {
+                        *failed = true;
+                        *cancelled = true;
+                        *failureMessage = "build cancelled";
+
+                        if (onProgress)
+                        {
+                            char line[128];
+                            std::snprintf (line, sizeof (line), "[%02lu] CANCELLED",
+                                           (unsigned long) i);
+                            onProgress (line);
+                        }
+                    });
+                    dispatch_semaphore_signal (limit);
+                    return;
+                }
 
                 if (relative.length == 0)
                 {
@@ -182,9 +205,13 @@ CompileManifestResult compileManifest (const CompileManifestRequest& request)
                 compile.sourcePath = [root stringByAppendingPathComponent: relative].UTF8String;
                 compile.outputPath = [work stringByAppendingPathComponent:
                                       [NSString stringWithFormat: @"%03lu.o", (unsigned long) i]].UTF8String;
+                compile.simulator = request.simulator;
+                compile.triple = std::string ("arm64-apple-ios") + minimumOSVersion
+                               + (request.simulator ? "-simulator" : "");
                 compile.resourceDir = resourceDir;
                 compile.sysroot = sysroot;
                 compile.minimumOSVersion = minimumOSVersion;
+                compile.shouldCancel = shouldCancel;
                 compile.extraArgs = { "-x", languageUtf8, "-O3" };
 
                 // The C sources JUCE vendors - zlib, libpng, libjpg, Sheenbidi,
@@ -231,10 +258,21 @@ CompileManifestResult compileManifest (const CompileManifestRequest& request)
                     if (! compiled.success)
                     {
                         *failed = true;
-                        *failureMessage = std::string (relative.lastPathComponent.UTF8String)
-                                            + "\n" + compiled.diagnostics;
-                        std::snprintf (line, sizeof (line), "[%02lu] %s FAILED",
-                                       (unsigned long) i, relative.lastPathComponent.UTF8String);
+
+                        if (shouldCancel && shouldCancel())
+                        {
+                            *cancelled = true;
+                            *failureMessage = "build cancelled";
+                            std::snprintf (line, sizeof (line), "[%02lu] CANCELLED",
+                                           (unsigned long) i);
+                        }
+                        else
+                        {
+                            *failureMessage = std::string (relative.lastPathComponent.UTF8String)
+                                                + "\n" + compiled.diagnostics;
+                            std::snprintf (line, sizeof (line), "[%02lu] %s FAILED",
+                                           (unsigned long) i, relative.lastPathComponent.UTF8String);
+                        }
                     }
                     else
                     {
@@ -256,8 +294,12 @@ CompileManifestResult compileManifest (const CompileManifestRequest& request)
 
         outcome.seconds = CFAbsoluteTimeGetCurrent() - start;
         outcome.peakResidentBytes = peakValue.load();
-        outcome.success = ! failedFlag.load();
+        outcome.cancelled = cancelledFlag.load() || (shouldCancel && shouldCancel());
+        outcome.success = ! failedFlag.load() && ! outcome.cancelled;
         outcome.failureMessage = failureText;
+
+        if (outcome.cancelled && outcome.failureMessage.empty())
+            outcome.failureMessage = "build cancelled";
 
         return outcome;
     }

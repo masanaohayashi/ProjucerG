@@ -41,11 +41,14 @@ ondevice::CompileResult compileOne (const std::string& sourcePath,
                                     const std::string& outputPath,
                                     const std::string& resourceDir,
                                     const std::string& sysroot,
+                                    bool simulator,
                                     const std::vector<std::string>& extraArgs)
 {
     ondevice::CompileRequest request;
     request.sourcePath = sourcePath;
     request.outputPath = outputPath;
+    request.simulator = simulator;
+    request.triple = std::string ("arm64-apple-ios17.0") + (simulator ? "-simulator" : "");
     request.resourceDir = resourceDir;
     request.sysroot = sysroot;
     request.extraArgs = extraArgs;
@@ -58,6 +61,8 @@ int main()
     const std::string sysroot = requireEnv ("ONDEVICE_SYSROOT");
     const std::string resourceDir = requireEnv ("ONDEVICE_RESOURCE_DIR");
     const std::string builtins = requireEnv ("ONDEVICE_BUILTINS");
+    const char* simulatorValue = std::getenv ("ONDEVICE_SIMULATOR");
+    const bool simulator = simulatorValue != nullptr && std::strcmp (simulatorValue, "1") == 0;
 
     const auto stddefPath = std::filesystem::path (resourceDir) / "include" / "stddef.h";
 
@@ -92,7 +97,7 @@ int main()
     std::filesystem::remove (mainObj);
     std::filesystem::remove (exePath);
 
-    const auto compiledUikit = compileOne (uikitPath, uikitObj.string(), resourceDir, sysroot,
+    const auto compiledUikit = compileOne (uikitPath, uikitObj.string(), resourceDir, sysroot, simulator,
                                            { "-x", "objective-c++", "-std=c++17" });
 
     if (! compiledUikit.diagnostics.empty())
@@ -107,7 +112,7 @@ int main()
     if (! compiledUikit.success)
         fail ("compileToObject failed for uikit.mm");
 
-    const auto compiledMain = compileOne (mainPath, mainObj.string(), resourceDir, sysroot,
+    const auto compiledMain = compileOne (mainPath, mainObj.string(), resourceDir, sysroot, simulator,
                                           { "-std=c++17" });
 
     if (! compiledMain.diagnostics.empty())
@@ -119,6 +124,7 @@ int main()
     ondevice::LinkRequest link;
     link.objectFiles = { uikitObj.string(), mainObj.string() };
     link.outputPath = exePath.string();
+    link.simulator = simulator;
     link.sysroot = sysroot;
     link.libraries = { "System", "c++" };
     link.frameworks = { "UIKit", "Foundation" };
@@ -144,12 +150,16 @@ int main()
     const auto info = ondevice::inspectMachO (exePath.string());
     std::cout << "executable: " << info.describe() << '\n';
 
-    if (! info.isIOSArm64Executable())
-        fail ("produced file is not isIOSArm64Executable(): " + info.describe());
+    const auto isExpectedExecutable = simulator
+                                        ? info.isIosSimulatorArm64Executable()
+                                        : info.isIOSArm64Executable();
+
+    if (! isExpectedExecutable)
+        fail ("produced file is not the expected arm64 iOS executable: " + info.describe());
 
     std::filesystem::remove (uikitObj);
     std::filesystem::remove (mainObj);
     std::filesystem::remove (exePath);
-    std::cout << "PASS: linked output is arm64 iOS MH_EXECUTE\n";
+    std::cout << "PASS: linked output is arm64 " << (simulator ? "iOS Simulator" : "iOS") << " MH_EXECUTE\n";
     return 0;
 }

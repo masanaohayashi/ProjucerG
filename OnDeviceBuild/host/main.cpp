@@ -22,7 +22,8 @@ void usage (const char* argv0)
         "  --root <projectRoot> \\\n"
         "  --sysroot <sdk> \\\n"
         "  --resource-dir <clang-resource> \\\n"
-        "  --builtins <libclang_rt.ios.a> \\\n"
+        "  --builtins <libclang_rt.ios.a|libclang_rt.iossim.a> \\\n"
+        "  [--simulator] \\\n"
         "  [--p12 <modern.p12> --password <pw> --provision <mobileprovision>] \\\n"
         "  [--work <dir>] [--threads N] [--skip-sign]\n";
 }
@@ -94,6 +95,7 @@ int main (int argc, char** argv)
     std::string manifestPath, root, sysroot, resourceDir, builtins;
     std::string p12, password, provision, work;
     std::string threadsText;
+    bool simulator = false;
     bool skipSign = false;
 
     for (int i = 1; i < argc; ++i)
@@ -108,6 +110,12 @@ int main (int argc, char** argv)
         if (takeValue (argc, argv, i, "--provision", provision)) continue;
         if (takeValue (argc, argv, i, "--work", work)) continue;
         if (takeValue (argc, argv, i, "--threads", threadsText)) continue;
+
+        if (std::strcmp (argv[i], "--simulator") == 0)
+        {
+            simulator = true;
+            continue;
+        }
 
         if (std::strcmp (argv[i], "--skip-sign") == 0)
         {
@@ -142,6 +150,7 @@ int main (int argc, char** argv)
     request.projectRoot = root;
     request.manifestJson = manifestJson;
     request.workDirectory = work;
+    request.simulator = simulator;
     request.sysroot = sysroot;
     request.resourceDir = resourceDir;
     request.builtinsArchive = builtins;
@@ -181,9 +190,13 @@ int main (int argc, char** argv)
 
     std::printf ("linked: %s\n", info.describe().c_str());
 
-    if (! info.isIOSArm64Executable())
+    const auto isExpectedExecutable = simulator
+                                        ? info.isIosSimulatorArm64Executable()
+                                        : info.isIOSArm64Executable();
+
+    if (! isExpectedExecutable)
     {
-        std::printf ("FAIL: not an arm64 iOS executable\n");
+        std::printf ("FAIL: not the expected arm64 iOS executable\n");
         return 1;
     }
 

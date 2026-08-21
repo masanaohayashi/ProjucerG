@@ -160,7 +160,17 @@ void LibraryModule::addLibsToExporter (ProjectExporter& exporter) const
     if (exporter.isiOS())
     {
         if (auto* frameworksList = exporter.getiOSFrameworksList())
+        {
             frameworksList->addTokens (moduleInfo["iOSFrameworks"].toString(), ", ", {});
+
+            // The in-process OnDevice linker has no Xcode build phase from
+            // which to inherit weak SDK frameworks. They still provide
+            // symbols referenced by JUCE's iOS unity files (for example
+            // UTType and UNUserNotificationCenter), so include them in the
+            // manifest for non-Xcode iOS exporters as normal framework links.
+            if (! exporter.isXcode())
+                frameworksList->addTokens (moduleInfo["WeakiOSFrameworks"].toString(), ", ", {});
+        }
 
         if (auto* libsList = exporter.getiOSLibsList())
             parseAndAddLibsToList (*libsList, moduleInfo["iOSLibs"].toString());

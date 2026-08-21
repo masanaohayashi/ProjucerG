@@ -84,6 +84,8 @@ int main()
     const std::string sysroot = requireEnv ("ONDEVICE_SYSROOT");
     const std::string resourceDir = requireEnv ("ONDEVICE_RESOURCE_DIR");
     const std::string builtins = requireEnv ("ONDEVICE_BUILTINS");
+    const char* simulatorValue = std::getenv ("ONDEVICE_SIMULATOR");
+    const bool simulator = simulatorValue != nullptr && std::strcmp (simulatorValue, "1") == 0;
 
 #ifndef ONDEVICE_FIXTURE_DIR
 #error ONDEVICE_FIXTURE_DIR must be defined to tests/fixtures
@@ -101,6 +103,7 @@ int main()
     request.projectRoot = fixtures.string();
     request.manifestJson = readFile (manifestPath);
     request.workDirectory = work.string();
+    request.simulator = simulator;
     request.sysroot = sysroot;
     request.resourceDir = resourceDir;
     request.builtinsArchive = builtins;
@@ -123,8 +126,12 @@ int main()
 
     std::cout << "linked: " << info.describe() << '\n';
 
-    if (! info.isIOSArm64Executable())
-        fail ("not an arm64 iOS executable: " + info.describe());
+    const auto isExpectedExecutable = simulator
+                                        ? info.isIosSimulatorArm64Executable()
+                                        : info.isIOSArm64Executable();
+
+    if (! isExpectedExecutable)
+        fail ("not the expected arm64 iOS executable: " + info.describe());
 
     bool found = false;
 

@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -213,6 +214,22 @@ int main()
 
     if (! executableBitSet (bundledExec))
         fail ("executable bit lost on " + bundledExec.string() + " before zip");
+
+    ondevice::BundleRequest simulatorBundle = bundle;
+    simulatorBundle.appFolder = (work / "HelloIpa-simulator.app").string();
+    simulatorBundle.simulator = true;
+
+    if (! ondevice::writeAppBundle (simulatorBundle, error))
+        fail ("writeAppBundle (simulator): " + error);
+
+    std::ifstream simulatorPlist (work / "HelloIpa-simulator.app" / "Info.plist");
+    const std::string simulatorPlistText ((std::istreambuf_iterator<char> (simulatorPlist)), {});
+
+    if (simulatorPlistText.find ("<string>iPhoneSimulator</string>") == std::string::npos
+        || simulatorPlistText.find ("<string>iphonesimulator</string>") == std::string::npos)
+        fail ("Simulator bundle has device platform metadata");
+
+    std::cout << "PASS: Simulator bundle metadata\n";
 
     const auto unsignedIpa = work.parent_path() / ("ondevice-unsigned-" + pid + ".ipa");
     fs::remove (unsignedIpa);

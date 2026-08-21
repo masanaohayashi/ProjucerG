@@ -32,7 +32,7 @@ LinkResult linkObjects (const LinkRequest& request)
     // LC_BUILD_VERSION and is not recognisably an iOS binary at all - the same
     // distinction Gate 01 turned on.
     argStorage.push_back ("-platform_version");
-    argStorage.push_back ("ios");
+    argStorage.push_back (request.simulator ? "ios-simulator" : "ios");
     argStorage.push_back (request.minimumOSVersion);
     argStorage.push_back (request.sdkVersion);
 

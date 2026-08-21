@@ -24,11 +24,13 @@ struct CompileManifestRequest
     std::string projectRoot;
     std::string manifestJson;
     std::string workDirectory;
+    bool simulator = false;
     std::string sysroot;
     std::string resourceDir;
     std::string minimumOSVersion = "17.0";
     int threads = 1;
     std::function<void (const std::string& line)> onProgress;
+    std::function<bool()> shouldCancel;
 };
 
 struct CompileManifestResult
@@ -38,6 +40,7 @@ struct CompileManifestResult
     double seconds = 0.0;
     unsigned long long peakResidentBytes = 0;
     std::string failureMessage;
+    bool cancelled = false;
 };
 
 CompileManifestResult compileManifest (const CompileManifestRequest&);

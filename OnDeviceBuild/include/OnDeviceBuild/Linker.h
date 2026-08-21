@@ -17,6 +17,8 @@ struct LinkRequest
 {
     std::vector<std::string> objectFiles;
     std::string outputPath;
+    /** True when the output is for an arm64 iOS Simulator runtime. */
+    bool simulator = false;
     /** Root of an iOS SDK, or of the subset of one holding the .tbd stubs. */
     std::string sysroot;
     std::string architecture = "arm64";

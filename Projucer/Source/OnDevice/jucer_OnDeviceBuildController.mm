@@ -12,12 +12,7 @@
 
 #include <TargetConditionals.h>
 
-// JUCE_IOS is true for the simulator as well, but the build engine is not: the
-// toolchain archives it links - LLVM, OpenSSL, zsign - are built for
-// iphoneos only, and there is nothing for an iphonesimulator slice to be built
-// from. The simulator therefore gets the same stub as every non-iOS platform,
-// and Projucer still builds and runs there.
-#if JUCE_IOS && ! TARGET_OS_SIMULATOR
+#if JUCE_IOS
 
 #define Point CarbonDummyPointName
 #import <UIKit/UIKit.h>
@@ -30,7 +25,9 @@
 #include "../../../OnDeviceBuild/include/OnDeviceBuild/ZipStore.h"
 
 #include <algorithm>
+#include <atomic>
 #include <exception>
+#include <functional>
 
 namespace
 {
@@ -45,12 +42,31 @@ static String formatBytes (unsigned long long bytes)
 
 static String juceStringFromStd (const std::string& text)
 {
-    return String (text.c_str(), (size_t) text.size());
+    return String (CharPointer_UTF8 (text.c_str()));
 }
 
 static std::string stdStringFromFile (const File& file)
 {
     return file.getFullPathName().toStdString();
+}
+
+static String bundleIdentifierFromManifest (const std::string& manifestJson)
+{
+    String bundleId = "unknown.bundle";
+    NSData* json = [NSData dataWithBytes: manifestJson.data() length: manifestJson.size()];
+
+    if (id object = [NSJSONSerialization JSONObjectWithData: json options: 0 error: nil])
+    {
+        if ([object isKindOfClass: NSDictionary.class])
+        {
+            id value = ((NSDictionary*) object)[@"bundleId"];
+
+            if ([value isKindOfClass: NSString.class])
+                bundleId = String (CharPointer_UTF8 (((NSString*) value).UTF8String));
+        }
+    }
+
+    return bundleId;
 }
 
 static File documentsDirectory()
@@ -157,6 +173,13 @@ public:
         addAndMakeVisible (timeLabel);
         addAndMakeVisible (rssLabel);
 
+        closeButton.onClick = [this]
+        {
+            if (closeRequested)
+                closeRequested();
+        };
+        addAndMakeVisible (closeButton);
+
         setSize (640, 420);
         startTimerHz (4);
     }
@@ -164,7 +187,8 @@ public:
     void resized() override
     {
         auto bounds = getLocalBounds().reduced (8);
-        auto footer = bounds.removeFromBottom (24);
+        auto footer = bounds.removeFromBottom (32);
+        closeButton.setBounds (footer.removeFromRight (132).reduced (0, 2));
         timeLabel.setBounds (footer.removeFromLeft (footer.getWidth() / 2));
         rssLabel.setBounds (footer);
         log.setBounds (bounds.withTrimmedBottom (6));
@@ -181,7 +205,20 @@ public:
     {
         finished = true;
         stopTimer();
+        closeButton.setButtonText ("Close");
+        closeButton.setEnabled (true);
         updateStats();
+    }
+
+    void markCancelling()
+    {
+        closeButton.setButtonText ("Stopping...");
+        closeButton.setEnabled (false);
+    }
+
+    void setCloseRequested (std::function<void()> callback)
+    {
+        closeRequested = std::move (callback);
     }
 
     void setStartTime (double seconds) { startSeconds = seconds; }
@@ -200,6 +237,8 @@ private:
 
     TextEditor log;
     Label timeLabel, rssLabel;
+    TextButton closeButton { "Cancel Build" };
+    std::function<void()> closeRequested;
     double startSeconds = Time::getMillisecondCounterHiRes() / 1000.0;
     bool finished = false;
 };
@@ -207,8 +246,9 @@ private:
 class OnDeviceBuildDialog final : public DialogWindow
 {
 public:
-    OnDeviceBuildDialog()
-        : DialogWindow ("Build & Install", Colours::lightgrey, false)
+    explicit OnDeviceBuildDialog (std::function<void()> closeRequested)
+        : DialogWindow ("Build & Install", Colours::lightgrey, true),
+          closeRequested (std::move (closeRequested))
     {
         setUsingNativeTitleBar (true);
         setResizable (true, false);
@@ -216,8 +256,12 @@ public:
 
     void closeButtonPressed() override
     {
-        exitModalState (0);
+        if (closeRequested)
+            closeRequested();
     }
+
+private:
+    std::function<void()> closeRequested;
 };
 
 class OnDeviceBuildController final
@@ -235,14 +279,17 @@ public:
             return false;
 
         building = true;
+        cancelRequested.store (false);
+        closeWhenFinished = false;
         previousIdleTimerDisabled = UIApplication.sharedApplication.idleTimerDisabled;
         UIApplication.sharedApplication.idleTimerDisabled = YES;
 
         auto* panel = new OnDeviceProgressPanel();
         panelPtr = panel;
         panel->setStartTime (Time::getMillisecondCounterHiRes() / 1000.0);
+        panel->setCloseRequested ([this] { requestClose(); });
 
-        auto* window = new OnDeviceBuildDialog();
+        auto* window = new OnDeviceBuildDialog ([this] { requestClose(); });
         window->setContentOwned (panel, true);
         window->centreWithSize (window->getWidth(), window->getHeight());
         window->enterModalState (true, nullptr, true);
@@ -256,7 +303,7 @@ public:
                              queue: nil
                         usingBlock: ^(NSNotification*)
             {
-                appendLine ("app entered background — I/O is now throttled");
+                appendLine ("app entered background - I/O is now throttled");
             }];
         }
 
@@ -264,16 +311,17 @@ public:
         const auto projectRoot = exporter.getProject().getProjectFolder();
         const auto manifestFile = exporter.getTargetFolder().getChildFile ("manifest.json");
         const auto projectName = projectRoot.getFileName();
+        const bool simulator = TARGET_OS_SIMULATOR != 0;
 
-        std::thread ([this, documents, projectRoot, manifestFile, projectName]() mutable
+        std::thread ([this, documents, projectRoot, manifestFile, projectName, simulator]() mutable
         {
             try
             {
-                runBuild (documents, projectRoot, manifestFile, projectName);
+                runBuild (documents, projectRoot, manifestFile, projectName, simulator);
             }
             catch (const std::exception& e)
             {
-                appendLine ("exception: " + String (e.what()));
+                appendLine ("exception: " + String (CharPointer_UTF8 (e.what())));
                 finish (true);
             }
             catch (...)
@@ -313,6 +361,12 @@ private:
                 UIApplication.sharedApplication.idleTimerDisabled = previousIdleTimerDisabled;
 
             building = false;
+
+            if (closeWhenFinished)
+            {
+                closeWhenFinished = false;
+                closeDialog();
+            }
         };
 
         if (! MessageManager::getInstance()->isThisTheMessageThread())
@@ -324,19 +378,77 @@ private:
         complete();
     }
 
-    void runBuild (File documents, File projectRoot, File manifestFile, String projectName)
+    void requestClose()
+    {
+        if (! MessageManager::getInstance()->isThisTheMessageThread())
+        {
+            MessageManager::callAsync ([this] { requestClose(); });
+            return;
+        }
+
+        if (! building)
+        {
+            closeDialog();
+            return;
+        }
+
+        if (cancelPromptShown)
+            return;
+
+        cancelPromptShown = true;
+        auto options = MessageBoxOptions::makeOptionsYesNo (MessageBoxIconType::QuestionIcon,
+                                                            "Stop build?",
+                                                            "The build is still running. Stop it and close this window?",
+                                                            "Stop Build",
+                                                            "Keep Building",
+                                                            dialogPtr.getComponent());
+        cancelPrompt = AlertWindow::showScopedAsync (options, [this] (int result)
+        {
+            cancelPromptShown = false;
+
+            if (result == 1)
+            {
+                if (! building)
+                {
+                    closeDialog();
+                    return;
+                }
+
+                cancelRequested.store (true);
+                closeWhenFinished = true;
+
+                if (auto* panel = panelPtr.getComponent())
+                    panel->markCancelling();
+
+                appendLine ("cancelling build...");
+            }
+        });
+    }
+
+    void closeDialog()
+    {
+        cancelPrompt.close();
+
+        if (auto* dialog = dialogPtr.getComponent())
+            dialog->exitModalState (0);
+    }
+
+    void runBuild (File documents, File projectRoot, File manifestFile, String projectName, bool simulator)
     {
         juce::Array<String> missing;
         const auto resourceDir = clangResourceDir();
         const auto stddefFile = resourceDir.getChildFile ("include").getChildFile ("stddef.h");
         const auto builtins = resourceDir.getChildFile ("lib").getChildFile ("darwin")
-                                         .getChildFile ("libclang_rt.ios.a");
-        NSString* backloopPath = [NSBundle.mainBundle pathForResource: @"backloop" ofType: @"p12"];
+                                         .getChildFile (simulator ? "libclang_rt.iossim.a"
+                                                                   : "libclang_rt.ios.a");
+        NSString* backloopPath = simulator ? nil
+                                           : [NSBundle.mainBundle pathForResource: @"backloop" ofType: @"p12"];
         const auto backloop = backloopPath != nil ? File (backloopPath.UTF8String) : File();
         const auto signingDir = documents.getChildFile ("OnDeviceSigning");
-        const auto p12 = chooseP12 (signingDir);
-        const auto provision = firstMatchingFile (signingDir, "*.mobileprovision");
-        const auto sdkZip = documents.getChildFile ("iPhoneOS.sdk.zip");
+        const auto p12 = simulator ? File() : chooseP12 (signingDir);
+        const auto provision = simulator ? File() : firstMatchingFile (signingDir, "*.mobileprovision");
+        const auto sdkZip = documents.getChildFile (simulator ? "iPhoneSimulator.sdk.zip"
+                                                              : "iPhoneOS.sdk.zip");
         const auto passwordFile = p12.existsAsFile() ? passwordFileFor (signingDir, p12) : File();
 
         if (! sdkZip.existsAsFile())
@@ -345,9 +457,9 @@ private:
             missing.add (stddefFile.getFullPathName());
         if (! builtins.existsAsFile())
             missing.add (builtins.getFullPathName());
-        if (! p12.existsAsFile())
+        if (! simulator && ! p12.existsAsFile())
             missing.add (signingDir.getChildFile ("*.p12").getFullPathName());
-        else if (! passwordFile.existsAsFile())
+        else if (! simulator && ! passwordFile.existsAsFile())
         {
             missing.add (sidecarPasswordFile (p12).getFullPathName());
 
@@ -358,16 +470,16 @@ private:
 
             missing.add (signingDir.getChildFile ("password.txt").getFullPathName());
         }
-        if (! provision.existsAsFile())
+        if (! simulator && ! provision.existsAsFile())
             missing.add (signingDir.getChildFile ("*.mobileprovision").getFullPathName());
-        if (! backloop.existsAsFile())
+        if (! simulator && ! backloop.existsAsFile())
             missing.add ("bundle backloop.p12");
         if (! manifestFile.existsAsFile())
             missing.add (manifestFile.getFullPathName());
 
         if (! missing.isEmpty())
         {
-            appendLine ("missing assets — not starting clang:");
+            appendLine ("missing assets - not starting clang:");
 
             for (const auto& path : missing)
                 appendLine ("  " + path);
@@ -383,10 +495,11 @@ private:
             return;
         }
 
-        const auto password = passwordFile.loadFileAsString().trim().toStdString();
+        const auto password = simulator ? std::string()
+                                        : passwordFile.loadFileAsString().trim().toStdString();
         auto modernP12 = p12;
 
-        if (! isModernP12 (p12))
+        if (! simulator && ! isModernP12 (p12))
         {
             modernP12 = p12.getSiblingFile (p12.getFileNameWithoutExtension() + ".modern.p12");
             std::string reencodeError;
@@ -399,13 +512,12 @@ private:
             {
                 appendLine ("PKCS#12 re-encode failed: " + juceStringFromStd (reencodeError));
                 appendLine ("Place an AES-256-CBC p12 named *.modern.p12 (or a re-encodable *.p12) in OnDeviceSigning.");
-                appendLine ("AES-256-CBC の p12（*.modern.p12）を OnDeviceSigning に置いてください。再エンコードに失敗したため clang を起動しません。");
                 finish (true);
                 return;
             }
         }
 
-        auto sdk = ondevice::makeSdkStore (stdStringFromFile (documents));
+        auto sdk = ondevice::makeSdkStore (stdStringFromFile (documents), simulator);
         std::string extractError;
         appendLine ("unpacking iOS SDK if needed");
 
@@ -432,13 +544,15 @@ private:
         request.projectRoot = stdStringFromFile (projectRoot);
         request.manifestJson = manifestJson;
         request.workDirectory = stdStringFromFile (work);
+        request.simulator = simulator;
         request.sysroot = sdk.getRoot();
         request.resourceDir = stdStringFromFile (resourceDir);
         request.builtinsArchive = stdStringFromFile (builtins);
-        request.p12Path = stdStringFromFile (modernP12);
+        request.p12Path = simulator ? std::string() : stdStringFromFile (modernP12);
         request.p12Password = password;
-        request.provisionPath = stdStringFromFile (provision);
+        request.provisionPath = simulator ? std::string() : stdStringFromFile (provision);
         request.threads = threads;
+        request.shouldCancel = [this] { return cancelRequested.load(); };
         request.onProgress = [this] (const std::string& line)
         {
             appendLine (juceStringFromStd (line));
@@ -451,6 +565,13 @@ private:
         if (! result.linkerCanRunAgain)
             linkerDisabled = true;
 
+        if (result.cancelled || cancelRequested.load())
+        {
+            appendLine ("BUILD CANCELLED");
+            finish (true);
+            return;
+        }
+
         if (! result.success)
         {
             appendLine ("BUILD FAILED");
@@ -460,12 +581,107 @@ private:
             return;
         }
 
-        appendLine ("IPA ready: " + juceStringFromStd (result.ipaPath));
+        appendLine ((simulator ? "Simulator app ready: " : "IPA ready: ")
+                    + juceStringFromStd (simulator ? result.appFolder : result.ipaPath));
         appendLine ("compile " + String (result.compileSeconds, 1) + " s, peak rss "
                     + formatBytes (result.peakResidentBytes));
 
-        serveAndInstall (result.ipaPath, manifestJson);
+        if (simulator)
+        {
+            String installOutput;
+
+            appendLine ("installing Simulator app");
+
+            if (! installSimulatorApp (result.appFolder, manifestJson, installOutput))
+            {
+                appendLine ("INSTALL FAILED");
+
+                if (installOutput.isNotEmpty())
+                    appendLine (installOutput);
+
+                finish (true);
+                return;
+            }
+
+            appendLine ("Simulator app installed and launched: "
+                        + bundleIdentifierFromManifest (manifestJson));
+        }
+        else
+        {
+            serveAndInstall (result.ipaPath, manifestJson);
+        }
+
         finish (true);
+    }
+
+    bool installSimulatorApp (const std::string& appPath, const std::string& manifestJson, String& output)
+    {
+       #if TARGET_OS_SIMULATOR
+        const auto bundleId = bundleIdentifierFromManifest (manifestJson);
+        NSMutableURLRequest* request = [NSMutableURLRequest requestWithURL:
+            [NSURL URLWithString: @"http://127.0.0.1:38472/install"]];
+        request.HTTPMethod = @"POST";
+        request.timeoutInterval = 120.0;
+        [request setValue: @"application/json" forHTTPHeaderField: @"Content-Type"];
+
+        NSDictionary* body = @{
+            @"appPath": [NSString stringWithUTF8String: appPath.c_str()],
+            @"bundleId": [NSString stringWithUTF8String: bundleId.toRawUTF8()]
+        };
+        request.HTTPBody = [NSJSONSerialization dataWithJSONObject: body options: 0 error: nil];
+
+        __block NSData* responseData = nil;
+        __block NSError* requestError = nil;
+        dispatch_semaphore_t semaphore = dispatch_semaphore_create (0);
+        NSURLSessionDataTask* task = [NSURLSession.sharedSession
+            dataTaskWithRequest: request
+              completionHandler: ^(NSData* data, NSURLResponse*, NSError* error)
+        {
+            responseData = data;
+            requestError = error;
+            dispatch_semaphore_signal (semaphore);
+        }];
+        [task resume];
+
+        if (dispatch_semaphore_wait (semaphore, dispatch_time (DISPATCH_TIME_NOW, 120 * NSEC_PER_SEC)) != 0)
+        {
+            [task cancel];
+            output = "Simulator install bridge timed out";
+            return false;
+        }
+
+        if (requestError != nil || responseData == nil)
+        {
+            output = requestError != nil ? String (CharPointer_UTF8 (requestError.localizedDescription.UTF8String))
+                                         : "Simulator install bridge returned no response";
+            return false;
+        }
+
+        id responseObject = [NSJSONSerialization JSONObjectWithData: responseData options: 0 error: nil];
+
+        if (![responseObject isKindOfClass: NSDictionary.class])
+        {
+            output = "Invalid response from Simulator install bridge";
+            return false;
+        }
+
+        NSDictionary* responseDictionary = (NSDictionary*) responseObject;
+
+        if (![responseDictionary[@"success"] boolValue])
+        {
+            id bridgeOutput = responseDictionary[@"output"];
+            output = [bridgeOutput isKindOfClass: NSString.class]
+                       ? String (CharPointer_UTF8 (((NSString*) bridgeOutput).UTF8String))
+                       : "Simulator install bridge failed";
+            return false;
+        }
+
+        return true;
+       #else
+        ignoreUnused (appPath, manifestJson);
+        output = "Simulator installation is only available in a Simulator build";
+        return false;
+       #endif
     }
 
     void serveAndInstall (const std::string& ipaPath, const std::string& manifestJson)
@@ -506,7 +722,7 @@ private:
                                                        passphrase: @(kBackloopPassphrase)
                                                            logger: ^(NSString* line)
             {
-                appendLine (String (line.UTF8String));
+                appendLine (String (CharPointer_UTF8 (line.UTF8String)));
             }];
 
             const auto host = [NSString stringWithFormat: @"%@.backloop.dev",
@@ -564,7 +780,7 @@ private:
                                              options: @{}
                                    completionHandler: ^(BOOL ok)
             {
-                appendLine (ok ? "install requested — answer the prompt"
+                appendLine (ok ? "install requested - answer the prompt"
                                : "openURL refused the itms-services URL");
             }];
         });
@@ -572,10 +788,14 @@ private:
 
     Component::SafePointer<DialogWindow> dialogPtr;
     Component::SafePointer<OnDeviceProgressPanel> panelPtr;
+    ScopedMessageBox cancelPrompt;
     LoopbackServer* server = nil;
     id backgroundObserver = nil;
     BOOL previousIdleTimerDisabled = NO;
+    std::atomic<bool> cancelRequested { false };
     bool building = false;
+    bool closeWhenFinished = false;
+    bool cancelPromptShown = false;
     bool linkerDisabled = false;
 };
 } // namespace
@@ -583,14 +803,6 @@ private:
 bool startOnDeviceBuild (ProjectExporter& exporter)
 {
     return OnDeviceBuildController::get().start (exporter);
-}
-
-#else
-
-bool startOnDeviceBuild (ProjectExporter& exporter)
-{
-    juce::ignoreUnused (exporter);
-    return false;
 }
 
 #endif

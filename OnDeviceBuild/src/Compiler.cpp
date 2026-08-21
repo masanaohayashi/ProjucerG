@@ -12,6 +12,7 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include <mach/mach.h>
+#include <mutex>
 #include <sys/stat.h>
 #include <utility>
 
@@ -19,6 +20,13 @@ namespace ondevice {
 
 namespace
 {
+// Clang's frontend parses LLVM backend options through a process-global
+// llvm::cl registry.  BackendUtil.cpp explicitly documents that parser as
+// non-thread-safe, while the engine dispatches source files concurrently.
+// Serialise the complete in-process frontend invocation, not just target
+// registration, so option registration and parsing cannot race between files.
+std::mutex compilerMutex;
+
 void initialiseTargetsOnce()
 {
     // Registering the backend is what makes an arm64 triple resolvable. If the
@@ -47,6 +55,15 @@ unsigned long long fileSizeOrZero (const std::string& path)
 
 CompileResult compileToObject (const CompileRequest& request)
 {
+    std::lock_guard<std::mutex> lock (compilerMutex);
+
+    if (request.shouldCancel && request.shouldCancel())
+    {
+        CompileResult result;
+        result.diagnostics = "build cancelled";
+        return result;
+    }
+
     initialiseTargetsOnce();
 
     CompileResult result;

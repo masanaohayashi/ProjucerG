@@ -54,6 +54,6 @@ private:
 };
 
 /** The iOS SDK, by its usual name and layout. */
-ZipStore makeSdkStore (const std::string& documentsPath);
+ZipStore makeSdkStore (const std::string& documentsPath, bool simulator = false);
 
 } // namespace ondevice

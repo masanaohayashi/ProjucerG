@@ -1260,7 +1260,7 @@
 			name = "Run Post-Build Script";
 			alwaysOutOfDate = 1;
 			shellPath = /bin/sh;
-			shellScript = "DEST=\"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/clang-resource\"; mkdir -p \"$DEST/include\" \"$DEST/lib/darwin\"; rsync -a --delete \"${HOME}/Documents/src/PocClangIOS/build-ios/lib/clang/22/include/\" \"$DEST/include/\"; cp -f \"${HOME}/Documents/src/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.ios.a\" \"$DEST/lib/darwin/libclang_rt.ios.a\"";
+			shellScript = "DEST=\"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/clang-resource\"; mkdir -p \"$DEST/include\" \"$DEST/lib/darwin\"; CLANG_INCLUDE=\"${HOME}/Documents/src/PocClangIOS/build-ios/lib/clang/22/include\"; if [ \"${EFFECTIVE_PLATFORM_NAME}\" = \"-iphonesimulator\" ]; then CLANG_INCLUDE=\"${HOME}/Documents/src/PocClangIOS/build-ios-simulator/lib/clang/22/include\"; fi; rsync -a --delete \"$CLANG_INCLUDE/\" \"$DEST/include/\"; cp -f \"${HOME}/Documents/src/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.ios.a\" \"$DEST/lib/darwin/libclang_rt.ios.a\"; if [ -f \"${HOME}/Documents/src/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.iossim.a\" ]; then cp -f \"${HOME}/Documents/src/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.iossim.a\" \"$DEST/lib/darwin/libclang_rt.iossim.a\"; fi; if [ \"${EFFECTIVE_PLATFORM_NAME}\" = \"-iphonesimulator\" ] && ! /usr/sbin/lsof -nP -iTCP:38472 -sTCP:LISTEN >/dev/null 2>&1; then /usr/bin/nohup /usr/bin/python3 \"${SRCROOT}/../../../scripts/simulator_install_bridge.py\" >/tmp/projucer-simulator-install-bridge.log 2>&1 & fi";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -1367,6 +1367,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				"OTHER_LDFLAGS[sdk=iphoneos*]" = "$(inherited) -lOnDeviceBuild -lzsign $(HOME)/Documents/src/PocClangIOS/build-ios/llvm-ios.a $(HOME)/Documents/src/PocSignIOS/openssl-ios/lib/libssl.a $(HOME)/Documents/src/PocSignIOS/openssl-ios/lib/libcrypto.a -lc++";
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = "$(inherited) $(SRCROOT)/../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libOnDeviceBuild.a $(SRCROOT)/../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libzsign.a $(HOME)/Documents/src/PocClangIOS/build-ios-simulator/llvm-ios-simulator.a $(HOME)/Documents/src/PocSignIOS/openssl-ios-simulator/lib/libssl.a $(HOME)/Documents/src/PocSignIOS/openssl-ios-simulator/lib/libcrypto.a -lc++";
+				"ARCHS[sdk=iphonesimulator*]" = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CLANG_CXX_LIBRARY = "libc++";
@@ -1435,6 +1437,7 @@
 					"$(inherited)",
 					"\"../../../OnDeviceBuild/build-ios/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"",
 				);
+				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(inherited) ../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
 				LLVM_LTO = YES;
 				MTL_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../JuceLibraryCode $(SRCROOT)/../../../JUCE-9.0.0/modules $(SRCROOT)/../../../JUCE-9.0.0/extras/Build $(SRCROOT)/../../Source/Terminal/libvterm/include $(SRCROOT)/../../../OnDeviceBuild/include";
 				OTHER_CFLAGS = "$(inherited)";
@@ -1451,6 +1454,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				"OTHER_LDFLAGS[sdk=iphoneos*]" = "$(inherited) -lOnDeviceBuild -lzsign $(HOME)/Documents/src/PocClangIOS/build-ios/llvm-ios.a $(HOME)/Documents/src/PocSignIOS/openssl-ios/lib/libssl.a $(HOME)/Documents/src/PocSignIOS/openssl-ios/lib/libcrypto.a -lc++";
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = "$(inherited) $(SRCROOT)/../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libOnDeviceBuild.a $(SRCROOT)/../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libzsign.a $(HOME)/Documents/src/PocClangIOS/build-ios-simulator/llvm-ios-simulator.a $(HOME)/Documents/src/PocSignIOS/openssl-ios-simulator/lib/libssl.a $(HOME)/Documents/src/PocSignIOS/openssl-ios-simulator/lib/libcrypto.a -lc++";
+				"ARCHS[sdk=iphonesimulator*]" = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CLANG_CXX_LIBRARY = "libc++";
@@ -1519,6 +1524,7 @@
 					"$(inherited)",
 					"\"../../../OnDeviceBuild/build-ios/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"",
 				);
+				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(inherited) ../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
 				MTL_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../JuceLibraryCode $(SRCROOT)/../../../JUCE-9.0.0/modules $(SRCROOT)/../../../JUCE-9.0.0/extras/Build $(SRCROOT)/../../Source/Terminal/libvterm/include $(SRCROOT)/../../../OnDeviceBuild/include";
 				OTHER_CFLAGS = "$(inherited)";
 				OTHER_CPLUSPLUSFLAGS = "$(inherited)";
@@ -1572,6 +1578,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				"ARCHS[sdk=iphonesimulator*]" = arm64;
 				PRODUCT_NAME = "Projucer";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1622,6 +1629,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				"ARCHS[sdk=iphonesimulator*]" = arm64;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "Projucer";
 				SDKROOT = iphoneos;

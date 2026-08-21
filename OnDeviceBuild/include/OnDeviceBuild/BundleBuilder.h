@@ -11,6 +11,7 @@ struct BundleRequest
     std::string bundleId;
     std::string name;
     std::string minimumOSVersion = "17.0";
+    bool simulator = false;
 };
 
 bool writeAppBundle (const BundleRequest&, std::string& error);

@@ -9,6 +9,6 @@
     {"file": "link_main.cpp", "language": "c++"},
     {"file": "plain.c", "language": "c"}
   ],
-  "frameworks": ["UIKit", "Foundation"],
+  "frameworks": ["UIKit", "Foundation", "UserNotifications", "UniformTypeIdentifiers"],
   "libraries": ["System", "c++"]
 }

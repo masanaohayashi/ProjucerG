@@ -133,6 +133,12 @@ inline void writeOnDeviceManifest (const ProjectExporter& constExporter)
     if (auto* list = exporter.getiOSFrameworksList())
         frameworks = *list;
 
+    // Xcode keeps weak frameworks in a separate build phase. The in-process
+    // linker used by OnDevice builds has no weak-framework phase, so include
+    // those SDK frameworks in the manifest as normal links as well.
+    if (auto* list = exporter.getiOSWeakFrameworksList())
+        frameworks.addArray (*list);
+
     frameworks.addIfNotAlreadyThere ("UIKit");
     frameworks.addIfNotAlreadyThere ("Foundation");
     frameworks.trim();

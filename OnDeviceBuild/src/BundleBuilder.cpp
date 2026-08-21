@@ -179,6 +179,9 @@ bool writeAppBundle (const BundleRequest& request, std::string& error)
     const auto escapedName = xmlEscape (request.name);
     const auto escapedId = xmlEscape (request.bundleId);
 
+    const auto supportedPlatform = request.simulator ? "iPhoneSimulator" : "iPhoneOS";
+    const auto platformName = request.simulator ? "iphonesimulator" : "iphoneos";
+
     std::ostringstream plist;
     plist <<
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
@@ -211,10 +214,10 @@ bool writeAppBundle (const BundleRequest& request, std::string& error)
         "\t</array>\n"
         "\t<key>CFBundleSupportedPlatforms</key>\n"
         "\t<array>\n"
-        "\t\t<string>iPhoneOS</string>\n"
+        "\t\t<string>" << supportedPlatform << "</string>\n"
         "\t</array>\n"
         "\t<key>DTPlatformName</key>\n"
-        "\t<string>iphoneos</string>\n"
+        "\t<string>" << platformName << "</string>\n"
         "\t<key>UILaunchScreen</key>\n"
         "\t<dict/>\n"
         "\t<key>UIRequiredDeviceCapabilities</key>\n"

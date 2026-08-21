@@ -126,6 +126,24 @@ int main()
     if (sameTime (firstMtime, mtimeOf (sentinel)))
         fail ("re-extract did not refresh sentinel mtime");
 
+    const auto simulatorZipPath = documents / "iPhoneSimulator.sdk.zip";
+
+    if (! ondevice::archiveFolder (tree.string(), simulatorZipPath.string()))
+        fail ("archiveFolder failed for simulator zip");
+
+    auto simulatorStore = ondevice::makeSdkStore (documents.string(), true);
+
+    if (simulatorStore.getExpectedZipPath() != simulatorZipPath.string())
+        fail ("Simulator store selected the wrong zip path");
+
+    if (simulatorStore.getRoot() != (documents / "sdk-simulator").string())
+        fail ("Simulator store selected the wrong extraction root");
+
+    if (! simulatorStore.ensureExtracted (noop, error))
+        fail ("Simulator ensureExtracted: " + error);
+
+    std::cout << "PASS: Simulator SDK store\n";
+
     fs::remove_all (work);
     std::cout << "PASS: ZipStore stamp and sentinels\n";
     return 0;

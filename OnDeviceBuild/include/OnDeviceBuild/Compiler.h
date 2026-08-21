@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -18,10 +19,14 @@ struct CompileRequest
     std::string sourcePath;
     std::string outputPath;
     std::string triple = "arm64-apple-ios17.0";
+    /** True when the output is for an arm64 iOS Simulator runtime. */
+    bool simulator = false;
     std::string resourceDir;
     std::string sysroot;
     std::string minimumOSVersion = "17.0";
     std::vector<std::string> extraArgs;
+    /** Optional cooperative cancellation hook checked before the frontend starts. */
+    std::function<bool()> shouldCancel;
 };
 
 struct CompileResult

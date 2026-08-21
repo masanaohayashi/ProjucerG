@@ -34,6 +34,10 @@
 
 #include "jucer_HeaderComponent.h"
 
+#if JUCE_IOS
+ #include <TargetConditionals.h>
+#endif
+
 #include "../../Application/jucer_Application.h"
 
 #include "../../ProjectSaving/jucer_ProjectExporter.h"

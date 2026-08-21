@@ -160,6 +160,8 @@ public:
 
     /** iOS frameworks/libs from modules when isiOS(), including non-Xcode exporters. */
     virtual StringArray* getiOSFrameworksList() { return nullptr; }
+    /** iOS weak frameworks from modules, needed by non-Xcode linkers. */
+    virtual StringArray* getiOSWeakFrameworksList() { return nullptr; }
     virtual StringArray* getiOSLibsList()       { return nullptr; }
 
     virtual String getNewLineString() const = 0;

@@ -29,6 +29,31 @@ void requireParsedHostBinary (const std::string& path)
 
     std::cout << "OK host: " << path << " -> " << info.describe() << '\n';
 }
+
+void requireSimulatorPredicate()
+{
+    ondevice::MachOInfo info;
+    info.parsed = true;
+    info.is64Bit = true;
+    info.isArm64 = true;
+    info.isObjectFile = true;
+    info.isExecutable = true;
+    info.hasBuildVersion = true;
+    info.platform = ondevice::PLATFORM_IOSSIMULATOR;
+
+    if (! info.isIosSimulatorArm64Executable())
+        fail ("iOS Simulator arm64 executable predicate rejected a valid shape", &info);
+
+    if (! info.isIosSimulatorArm64Object())
+        fail ("iOS Simulator arm64 object predicate rejected a valid shape", &info);
+
+    info.platform = ondevice::PLATFORM_IOS;
+
+    if (info.isIosSimulatorArm64Executable())
+        fail ("iOS device executable was accepted as a Simulator executable", &info);
+
+    std::cout << "OK iOS Simulator predicate\n";
+}
 } // namespace
 
 int main (int argc, char** argv)
@@ -37,6 +62,7 @@ int main (int argc, char** argv)
         fail ("argv[0] unavailable; cannot locate the test binary");
 
     requireParsedHostBinary (argv[0]);
+    requireSimulatorPredicate();
 
     if (const char* fixture = std::getenv ("ONDEVICE_FIXTURE_IOS_EXEC"))
     {
