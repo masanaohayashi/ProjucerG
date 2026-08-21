@@ -9,7 +9,7 @@ Software Limited.
 
 ## Current Status
 
-The `master` branch currently contains the JUCE 8 based version.
+The `master` branch currently contains the JUCE 9.0.0 based version.
 
 Implemented changes include:
 
@@ -21,14 +21,15 @@ Implemented changes include:
 - Fixed a legacy GUI Editor resizing bug where right-edge and bottom-right
   resizing could snap back immediately.
 - Verified macOS Debug builds and Projucer `--resave` stability.
+- Added iPad device and iOS Simulator build/install support.
 
 ## Branches
 
 Planned branch structure:
 
-- `master`: current JUCE 8 based branch.
+- `master`: current JUCE 9.0.0 based branch.
 - `juce8`: JUCE 8 based maintenance branch, if split from `master`.
-- `juce9`: future JUCE 9 based branch.
+- `juce9`: JUCE 9 based branch, if split from `master`.
 
 ## Repository Layout
 
@@ -110,11 +111,11 @@ above.
 
 ## Build Requirements
 
-This branch expects a JUCE 8 checkout next to this repository. The current
+This branch expects a JUCE 9.0.0 checkout next to this repository. The current
 development setup used:
 
 ```text
-../JUCE-8.0.13
+../JUCE-9.0.0
 ```
 
 The Projucer project file is:
@@ -139,6 +140,129 @@ xcodebuild -project Projucer/Builds/MacOSX/Projucer.xcodeproj \
   -derivedDataPath Projucer/Builds/MacOSX/DerivedData \
   -quiet build
 ```
+
+## iPad / iOSで動かすための準備
+
+### 必要な環境
+
+- macOS と Xcode（iPadOS 17.0 以降をビルドできる iOS SDK）。このプロジェクトの
+  deployment target は iOS 17.0。
+- リポジトリの隣に `../JUCE-9.0.0` を配置する。
+- iOS 用の LLVM/Clang と OpenSSL のビルド成果物を、現在の Xcode プロジェクトが
+  参照する以下の場所に配置する。別の場所を使う場合は `.jucer` の Xcode flags と
+  `OnDeviceBuild/CMakeLists.txt` のキャッシュ値を変更する。
+
+```text
+~/Documents/src/PocClangIOS/build-ios/llvm-ios.a
+~/Documents/src/PocClangIOS/build-ios-simulator/llvm-ios-simulator.a
+~/Documents/src/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.ios.a
+~/Documents/src/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.iossim.a
+~/Documents/src/PocSignIOS/openssl-ios/lib/libssl.a
+~/Documents/src/PocSignIOS/openssl-ios/lib/libcrypto.a
+~/Documents/src/PocSignIOS/openssl-ios-simulator/lib/libssl.a
+~/Documents/src/PocSignIOS/openssl-ios-simulator/lib/libcrypto.a
+```
+
+`OnDeviceBuild` の iOS 用静的ライブラリは、必要な SDK と上記の依存物を用意した
+あとで次のように生成する。
+
+```sh
+# iPad 実機用
+cmake -S OnDeviceBuild -B OnDeviceBuild/build-ios -G Xcode \
+  -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphoneos \
+  -DCMAKE_OSX_ARCHITECTURES=arm64
+cmake --build OnDeviceBuild/build-ios --config Debug
+
+# iOS Simulator 用（Apple Silicon Mac）
+cmake -S OnDeviceBuild -B OnDeviceBuild/build-ios-simulator -G Xcode \
+  -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphonesimulator \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 -DONDEVICE_IOS_SIMULATOR=ON
+cmake --build OnDeviceBuild/build-ios-simulator --config Debug
+```
+
+### iPad の Files に置くファイル
+
+Projucer を iPad で一度起動すると、Files の **この iPad 内 > Projucer** が
+アプリ内の `Documents` に対応する。次の構成でファイルをコピーする。
+
+```text
+iPhoneOS.sdk.zip
+OnDeviceSigning/
+  development.p12
+  development.password         # または password.txt
+  development.mobileprovision
+```
+
+- 実機用 SDK はファイル名を必ず `iPhoneOS.sdk.zip` にする。Xcode の
+  `iPhoneOS*.sdk` を zip 化したものを使用する。
+- `OnDeviceSigning/` には `.p12`（または `.modern.p12`）、対応するパスワード
+  ファイル、`.mobileprovision` を置く。`development.p12` のパスワードは
+  `development.password` または共通の `password.txt` に書く。
+- `.mobileprovision` は対象 iPad の UDID とアプリの bundle identifier を含む開発用
+  profile にする。Apple Developer の Team ID と provisioning profile は各自のものを
+ 使い、`Projucer/Projucer.jucer` の `iosDevelopmentTeamID` も自分の Team ID に変更する。
+- `iPhoneOS.sdk.zip` と署名ファイルには秘密情報が含まれる場合があるため、リポジトリ
+  には追加しない。アプリの `Documents` にだけコピーする。
+
+### Simulator 用 SDK とワンクリック実行
+
+Simulator 用 SDK は次のスクリプトで作成できる。
+
+```sh
+./scripts/create_ios_simulator_sdk_zip.sh
+```
+
+既定の出力先は `OnDeviceBuild/build-artifacts/iPhoneSimulator.sdk.zip`。生成した zip を
+Simulator 上の Projucer の `Documents` に置く。Simulator では署名ファイルは不要。
+
+Xcode で `Projucer/Builds/iOS/Projucer.xcodeproj` の `Projucer - App` を
+`iphonesimulator` SDK で一度ビルドして起動すると、ホスト Mac 上で
+`scripts/simulator_install_bridge.py` が自動起動する。このブリッジは
+`127.0.0.1:38472` で `xcrun simctl` を呼び出すためのものなので、Simulator と
+Xcode が動いている Mac 上で実行する。自動起動しない場合は、リポジトリのルートで
+次を実行する。
+
+```sh
+/usr/bin/python3 scripts/simulator_install_bridge.py
+```
+
+### ビルドとインストール
+
+Xcode プロジェクトを直接ビルドする場合は、次を使う。
+
+```sh
+# iPad 実機（署名が必要）
+xcodebuild -project Projucer/Builds/iOS/Projucer.xcodeproj \
+  -target 'Projucer - App' -configuration Debug -sdk iphoneos \
+  -destination 'generic/platform=iOS' build
+
+# Simulator（署名不要）
+xcodebuild -project Projucer/Builds/iOS/Projucer.xcodeproj \
+  -target 'Projucer - App' -configuration Debug -sdk iphonesimulator \
+  CODE_SIGNING_ALLOWED=NO build
+```
+
+Projucer アプリを起動して `.jucer` を開き、iOS exporter を選んで
+**Build & Install** を押せば、保存・コンパイル・リンク・インストールまでを一度に
+実行できる。
+
+- iPad 実機では署名後にインストール確認が表示される。iPad 側で許可する。
+- Simulator ではビルド完了後、ホストブリッジが `simctl install` と `simctl launch`
+  を実行する。Simulator アプリから `simctl` を直接呼ぶことはできないため、ブリッジが
+  起動している必要がある。
+- bundle identifier は現在 `tokyo.studio-r.juce.theprojucer`。別のアプリとして
+  配布する場合は `.jucer`、provisioning profile、関連する entitlements の値を揃える。
+
+### よくあるエラー
+
+- `iPhoneOS.sdk.zip` / `iPhoneSimulator.sdk.zip` が見つからない場合は、ファイル名と
+  iPad/Simulator 側の Projucer `Documents` の配置を確認する。
+- `info-output-file registered more than once` が出る場合は、古い Projucer を起動して
+  いないか確認し、最新ソースから iOS アプリを再ビルドする。
+- `UNUserNotificationCenter` や `UTType` の undefined symbol は、最新の Xcode project
+  を再生成・再ビルドして weak framework の設定を反映する。
+- `Simulator install bridge unavailable` の場合は、Mac 上で Python ブリッジが起動して
+  いるか、TCP ポート `38472` が別プロセスに占有されていないか確認する。
 
 ## License
 
