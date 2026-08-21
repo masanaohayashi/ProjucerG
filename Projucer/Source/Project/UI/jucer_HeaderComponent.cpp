@@ -270,9 +270,11 @@ void HeaderComponent::updateExporterButton()
     if (auto selectedExporter = getSelectedExporter())
     {
         auto selectedName = selectedExporter->getUniqueName();
-        const auto buttonName = selectedExporter->getExporterIdentifier() == Identifier ("ONDEVICE_IOS")
-                                    ? "Build & Install"
-                                    : "Save and Open in IDE";
+        const auto buttonName =
+           #if JUCE_IOS
+            selectedExporter->isiOS() ? "Build & Install" :
+           #endif
+            "Save and Open in IDE";
 
         saveAndOpenInIDEButton.setName (buttonName);
         saveAndOpenInIDEButton.setTooltip (buttonName);

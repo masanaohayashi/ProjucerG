@@ -194,12 +194,13 @@ CompileResult compileToObject (const CompileRequest& request)
     instance.createDiagnostics (&diagnosticPrinter, /*ShouldOwnClient=*/ false);
 
     clang::EmitObjAction action;
-    result.success = instance.ExecuteAction (action);
-
+    const bool executed = instance.ExecuteAction (action);
     diagnosticStream.flush();
 
-    if (result.success)
-        result.outputBytes = fileSizeOrZero (request.outputPath);
+    result.outputBytes = fileSizeOrZero (request.outputPath);
+    result.success = executed
+                  && ! instance.getDiagnostics().hasErrorOccurred()
+                  && result.outputBytes > 0;
 
     return result;
 }

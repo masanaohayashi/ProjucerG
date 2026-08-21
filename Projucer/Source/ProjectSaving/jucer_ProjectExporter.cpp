@@ -91,8 +91,6 @@ std::vector<ProjectExporter::ExporterTypeInfo> ProjectExporter::getExporterTypeI
           XcodeProjectExporter::getTargetFolderNameiOS(),
           createIcon (export_xcode_svg, (size_t) export_xcode_svgSize) },
 
-        createExporterTypeInfo<OnDeviceProjectExporter> (export_xcode_svg, export_xcode_svgSize),
-
         createExporterTypeInfo<MSVCProjectExporterVC2026> (export_visualStudio_svg, export_visualStudio_svgSize),
         createExporterTypeInfo<MSVCProjectExporterVC2022> (export_visualStudio_svg, export_visualStudio_svgSize),
         createExporterTypeInfo<MSVCProjectExporterVC2019> (export_visualStudio_svg, export_visualStudio_svgSize),
@@ -123,8 +121,7 @@ void ProjectExporter::getCurrentPlatformExporterTypeInfos (std::vector<ExporterT
 {
     const auto typeNames =
        #if JUCE_IOS
-        { OnDeviceProjectExporter::getValueTreeTypeName(),
-          XcodeProjectExporter::getValueTreeTypeNameiOS() };
+        { XcodeProjectExporter::getValueTreeTypeNameiOS() };
        #elif JUCE_MAC
         { XcodeProjectExporter::getValueTreeTypeNameMac(),
           XcodeProjectExporter::getValueTreeTypeNameiOS() };
@@ -192,7 +189,7 @@ bool ProjectExporter::canProjectBeLaunched (Project* project)
              XcodeProjectExporter::getValueTreeTypeNameMac(),
              XcodeProjectExporter::getValueTreeTypeNameiOS(),
             #elif JUCE_IOS
-             OnDeviceProjectExporter::getValueTreeTypeName(),
+             XcodeProjectExporter::getValueTreeTypeNameiOS(),
             #elif JUCE_WINDOWS
              MSVCProjectExporterVC2026::getValueTreeTypeName(),
              MSVCProjectExporterVC2022::getValueTreeTypeName(),

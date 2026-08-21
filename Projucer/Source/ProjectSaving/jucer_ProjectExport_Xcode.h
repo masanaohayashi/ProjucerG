@@ -35,6 +35,7 @@
 #pragma once
 
 #include "jucer_XcodeProjectParser.h"
+#include "jucer_ProjectExport_OnDevice.h"
 
 //==============================================================================
 constexpr auto* macOSArch_Default        = "default";
@@ -955,6 +956,10 @@ public:
 
     bool launchProject() override
     {
+       #if JUCE_IOS
+        if (iOS)
+            return startOnDeviceBuild (*this);
+       #endif
        #if JUCE_MAC
         return getProjectBundle().startAsProcess();
        #else
@@ -964,7 +969,9 @@ public:
 
     bool canLaunchProject() override
     {
-       #if JUCE_MAC
+       #if JUCE_IOS
+        return iOS;
+       #elif JUCE_MAC
         return true;
        #else
         return false;
@@ -992,6 +999,9 @@ public:
 
         writeInfoPlistFiles();
         writeWorkspaceSettings();
+
+        if (isiOS())
+            writeOnDeviceManifest (*this);
 
         // Deleting the .rsrc files can be needed to force Xcode to update the version number.
         deleteRsrcFiles (getTargetFolder().getChildFile ("build"));
@@ -2283,8 +2293,34 @@ public:
 
             for (auto flag : customFlags)
             {
-                s.set (flag.upToFirstOccurrenceOf ("=", false, false).trim(),
-                       flag.fromFirstOccurrenceOf ("=", false, false).trim().quoted());
+                // An Xcode build setting may carry a condition - OTHER_LDFLAGS[sdk=iphoneos*] -
+                // and that condition contains an '=' of its own. Splitting on the first one
+                // would cut the key in half, so the separator is the first '=' outside any
+                // bracketed condition. A key holding brackets also has to be quoted, which a
+                // plain identifier does not.
+                const auto separator = [&flag]
+                {
+                    int depth = 0;
+
+                    for (int i = 0; i < flag.length(); ++i)
+                    {
+                        const auto character = flag[i];
+
+                        if (character == '[')                        ++depth;
+                        else if (character == ']')                   --depth;
+                        else if (character == '=' && depth == 0)     return i;
+                    }
+
+                    return -1;
+                }();
+
+                if (separator < 0)
+                    continue;
+
+                const auto key = flag.substring (0, separator).trim();
+                const auto value = flag.substring (separator + 1).trim();
+
+                s.set (key.containsAnyOf ("[]= *") ? key.quoted() : key, value.quoted());
             }
 
             if (owner.isPaceProtectionEnabled())

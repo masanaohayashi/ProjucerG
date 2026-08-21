@@ -10,7 +10,14 @@
 #include "../ProjectSaving/jucer_ProjectExporter.h"
 #include "jucer_OnDeviceBuildController.h"
 
-#if JUCE_IOS
+#include <TargetConditionals.h>
+
+// JUCE_IOS is true for the simulator as well, but the build engine is not: the
+// toolchain archives it links - LLVM, OpenSSL, zsign - are built for
+// iphoneos only, and there is nothing for an iphonesimulator slice to be built
+// from. The simulator therefore gets the same stub as every non-iOS platform,
+// and Projucer still builds and runs there.
+#if JUCE_IOS && ! TARGET_OS_SIMULATOR
 
 #define Point CarbonDummyPointName
 #import <UIKit/UIKit.h>

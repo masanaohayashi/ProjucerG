@@ -1,0 +1,416 @@
+{
+  "name": "Projucer",
+  "bundleId": "tokyo.studio-r.juce.theprojucer",
+  "minimumOSVersion": "17.0",
+  "defines": [
+    "JUCE_PROJUCER_VERSION=0x90000",
+    "JUCE_MODULE_AVAILABLE_juce_audio_basics=1",
+    "JUCE_MODULE_AVAILABLE_juce_audio_devices=1",
+    "JUCE_MODULE_AVAILABLE_juce_audio_formats=1",
+    "JUCE_MODULE_AVAILABLE_juce_audio_processors=1",
+    "JUCE_MODULE_AVAILABLE_juce_audio_processors_headless=1",
+    "JUCE_MODULE_AVAILABLE_juce_audio_utils=1",
+    "JUCE_MODULE_AVAILABLE_juce_build_tools=1",
+    "JUCE_MODULE_AVAILABLE_juce_core=1",
+    "JUCE_MODULE_AVAILABLE_juce_cryptography=1",
+    "JUCE_MODULE_AVAILABLE_juce_data_structures=1",
+    "JUCE_MODULE_AVAILABLE_juce_events=1",
+    "JUCE_MODULE_AVAILABLE_juce_graphics=1",
+    "JUCE_MODULE_AVAILABLE_juce_gui_basics=1",
+    "JUCE_MODULE_AVAILABLE_juce_gui_extra=1",
+    "JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1",
+    "JUCE_LOG_ASSERTIONS=1",
+    "JUCE_USE_CURL=1",
+    "JUCE_LOAD_CURL_SYMBOLS_LAZILY=1",
+    "JUCE_ALLOW_STATIC_NULL_VARIABLES=0",
+    "JUCE_STRICT_REFCOUNTEDPOINTER=1",
+    "JUCE_WEB_BROWSER=0",
+    "JUCE_STANDALONE_APPLICATION=1",
+    "JUCER_XCODE_IPHONE_5BC26AE3=1",
+    "JUCE_APP_VERSION=9.0.0",
+    "JUCE_APP_VERSION_HEX=0x90000",
+    "JUCE_IOS=1",
+    "JUCE_IPHONE=1"
+  ],
+  "includes": [
+    "JuceLibraryCode",
+    "../JUCE-9.0.0/modules",
+    "../JUCE-9.0.0/extras/Build"
+  ],
+  "sources": [
+    {
+      "file": "Source/Application/StartPage/jucer_NewProjectWizard.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Application/StartPage/jucer_StartPageComponent.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Application/jucer_AutoUpdater.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Application/jucer_CommandLine.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Application/jucer_Main.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Application/jucer_MainWindow.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/CodeEditor/jucer_DocumentEditorComponent.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/CodeEditor/jucer_OpenDocumentManager.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/CodeEditor/jucer_SourceCodeEditor.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/Components/jucer_ComponentTypeHandler.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/Documents/jucer_ButtonDocument.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/Documents/jucer_ComponentDocument.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/PaintElements/jucer_ColouredElement.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/PaintElements/jucer_PaintElement.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/PaintElements/jucer_PaintElementGroup.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/PaintElements/jucer_PaintElementImage.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/PaintElements/jucer_PaintElementPath.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/UI/jucer_ComponentLayoutEditor.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/UI/jucer_ComponentOverlayComponent.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/UI/jucer_EditingPanelBase.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/UI/jucer_JucerDocumentEditor.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/UI/jucer_PaintRoutineEditor.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/UI/jucer_PaintRoutinePanel.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/UI/jucer_ResourceEditorPanel.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/UI/jucer_TestComponent.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/jucer_BinaryResources.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/jucer_ComponentLayout.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/jucer_GeneratedCode.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/jucer_JucerDocument.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/jucer_ObjectTypes.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ComponentEditor/jucer_PaintRoutine.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Project/Modules/jucer_Modules.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Project/UI/jucer_HeaderComponent.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Project/jucer_Project.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/OnDevice/jucer_OnDeviceBuildController.mm",
+      "language": "objective-c++"
+    },
+    {
+      "file": "Source/OnDevice/jucer_LoopbackServer.m",
+      "language": "objective-c++"
+    },
+    {
+      "file": "Source/ProjectSaving/jucer_ProjectExporter.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ProjectSaving/jucer_ProjectSaver.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/ProjectSaving/jucer_ResourceFile.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Settings/jucer_AppearanceSettings.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Settings/jucer_StoredSettings.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Terminal/jucer_libvterm_unity.c",
+      "language": "c"
+    },
+    {
+      "file": "Source/Terminal/jucer_PseudoTerminal.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Terminal/jucer_TerminalView.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Terminal/jucer_TerminalPanel.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Utility/Helpers/jucer_CodeHelpers.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Utility/Helpers/jucer_FileHelpers.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Utility/Helpers/jucer_MiscUtilities.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Utility/Helpers/jucer_NewFileWizard.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Utility/Helpers/jucer_VersionInfo.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Utility/PIPs/jucer_PIPGenerator.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Utility/UI/jucer_Icons.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Utility/UI/jucer_JucerTreeViewBase.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Utility/UI/jucer_ProjucerLookAndFeel.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Utility/UI/jucer_SlidingPanelComponent.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Utility/UI/jucer_TouchSupport.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "JuceLibraryCode/BinaryData.cpp",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_audio_basics.mm",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_audio_devices.mm",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_audio_formats.mm",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_audio_formats_flac_1.c",
+      "language": "c"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_audio_formats_flac_2.c",
+      "language": "c"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_audio_processors.mm",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_audio_processors_headless.mm",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_audio_processors_headless_ara.cpp",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_audio_processors_headless_lv2_libs.cpp",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_audio_utils.mm",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_build_tools.cpp",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_core.mm",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_core_CompilationTime.cpp",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_core_zlib.c",
+      "language": "c"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_cryptography.mm",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_data_structures.mm",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_events.mm",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_graphics.mm",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_graphics_libjpg_1.c",
+      "language": "c"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_graphics_libjpg_2.c",
+      "language": "c"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_graphics_libjpg_3.c",
+      "language": "c"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_graphics_libpng.c",
+      "language": "c"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_graphics_lunasvg.c",
+      "language": "c"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_graphics_Sheenbidi.c",
+      "language": "c"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_gui_basics.mm",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_gui_basics_2.cpp",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_gui_basics_3.cpp",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_gui_basics_4.cpp",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_gui_basics_5.cpp",
+      "language": "objective-c++"
+    },
+    {
+      "file": "JuceLibraryCode/include_juce_gui_extra.mm",
+      "language": "objective-c++"
+    }
+  ],
+  "frameworks": [
+    "Accelerate",
+    "CoreAudio",
+    "CoreMIDI",
+    "AudioToolbox",
+    "AVFoundation",
+    "QuartzCore",
+    "CoreAudioKit",
+    "Foundation",
+    "CoreGraphics",
+    "CoreImage",
+    "CoreText",
+    "CoreServices",
+    "UIKit",
+    "WebKit",
+    "Network",
+    "Security"
+  ],
+  "libraries": [
+    "System",
+    "c++"
+  ]
+}

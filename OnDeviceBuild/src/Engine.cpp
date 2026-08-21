@@ -93,7 +93,9 @@ EngineResult buildSignedIpa (const EngineRequest& request)
     const auto linkedPath = (fs::path (request.workDirectory) / manifest.name).string();
 
     LinkRequest link;
-    link.objectFiles = compiled.objectFiles;
+    for (const auto& object : compiled.objectFiles)
+        if (! object.empty())
+            link.objectFiles.push_back (object);
     link.outputPath = linkedPath;
     link.sysroot = request.sysroot;
     link.minimumOSVersion = manifest.minimumOSVersion;

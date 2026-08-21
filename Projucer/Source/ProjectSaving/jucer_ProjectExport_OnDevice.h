@@ -41,6 +41,135 @@
 #endif
 
 //==============================================================================
+inline void writeOnDeviceManifest (const ProjectExporter& constExporter)
+{
+    if (! constExporter.isiOS())
+        return;
+
+    auto& exporter = const_cast<ProjectExporter&> (constExporter);
+
+    if (! exporter.getTargetFolder().createDirectory())
+        throw build_tools::SaveError ("Can't create folder: " + exporter.getTargetFolder().getFullPathName());
+
+    auto* root = new DynamicObject();
+    root->setProperty ("name", exporter.getProject().getProjectNameString());
+    root->setProperty ("bundleId", exporter.getProject().getBundleIdentifierString());
+    root->setProperty ("minimumOSVersion", "17.0");
+
+    auto defs = mergePreprocessorDefs (exporter.getProject().getAppConfigDefs(), exporter.getAllPreprocessorDefs());
+    defs.set ("JUCE_IOS", "1");
+    defs.set ("JUCE_IPHONE", "1");
+    defs.set ("JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED", "1");
+    Array<var> defineList;
+
+    for (int i = 0; i < defs.size(); ++i)
+        defineList.add (defs.getAllKeys()[i] + "=" + defs.getAllValues()[i]);
+
+    root->setProperty ("defines", var (defineList));
+
+    StringArray includes;
+    includes.addIfNotAlreadyThere (exporter.getProject().getRelativePathForFile (exporter.getProject().getGeneratedCodeFolder())
+                                       .replaceCharacter ('\\', '/'));
+
+    for (const auto& path : exporter.extraSearchPaths)
+    {
+        const build_tools::RelativePath buildPath (path, build_tools::RelativePath::buildTargetFolder);
+        includes.addIfNotAlreadyThere (exporter.rebaseFromBuildTargetToProjectFolder (buildPath).toUnixStyle());
+    }
+
+    Array<var> includeList;
+
+    for (const auto& include : includes)
+        includeList.add (include);
+
+    root->setProperty ("includes", var (includeList));
+
+    const std::function<void (const Project::Item&, Array<var>&)> collect =
+        [&] (const Project::Item& item, Array<var>& sourceList)
+    {
+        if (item.isGroup())
+        {
+            for (int i = 0; i < item.getNumChildren(); ++i)
+                collect (item.getChild (i), sourceList);
+
+            return;
+        }
+
+        if (! (item.shouldBeAddedToTargetExporter (exporter) && item.shouldBeCompiled()))
+            return;
+
+        const auto file = item.getFile();
+
+        if (! exporter.shouldFileBeCompiledByDefault (file))
+            return;
+
+        // Xcode compiles JuceLibraryCode/include_juce_*.mm wrappers, not the
+        // module unity files sitting in the JUCE tree. Those wrappers pull in
+        // juce_events.cpp; compiling the raw .mm instead can emit references
+        // without the implementations.
+        const auto generatedFolder = exporter.getProject().getGeneratedCodeFolder();
+
+        if (item.isModuleCode() && ! file.isAChildOf (generatedFolder))
+            return;
+
+        const auto relative = exporter.getProject().getRelativePathForFile (file).replaceCharacter ('\\', '/');
+        const bool compileAsObjC = item.isModuleCode() || file.hasFileExtension ("mm;m");
+
+        auto* source = new DynamicObject();
+        source->setProperty ("file", relative);
+        source->setProperty ("language", String (ondevice::languageForSource (relative.toStdString(), compileAsObjC)));
+        sourceList.add (var (source));
+    };
+
+    Array<var> sourceList;
+
+    for (const auto& group : exporter.getAllGroups())
+        collect (group, sourceList);
+
+    root->setProperty ("sources", var (sourceList));
+
+    StringArray frameworks;
+
+    if (auto* list = exporter.getiOSFrameworksList())
+        frameworks = *list;
+
+    frameworks.addIfNotAlreadyThere ("UIKit");
+    frameworks.addIfNotAlreadyThere ("Foundation");
+    frameworks.trim();
+    frameworks.removeDuplicates (false);
+    frameworks.removeEmptyStrings();
+
+    Array<var> frameworkList;
+
+    for (const auto& framework : frameworks)
+        frameworkList.add (framework);
+
+    root->setProperty ("frameworks", var (frameworkList));
+
+    StringArray libraries { "System", "c++" };
+
+    if (auto* list = exporter.getiOSLibsList())
+        libraries.addArray (*list);
+
+    libraries.trim();
+    libraries.removeDuplicates (false);
+    libraries.removeEmptyStrings();
+
+    Array<var> libraryList;
+
+    for (const auto& library : libraries)
+        libraryList.add (library);
+
+    root->setProperty ("libraries", var (libraryList));
+
+    build_tools::writeStreamToFile (exporter.getTargetFolder().getChildFile ("manifest.json"), [&] (MemoryOutputStream& mo)
+    {
+        mo.setNewLineString (exporter.getNewLineString());
+        mo << JSON::toString (var (root), false);
+    });
+}
+
+//==============================================================================
 class OnDeviceProjectExporter final : public ProjectExporter
 {
 protected:
@@ -141,110 +270,7 @@ public:
 
     void create (const OwnedArray<LibraryModule>&) const override
     {
-        createDirectoryOrThrow (getTargetFolder());
-
-        auto* root = new DynamicObject();
-        root->setProperty ("name", projectName);
-        root->setProperty ("bundleId", project.getBundleIdentifierString());
-        root->setProperty ("minimumOSVersion", "17.0");
-
-        auto defs = mergePreprocessorDefs (project.getAppConfigDefs(), getAllPreprocessorDefs());
-        Array<var> defineList;
-
-        for (int i = 0; i < defs.size(); ++i)
-            defineList.add (defs.getAllKeys()[i] + "=" + defs.getAllValues()[i]);
-
-        root->setProperty ("defines", var (defineList));
-
-        StringArray includes;
-        includes.addIfNotAlreadyThere (toProjectRelativePath (project.getGeneratedCodeFolder()));
-
-        for (const auto& path : extraSearchPaths)
-        {
-            const build_tools::RelativePath buildPath (path, build_tools::RelativePath::buildTargetFolder);
-            includes.addIfNotAlreadyThere (rebaseFromBuildTargetToProjectFolder (buildPath).toUnixStyle());
-        }
-
-        Array<var> includeList;
-
-        for (const auto& include : includes)
-            includeList.add (include);
-
-        root->setProperty ("includes", var (includeList));
-
-        Array<var> sourceList;
-
-        for (const auto& group : getAllGroups())
-            collectCompileSources (group, sourceList);
-
-        root->setProperty ("sources", var (sourceList));
-
-        auto frameworks = iosFrameworks;
-        frameworks.addIfNotAlreadyThere ("UIKit");
-        frameworks.addIfNotAlreadyThere ("Foundation");
-        frameworks.trim();
-        frameworks.removeDuplicates (false);
-        frameworks.removeEmptyStrings();
-
-        Array<var> frameworkList;
-
-        for (const auto& framework : frameworks)
-            frameworkList.add (framework);
-
-        root->setProperty ("frameworks", var (frameworkList));
-
-        StringArray libraries { "System", "c++" };
-        libraries.addArray (iosLibs);
-        libraries.trim();
-        libraries.removeDuplicates (false);
-        libraries.removeEmptyStrings();
-
-        Array<var> libraryList;
-
-        for (const auto& library : libraries)
-            libraryList.add (library);
-
-        root->setProperty ("libraries", var (libraryList));
-
-        build_tools::writeStreamToFile (getTargetFolder().getChildFile ("manifest.json"), [&] (MemoryOutputStream& mo)
-        {
-            mo.setNewLineString (getNewLineString());
-            mo << JSON::toString (var (root), false);
-        });
-    }
-
-private:
-    String toProjectRelativePath (const File& file) const
-    {
-        return project.getRelativePathForFile (file).replaceCharacter ('\\', '/');
-    }
-
-    void collectCompileSources (const Project::Item& item, Array<var>& sourceList) const
-    {
-        if (item.isGroup())
-        {
-            for (int i = 0; i < item.getNumChildren(); ++i)
-                collectCompileSources (item.getChild (i), sourceList);
-
-            return;
-        }
-
-        if (! (item.shouldBeAddedToTargetExporter (*this) && item.shouldBeCompiled()))
-            return;
-
-        const auto file = item.getFile();
-
-        if (! shouldFileBeCompiledByDefault (file))
-            return;
-
-        const auto relative = toProjectRelativePath (file);
-        // Same rules as ondevice::languageForSource (keep in sync with Language.h).
-        const bool compileAsObjC = item.isModuleCode() || file.hasFileExtension ("mm;m");
-
-        auto* source = new DynamicObject();
-        source->setProperty ("file", relative);
-        source->setProperty ("language", String (ondevice::languageForSource (relative.toStdString(), compileAsObjC)));
-        sourceList.add (var (source));
+        writeOnDeviceManifest (*this);
     }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OnDeviceProjectExporter)

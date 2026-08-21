@@ -192,6 +192,11 @@ CompileManifestResult compileManifest (const CompileManifestRequest& request)
                 if (languageUtf8 != "c" && languageUtf8 != "objective-c")
                     compile.extraArgs.push_back ("-std=gnu++17");
 
+                compile.extraArgs.push_back ("-D");
+                compile.extraArgs.push_back ("JUCE_IOS=1");
+                compile.extraArgs.push_back ("-D");
+                compile.extraArgs.push_back ("JUCE_IPHONE=1");
+
                 for (NSString* define in manifest[@"defines"])
                 {
                     if (! [define isKindOfClass: NSString.class])

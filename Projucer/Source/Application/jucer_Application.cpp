@@ -110,6 +110,27 @@ void ProjucerApplication::initialise (const String& commandLine)
 
     doBasicApplicationSetup();
 
+   #if JUCE_IOS
+    // Files.app hides "On My iPad" app folders until Documents contains a file.
+    {
+        const auto documents = File::getSpecialLocation (File::userDocumentsDirectory);
+        const auto signing = documents.getChildFile ("OnDeviceSigning");
+        signing.createDirectory();
+
+        const auto readme = documents.getChildFile ("README.txt");
+
+        if (! readme.existsAsFile())
+            readme.replaceWithText (
+                "On-device build files for Projucer\n"
+                "\n"
+                "Put iPhoneOS.sdk.zip in this folder (Documents).\n"
+                "Put signing files in OnDeviceSigning/:\n"
+                "  *.modern.p12   (or *.p12)\n"
+                "  *.mobileprovision\n"
+                "  password.txt   (or <name>.password)\n");
+    }
+   #endif
+
     // do further initialisation in a moment when the message loop has started
     triggerAsyncUpdate();
 }
@@ -370,14 +391,46 @@ void ProjucerApplication::handleAsyncUpdate()
 
 void ProjucerApplication::offerToDownloadJUCE()
 {
-    const auto options = MessageBoxOptions::makeOptionsOkCancel (MessageBoxIconType::QuestionIcon,
-                                                                 "JUCE not found",
-                                                                 "Projucer needs a copy of JUCE " + getApplicationVersion()
-                                                                   + " to work with.\n\n"
-                                                                     "Download it from GitHub now? It is a few hundred megabytes, "
-                                                                     "and will be unpacked into this app's Documents folder.",
-                                                                 "Download",
-                                                                 "Not now");
+    const auto jucePath = getAppSettings().getStoredPath (Ids::jucePath, TargetOS::getThisOS()).get().toString();
+    Logger::writeToLog ("JUCE path check: \"" + jucePath + "\" incorrect="
+                        + String (getAppSettings().isJUCEPathIncorrect() ? "yes" : "no")
+                        + " documents=" + File::getSpecialLocation (File::userDocumentsDirectory).getFullPathName());
+
+    auto options = MessageBoxOptions::makeOptionsOkCancel (MessageBoxIconType::QuestionIcon,
+                                                           "JUCE not found",
+                                                           "Projucer needs a copy of JUCE " + getApplicationVersion()
+                                                             + " to work with.\n\n"
+                                                               "Download it from GitHub now? It is a few hundred megabytes, "
+                                                               "and will be unpacked into On My iPad > Projucer "
+                                                               "(not iCloud Drive).",
+                                                           "Download",
+                                                           "Not now");
+
+   #if JUCE_IOS
+    auto* window = mainWindowList.getActiveWindow();
+
+    if (window == nullptr)
+        window = mainWindowList.getFrontmostWindow (false);
+
+    if (window == nullptr || window->getPeer() == nullptr)
+    {
+        if (++juceDownloadOfferAttempts < 25)
+        {
+            Timer::callAfterDelay (200, [parent = WeakReference { this }]
+            {
+                if (parent != nullptr)
+                    parent->offerToDownloadJUCE();
+            });
+            return;
+        }
+
+        Logger::writeToLog ("JUCE download offer: no window peer, cannot present an alert");
+        return;
+    }
+
+    juceDownloadOfferAttempts = 0;
+    options = options.withAssociatedComponent (window);
+   #endif
 
     messageBox = AlertWindow::showScopedAsync (options, [parent = WeakReference { this }] (int result)
     {
@@ -474,6 +527,10 @@ void ProjucerApplication::doBasicApplicationSetup()
 {
    #if JUCE_IOS
     Thread::launch (createICloudContainerFolder);
+    // iOS kiosk mode swallows extra JUCE desktop windows, so AlertWindow
+    // components never appear. Native UIAlertController is presented on the
+    // main window's view controller instead.
+    lookAndFeel.setUsingNativeAlertWindows (true);
    #endif
 
     LookAndFeel::setDefaultLookAndFeel (&lookAndFeel);
