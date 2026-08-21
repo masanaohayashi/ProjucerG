@@ -34,8 +34,8 @@
   ],
   "includes": [
     "JuceLibraryCode",
-    "../JUCE-9.0.0/modules",
-    "../JUCE-9.0.0/extras/Build"
+    "../OnDeviceBuild/dependencies/JUCE-9.0.0/modules",
+    "../OnDeviceBuild/dependencies/JUCE-9.0.0/extras/Build"
   ],
   "sources": [
     {
@@ -407,7 +407,11 @@
     "UIKit",
     "WebKit",
     "Network",
-    "Security"
+    "Security",
+    "Metal",
+    "MetalKit",
+    "UniformTypeIdentifiers",
+    "UserNotifications"
   ],
   "libraries": [
     "System",

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd -P)
-args=(--platform simulator)
+args=(--platform device)
 if [ "$#" -eq 1 ] && { [ "$1" = "-h" ] || [ "$1" = "--help" ]; }; then
     exec "$SCRIPT_DIR/create_ios_sdk_zip.sh" "${args[@]}" --help
 fi

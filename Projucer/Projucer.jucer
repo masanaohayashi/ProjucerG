@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT id="M70qfTRRk" name="Projucer" projectType="guiapp" juceFolder="../JUCE-9.0.0"
+<JUCERPROJECT id="M70qfTRRk" name="Projucer" projectType="guiapp" juceFolder="../OnDeviceBuild/dependencies/JUCE-9.0.0"
               version="9.0.0" bundleIdentifier="tokyo.studio-r.juce.theprojucer"
               companyName="STUDIO-R" companyCopyright="STUDIO-R" useAppConfig="0"
               addUsingNamespaceToJuceHeader="1" jucerFormatVersion="1" companyWebsite="studio-r.tokyo">
@@ -16,20 +16,20 @@
                        linkTimeOptimisation="0" recommendedWarnings="LLVM" headerPath="../../Source/Terminal/libvterm/include"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
-        <MODULEPATH id="juce_audio_basics" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_devices" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_formats" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_processors" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_processors_headless" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_utils" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_gui_extra" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_graphics" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_events" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_data_structures" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_cryptography" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_core" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_build_tools" path="../JUCE-9.0.0/extras/Build"/>
+        <MODULEPATH id="juce_audio_basics" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_graphics" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_events" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_cryptography" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_core" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_build_tools" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/extras/Build"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2019 targetFolder="Builds/VisualStudio2019" bigIcon="Zrx1Gl" extraCompilerFlags="/w44265 /w45038 /w44062"
@@ -42,20 +42,20 @@
                        headerPath="../../Source/Terminal/libvterm/include"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
-        <MODULEPATH id="juce_audio_basics" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_devices" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_formats" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_processors" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_processors_headless" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_utils" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_gui_extra" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_graphics" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_events" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_data_structures" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_cryptography" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_core" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_build_tools" path="../JUCE-9.0.0/extras/Build"/>
+        <MODULEPATH id="juce_audio_basics" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_graphics" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_events" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_cryptography" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_core" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_build_tools" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/extras/Build"/>
       </MODULEPATHS>
     </VS2019>
     <VS2022 targetFolder="Builds/VisualStudio2022" bigIcon="Zrx1Gl" extraCompilerFlags="/w44265 /w45038 /w44062"
@@ -68,20 +68,20 @@
                        headerPath="../../Source/Terminal/libvterm/include"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
-        <MODULEPATH id="juce_audio_basics" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_devices" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_formats" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_processors" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_processors_headless" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_utils" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_gui_extra" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_graphics" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_events" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_data_structures" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_cryptography" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_core" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_build_tools" path="../JUCE-9.0.0/extras/Build"/>
+        <MODULEPATH id="juce_audio_basics" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_graphics" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_events" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_cryptography" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_core" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_build_tools" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/extras/Build"/>
       </MODULEPATHS>
     </VS2022>
     <VS2026 targetFolder="Builds/VisualStudio2026" bigIcon="Zrx1Gl" extraCompilerFlags="/w44265 /w45038 /w44062"
@@ -94,20 +94,20 @@
                        headerPath="../../Source/Terminal/libvterm/include"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
-        <MODULEPATH id="juce_audio_basics" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_devices" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_formats" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_processors" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_processors_headless" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_utils" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_gui_extra" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_graphics" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_events" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_data_structures" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_cryptography" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_core" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_build_tools" path="../JUCE-9.0.0/extras/Build"/>
+        <MODULEPATH id="juce_audio_basics" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_graphics" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_events" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_cryptography" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_core" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_build_tools" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/extras/Build"/>
       </MODULEPATHS>
     </VS2026>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" bigIcon="Zrx1Gl" smallIcon="Zrx1Gl">
@@ -116,20 +116,20 @@
         <CONFIGURATION name="Release" isDebug="0" targetName="Projucer" headerPath="../../Source/Terminal/libvterm/include"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
-        <MODULEPATH id="juce_audio_basics" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_devices" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_formats" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_processors" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_processors_headless" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_utils" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_gui_extra" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_graphics" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_events" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_data_structures" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_cryptography" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_core" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_build_tools" path="../JUCE-9.0.0/extras/Build"/>
+        <MODULEPATH id="juce_audio_basics" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_graphics" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_events" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_cryptography" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_core" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_build_tools" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/extras/Build"/>
       </MODULEPATHS>
     </LINUX_MAKE>
     <XCODE_IPHONE targetFolder="Builds/iOS" smallIcon="Zrx1Gl" bigIcon="Zrx1Gl"
@@ -139,32 +139,32 @@
                   supportsOpeningDocumentsInPlace="1" iCloudContainerName="Projucer" buildNumber="9.0.1"
                   extraFrameworks="Network,Security"
                  
-                  postbuildCommand="DEST=&quot;${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/clang-resource&quot;; mkdir -p &quot;$DEST/include&quot; &quot;$DEST/lib/darwin&quot;; CLANG_INCLUDE=&quot;${HOME}/Documents/src/PocClangIOS/build-ios/lib/clang/22/include&quot;; if [ &quot;${EFFECTIVE_PLATFORM_NAME}&quot; = &quot;-iphonesimulator&quot; ]; then CLANG_INCLUDE=&quot;${HOME}/Documents/src/PocClangIOS/build-ios-simulator/lib/clang/22/include&quot;; fi; rsync -a --delete &quot;$CLANG_INCLUDE/&quot; &quot;$DEST/include/&quot;; cp -f &quot;${HOME}/Documents/src/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.ios.a&quot; &quot;$DEST/lib/darwin/libclang_rt.ios.a&quot;; if [ -f &quot;${HOME}/Documents/src/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.iossim.a&quot; ]; then cp -f &quot;${HOME}/Documents/src/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.iossim.a&quot; &quot;$DEST/lib/darwin/libclang_rt.iossim.a&quot;; fi; if [ &quot;${EFFECTIVE_PLATFORM_NAME}&quot; = &quot;-iphonesimulator&quot; ] &amp;&amp; ! /usr/sbin/lsof -nP -iTCP:38472 -sTCP:LISTEN &gt;/dev/null 2&gt;&amp;1; then /usr/bin/nohup /usr/bin/python3 &quot;${SRCROOT}/../../../scripts/simulator_install_bridge.py&quot; &gt;/tmp/projucer-simulator-install-bridge.log 2&gt;&amp;1 &amp; fi">
+                  postbuildCommand="DEST=&quot;${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/clang-resource&quot;; mkdir -p &quot;$DEST/include&quot; &quot;$DEST/lib/darwin&quot;; CLANG_INCLUDE=&quot;${SRCROOT}/../../../OnDeviceBuild/dependencies/PocClangIOS/build-ios/lib/clang/22/include&quot;; if [ &quot;${EFFECTIVE_PLATFORM_NAME}&quot; = &quot;-iphonesimulator&quot; ]; then CLANG_INCLUDE=&quot;${SRCROOT}/../../../OnDeviceBuild/dependencies/PocClangIOS/build-ios-simulator/lib/clang/22/include&quot;; fi; rsync -a --delete &quot;$CLANG_INCLUDE/&quot; &quot;$DEST/include/&quot;; cp -f &quot;${SRCROOT}/../../../OnDeviceBuild/dependencies/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.ios.a&quot; &quot;$DEST/lib/darwin/libclang_rt.ios.a&quot;; if [ -f &quot;${SRCROOT}/../../../OnDeviceBuild/dependencies/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.iossim.a&quot; ]; then cp -f &quot;${SRCROOT}/../../../OnDeviceBuild/dependencies/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.iossim.a&quot; &quot;$DEST/lib/darwin/libclang_rt.iossim.a&quot;; fi; if [ &quot;${EFFECTIVE_PLATFORM_NAME}&quot; = &quot;-iphonesimulator&quot; ] &amp;&amp; ! /usr/sbin/lsof -nP -iTCP:38472 -sTCP:LISTEN &gt;/dev/null 2&gt;&amp;1; then /usr/bin/nohup /usr/bin/python3 &quot;${SRCROOT}/../../../scripts/simulator_install_bridge.py&quot; &gt;/tmp/projucer-simulator-install-bridge.log 2&gt;&amp;1 &amp; fi">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" headerPath="../../Source/Terminal/libvterm/include&#10;../../../OnDeviceBuild/include"
                        libraryPath="../../../OnDeviceBuild/build-ios/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)"
                        iosDeploymentTarget="17.0"
-                       customXcodeFlags="OTHER_LDFLAGS[sdk=iphoneos*] = $(inherited) -lOnDeviceBuild -lzsign $(HOME)/Documents/src/PocClangIOS/build-ios/llvm-ios.a $(HOME)/Documents/src/PocSignIOS/openssl-ios/lib/libssl.a $(HOME)/Documents/src/PocSignIOS/openssl-ios/lib/libcrypto.a -lc++, ARCHS[sdk=iphonesimulator*] = arm64, LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*] = $(inherited) ../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME), OTHER_LDFLAGS[sdk=iphonesimulator*] = $(inherited) $(SRCROOT)/../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libOnDeviceBuild.a $(SRCROOT)/../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libzsign.a $(HOME)/Documents/src/PocClangIOS/build-ios-simulator/llvm-ios-simulator.a $(HOME)/Documents/src/PocSignIOS/openssl-ios-simulator/lib/libssl.a $(HOME)/Documents/src/PocSignIOS/openssl-ios-simulator/lib/libcrypto.a -lc++"/>
+                       customXcodeFlags="OTHER_LDFLAGS[sdk=iphoneos*] = $(inherited) -lOnDeviceBuild -lzsign $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocClangIOS/build-ios/llvm-ios.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios/lib/libssl.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios/lib/libcrypto.a -lc++, ARCHS[sdk=iphonesimulator*] = arm64, LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*] = $(inherited) ../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME), OTHER_LDFLAGS[sdk=iphonesimulator*] = $(inherited) $(SRCROOT)/../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libOnDeviceBuild.a $(SRCROOT)/../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libzsign.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocClangIOS/build-ios-simulator/llvm-ios-simulator.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios-simulator/lib/libssl.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios-simulator/lib/libcrypto.a -lc++"/>
         <CONFIGURATION isDebug="0" name="Release" headerPath="../../Source/Terminal/libvterm/include&#10;../../../OnDeviceBuild/include"
                        libraryPath="../../../OnDeviceBuild/build-ios/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)"
                        iosDeploymentTarget="17.0"
-                       customXcodeFlags="OTHER_LDFLAGS[sdk=iphoneos*] = $(inherited) -lOnDeviceBuild -lzsign $(HOME)/Documents/src/PocClangIOS/build-ios/llvm-ios.a $(HOME)/Documents/src/PocSignIOS/openssl-ios/lib/libssl.a $(HOME)/Documents/src/PocSignIOS/openssl-ios/lib/libcrypto.a -lc++, ARCHS[sdk=iphonesimulator*] = arm64, LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*] = $(inherited) ../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME), OTHER_LDFLAGS[sdk=iphonesimulator*] = $(inherited) $(SRCROOT)/../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libOnDeviceBuild.a $(SRCROOT)/../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libzsign.a $(HOME)/Documents/src/PocClangIOS/build-ios-simulator/llvm-ios-simulator.a $(HOME)/Documents/src/PocSignIOS/openssl-ios-simulator/lib/libssl.a $(HOME)/Documents/src/PocSignIOS/openssl-ios-simulator/lib/libcrypto.a -lc++"/>
+                       customXcodeFlags="OTHER_LDFLAGS[sdk=iphoneos*] = $(inherited) -lOnDeviceBuild -lzsign $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocClangIOS/build-ios/llvm-ios.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios/lib/libssl.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios/lib/libcrypto.a -lc++, ARCHS[sdk=iphonesimulator*] = arm64, LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*] = $(inherited) ../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME), OTHER_LDFLAGS[sdk=iphonesimulator*] = $(inherited) $(SRCROOT)/../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libOnDeviceBuild.a $(SRCROOT)/../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libzsign.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocClangIOS/build-ios-simulator/llvm-ios-simulator.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios-simulator/lib/libssl.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios-simulator/lib/libcrypto.a -lc++"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
-        <MODULEPATH id="juce_audio_basics" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_devices" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_formats" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_processors" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_processors_headless" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_audio_utils" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_build_tools" path="../JUCE-9.0.0/extras/Build"/>
-        <MODULEPATH id="juce_core" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_cryptography" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_data_structures" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_events" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_graphics" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../JUCE-9.0.0/modules"/>
-        <MODULEPATH id="juce_gui_extra" path="../JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_basics" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_build_tools" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/extras/Build"/>
+        <MODULEPATH id="juce_core" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_cryptography" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_events" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_graphics" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../OnDeviceBuild/dependencies/JUCE-9.0.0/modules"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
   </EXPORTFORMATS>
@@ -245,21 +245,21 @@
     </GROUP>
     <GROUP id="{BFDB3102-5EB6-41E0-043A-05C0DFF7A34D}" name="BinaryData">
       <FILE id="wkLB4B" name="JuceLV2Defines.h.in" compile="0" resource="1"
-            file="../JUCE-9.0.0/extras/Build/CMake/JuceLV2Defines.h.in"/>
+            file="../OnDeviceBuild/dependencies/JUCE-9.0.0/extras/Build/CMake/JuceLV2Defines.h.in"/>
       <FILE id="QRvesq" name="LaunchScreen.storyboard" compile="0" resource="1"
-            file="../JUCE-9.0.0/extras/Build/CMake/LaunchScreen.storyboard"/>
+            file="../OnDeviceBuild/dependencies/JUCE-9.0.0/extras/Build/CMake/LaunchScreen.storyboard"/>
       <FILE id="QCgjY8" name="PIPAudioProcessor.cpp.in" compile="0" resource="1"
-            file="../JUCE-9.0.0/extras/Build/CMake/PIPAudioProcessor.cpp.in"/>
+            file="../OnDeviceBuild/dependencies/JUCE-9.0.0/extras/Build/CMake/PIPAudioProcessor.cpp.in"/>
       <FILE id="oxq0Fs" name="PIPAudioProcessorWithARA.cpp.in" compile="0"
-            resource="1" file="../JUCE-9.0.0/extras/Build/CMake/PIPAudioProcessorWithARA.cpp.in"/>
+            resource="1" file="../OnDeviceBuild/dependencies/JUCE-9.0.0/extras/Build/CMake/PIPAudioProcessorWithARA.cpp.in"/>
       <FILE id="AwIYFr" name="PIPComponent.cpp.in" compile="0" resource="1"
-            file="../JUCE-9.0.0/extras/Build/CMake/PIPComponent.cpp.in"/>
+            file="../OnDeviceBuild/dependencies/JUCE-9.0.0/extras/Build/CMake/PIPComponent.cpp.in"/>
       <FILE id="SncItz" name="PIPConsole.cpp.in" compile="0" resource="1"
-            file="../JUCE-9.0.0/extras/Build/CMake/PIPConsole.cpp.in"/>
+            file="../OnDeviceBuild/dependencies/JUCE-9.0.0/extras/Build/CMake/PIPConsole.cpp.in"/>
       <FILE id="xokhSP" name="RecentFilesMenuTemplate.nib" compile="0" resource="1"
-            file="../JUCE-9.0.0/extras/Build/CMake/RecentFilesMenuTemplate.nib"/>
+            file="../OnDeviceBuild/dependencies/JUCE-9.0.0/extras/Build/CMake/RecentFilesMenuTemplate.nib"/>
       <FILE id="H4EF8K" name="UnityPluginGUIScript.cs.in" compile="0" resource="1"
-            file="../JUCE-9.0.0/extras/Build/CMake/UnityPluginGUIScript.cs.in"/>
+            file="../OnDeviceBuild/dependencies/JUCE-9.0.0/extras/Build/CMake/UnityPluginGUIScript.cs.in"/>
       <GROUP id="{6528902B-862F-277C-31AA-6F6283E7D5C8}" name="gradle">
         <FILE id="HA0Kl7" name="gradle-wrapper.jar" compile="0" resource="1"
               file="Source/BinaryData/gradle/gradle-wrapper.jar"/>
@@ -379,9 +379,9 @@
       <FILE id="bvFank" name="colourscheme_light.xml" compile="0" resource="1"
             file="Source/BinaryData/colourscheme_light.xml"/>
       <FILE id="SDFoQY" name="juce_runtime_arch_detection.cpp" compile="0"
-            resource="1" file="../JUCE-9.0.0/extras/Build/CMake/juce_runtime_arch_detection.cpp"/>
+            resource="1" file="../OnDeviceBuild/dependencies/JUCE-9.0.0/extras/Build/CMake/juce_runtime_arch_detection.cpp"/>
       <FILE id="m0ZzB2" name="juce_LinuxSubprocessHelper.cpp" compile="0"
-            resource="1" file="../JUCE-9.0.0/extras/Build/CMake/juce_LinuxSubprocessHelper.cpp"/>
+            resource="1" file="../OnDeviceBuild/dependencies/JUCE-9.0.0/extras/Build/CMake/juce_LinuxSubprocessHelper.cpp"/>
       <FILE id="OMFBxs" name="juce_SimpleBinaryBuilder.cpp" compile="0" resource="1"
             file="Source/BinaryData/juce_SimpleBinaryBuilder.cpp"/>
     </GROUP>

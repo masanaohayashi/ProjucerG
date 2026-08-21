@@ -4,8 +4,10 @@
 # Reference JUCE checkouts used for comparison.
 /JUCE-7.0.12/
 /JUCE-8.0.13/
-/JUCE-9.0.0/
 /JUCE-juce9/
+
+# Generated iOS setup tree. Source is kept in OnDeviceBuildSource/.
+/OnDeviceBuild/
 
 # Local build output from Projucer-generated projects.
 **/Builds/MacOSX/build/

@@ -111,11 +111,11 @@ above.
 
 ## Build Requirements
 
-This branch expects a JUCE 9.0.0 checkout next to this repository. The current
-development setup used:
+This branch keeps the JUCE 9.0.0 checkout inside this repository. The current
+development setup uses:
 
 ```text
-../JUCE-9.0.0
+OnDeviceBuild/dependencies/JUCE-9.0.0
 ```
 
 The Projucer project file is:
@@ -147,23 +147,75 @@ xcodebuild -project Projucer/Builds/MacOSX/Projucer.xcodeproj \
 
 - macOS and Xcode with an iOS SDK that can build for iPadOS 17.0 or later. The
   deployment target of this project is iOS 17.0.
-- A JUCE 9.0.0 checkout at `../JUCE-9.0.0` relative to this repository.
-- iOS LLVM/Clang and OpenSSL build artifacts at the paths referenced by the
-  generated Xcode project:
+- The repository may start without an `OnDeviceBuild/` directory. The tracked
+  engine source is kept in `OnDeviceBuildSource/`, and setup creates the
+  generated `OnDeviceBuild/` tree from it.
+- A JUCE 9.0.0 checkout at `OnDeviceBuild/dependencies/JUCE-9.0.0` after setup.
+- iOS LLVM/Clang and OpenSSL build artifacts under the same dependency root:
 
 ```text
-~/Documents/src/PocClangIOS/build-ios/llvm-ios.a
-~/Documents/src/PocClangIOS/build-ios-simulator/llvm-ios-simulator.a
-~/Documents/src/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.ios.a
-~/Documents/src/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.iossim.a
-~/Documents/src/PocSignIOS/openssl-ios/lib/libssl.a
-~/Documents/src/PocSignIOS/openssl-ios/lib/libcrypto.a
-~/Documents/src/PocSignIOS/openssl-ios-simulator/lib/libssl.a
-~/Documents/src/PocSignIOS/openssl-ios-simulator/lib/libcrypto.a
+OnDeviceBuild/dependencies/PocClangIOS/build-ios/llvm-ios.a
+OnDeviceBuild/dependencies/PocClangIOS/build-ios-simulator/llvm-ios-simulator.a
+OnDeviceBuild/dependencies/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.ios.a
+OnDeviceBuild/dependencies/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.iossim.a
+OnDeviceBuild/dependencies/PocSignIOS/openssl-ios/lib/libssl.a
+OnDeviceBuild/dependencies/PocSignIOS/openssl-ios/lib/libcrypto.a
+OnDeviceBuild/dependencies/PocSignIOS/openssl-ios-simulator/lib/libssl.a
+OnDeviceBuild/dependencies/PocSignIOS/openssl-ios-simulator/lib/libcrypto.a
 ```
 
-If these dependencies are stored elsewhere, update the Xcode flags in the
-`.jucer` file and the cache values in `OnDeviceBuild/CMakeLists.txt`.
+The setup scripts use these paths by default. To intentionally use a different
+root, set `IOS_SETUP_DEPENDENCY_ROOT`; normal setup does not require any
+dependency directory outside this repository.
+
+### One-command setup
+
+On macOS, the complete local setup can be started with one command:
+
+```sh
+./scripts/setup_ios.sh --target all
+```
+
+Use `--target simulator` when only Simulator support is needed, or
+`--target device` for the physical iPad path. The master script calls these
+re-runnable stages in dependency order:
+
+1. Create `OnDeviceBuild/` from the tracked `OnDeviceBuildSource/` template. It
+   is valid for `OnDeviceBuild/` to be absent before this step.
+2. Move existing sibling dependency directories into `OnDeviceBuild/dependencies`,
+   or download JUCE, LLVM/Clang, and OpenSSL there when they are missing. Fetch
+   `zhlynn/zsign` at the pinned commit as part of this stage; zlib and minizip are
+   supplied under zsign's `src/third-party` tree.
+3. Check Xcode and all prepared dependencies.
+4. Create `iPhoneOS.sdk.zip` and/or `iPhoneSimulator.sdk.zip`.
+5. Build host LLVM/Clang, then the iOS LLVM static archive.
+6. Build the iOS and Simulator compiler-rt archives.
+7. Build the iOS and Simulator OpenSSL static libraries.
+8. Build `OnDeviceBuild` and `zsign` for Debug and Release.
+
+The long Ninja stages show an exact completed/total task count, elapsed time,
+and an ETA based on the measured rate. In an interactive terminal, the live
+progress counter is rewritten on one line instead of scrolling. OpenSSL and
+Xcode stages also show elapsed time and periodic progress. The complete log is written under
+`OnDeviceBuild/build-artifacts/ios-setup-*.log`. If the command is interrupted,
+run the same command again; Ninja and Make resume from their existing outputs.
+
+Useful options are `--jobs 8`, `--skip-dependencies`, `--skip-sdk`, `--skip-llvm`,
+`--skip-runtime`, `--skip-openssl`, `--skip-ondevice`, and `--dry-run`.
+The old `--skip-third-party` spelling remains accepted as a compatibility alias.
+The dependency root can be overridden without editing the scripts:
+
+```sh
+IOS_SETUP_DEPENDENCY_ROOT=/path/to/OnDeviceBuild/dependencies \
+./scripts/setup_ios.sh --target simulator
+```
+
+The first run migrates the existing `JUCE-9.0.0`, `PocClangIOS`, and
+`PocSignIOS` directories from the repository's parent directory with a rename.
+If they are absent, the script downloads the pinned JUCE/LLVM/OpenSSL source
+archives and fetches zsign into `OnDeviceBuild`. It does not create an Apple
+certificate or provisioning profile, or copy private signing files to an iPad.
+Set `ZSIGN_REPOSITORY` or `ZSIGN_COMMIT` to override the zsign source when needed.
 
 Build the iOS static libraries after preparing the SDK and dependencies:
 
@@ -278,20 +330,21 @@ Launch Projucer, open a `.jucer` project, select the iOS exporter, and press
 
 - macOS と Xcode（iPadOS 17.0 以降をビルドできる iOS SDK）。このプロジェクトの
   deployment target は iOS 17.0。
-- リポジトリの隣に `../JUCE-9.0.0` を配置する。
-- iOS 用の LLVM/Clang と OpenSSL のビルド成果物を、現在の Xcode プロジェクトが
-  参照する以下の場所に配置する。別の場所を使う場合は `.jucer` の Xcode flags と
-  `OnDeviceBuild/CMakeLists.txt` のキャッシュ値を変更する。
+- 初期状態では `OnDeviceBuild/` が存在しなくてもよい。追跡対象のソースは
+  `OnDeviceBuildSource/` にあり、セットアップがそこから `OnDeviceBuild/` を生成する。
+- ダウンロードしたソースと生成した成果物は、すべてリポジトリ内の
+  `OnDeviceBuild/dependencies` に配置する。
+- iOS 用の LLVM/Clang と OpenSSL のビルド成果物は、次の場所に生成される。
 
 ```text
-~/Documents/src/PocClangIOS/build-ios/llvm-ios.a
-~/Documents/src/PocClangIOS/build-ios-simulator/llvm-ios-simulator.a
-~/Documents/src/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.ios.a
-~/Documents/src/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.iossim.a
-~/Documents/src/PocSignIOS/openssl-ios/lib/libssl.a
-~/Documents/src/PocSignIOS/openssl-ios/lib/libcrypto.a
-~/Documents/src/PocSignIOS/openssl-ios-simulator/lib/libssl.a
-~/Documents/src/PocSignIOS/openssl-ios-simulator/lib/libcrypto.a
+OnDeviceBuild/dependencies/PocClangIOS/build-ios/llvm-ios.a
+OnDeviceBuild/dependencies/PocClangIOS/build-ios-simulator/llvm-ios-simulator.a
+OnDeviceBuild/dependencies/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.ios.a
+OnDeviceBuild/dependencies/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.iossim.a
+OnDeviceBuild/dependencies/PocSignIOS/openssl-ios/lib/libssl.a
+OnDeviceBuild/dependencies/PocSignIOS/openssl-ios/lib/libcrypto.a
+OnDeviceBuild/dependencies/PocSignIOS/openssl-ios-simulator/lib/libssl.a
+OnDeviceBuild/dependencies/PocSignIOS/openssl-ios-simulator/lib/libcrypto.a
 ```
 
 `OnDeviceBuild` の iOS 用静的ライブラリは、必要な SDK と上記の依存物を用意した
@@ -334,6 +387,52 @@ OnDeviceSigning/
  使い、`Projucer/Projucer.jucer` の `iosDevelopmentTeamID` も自分の Team ID に変更する。
 - `iPhoneOS.sdk.zip` と署名ファイルには秘密情報が含まれる場合があるため、リポジトリ
   には追加しない。アプリの `Documents` にだけコピーする。
+
+### セットアップを1コマンドで実行する
+
+macOS 上では、iOS 実機と Simulator の準備を次の1コマンドで順番に実行できる。
+
+```sh
+./scripts/setup_ios.sh --target all
+```
+
+Simulator だけなら `--target simulator`、実機だけなら `--target device` を指定する。
+マスタースクリプトは次の工程を依存関係順に呼び出す。
+
+1. `OnDeviceBuildSource/` の追跡対象ソースから `OnDeviceBuild/` を生成する。
+   実行前に `OnDeviceBuild/` が存在しない状態が正しい。
+2. 既存の外部依存ディレクトリを `OnDeviceBuild/dependencies` に移動し、無ければ
+   JUCE / LLVM/Clang / OpenSSL のソースを取得する。zsign も固定コミット
+   `e803f870dc686e6161d00d9b22c425b8acdfacee` からこの工程で取得する
+   （zlib / minizipもzsign内の`src/third-party`から取得される）。
+3. Xcode と準備済み依存物の前提条件を確認
+4. `iPhoneOS.sdk.zip` / `iPhoneSimulator.sdk.zip` を作成
+5. host 用 LLVM/Clang のあと、iOS 用 LLVM 静的ライブラリを作成
+6. iOS / Simulator 用 compiler-rt 静的ライブラリを作成
+7. iOS / Simulator 用 OpenSSL 静的ライブラリを作成
+8. `OnDeviceBuild` と `zsign` を Debug / Release で作成
+
+長時間かかる Ninja の工程では、完了数/総数、経過時間、実測速度から計算した予想残り時間を
+表示する。対話型ターミナルでは進捗カウンターを同じ行で更新し、画面をスクロールさせない。
+OpenSSL と Xcode の工程も経過時間と定期的な進捗を表示する。全ログは
+`OnDeviceBuild/build-artifacts/ios-setup-*.log` に保存される。途中で中断した場合は同じ
+コマンドを再実行すればよく、Ninja と Make が既存成果物から続きだけを処理する。
+
+よく使うオプションは `--jobs 8`、`--skip-dependencies`、`--skip-sdk`、`--skip-llvm`、`--skip-runtime`、
+`--skip-openssl`、`--skip-ondevice`、`--dry-run`。以前の `--skip-third-party` も互換エイリアスとして
+使用できる。依存物のルートを変更する場合だけ、環境変数を指定する。
+
+```sh
+IOS_SETUP_DEPENDENCY_ROOT=/path/to/OnDeviceBuild/dependencies \
+./scripts/setup_ios.sh --target simulator
+```
+
+初回実行時、リポジトリの親ディレクトリにある `JUCE-9.0.0`、`PocClangIOS`、
+`PocSignIOS` はコピーではなくリネームで `OnDeviceBuild/dependencies` に移動する。
+存在しない場合は JUCE / LLVM / OpenSSL の固定版ソースをダウンロードし、zsign も
+`OnDeviceBuild` 配下に取得する。Apple 証明書・provisioning profile の作成と秘密の署名
+ファイルの iPad へのコピーは行わない。zsignの取得元やコミットを変更する場合は
+`ZSIGN_REPOSITORY` または `ZSIGN_COMMIT` を指定する。
 
 ### Simulator 用 SDK とワンクリック実行
 
