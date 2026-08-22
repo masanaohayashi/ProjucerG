@@ -2,6 +2,7 @@
 #include "jucer_AiPaths.h"
 
 #include "../Git/jucer_GitCommand.h"
+#include "../Shell/jucer_InProcessShell.h"
 
 #include <cstdint>
 #include <cstdlib>
@@ -722,7 +723,7 @@ juce::var AiTools::getToolSchemas (bool includeCodexWebSearchFlags)
         properties->setProperty ("yield_time_ms", makeIntegerProperty ("Maximum time to wait in milliseconds. Defaults to 300000 (5 minutes). Range 10000-300000."));
 
         auto tool = makeTool ("exec_command",
-                              "Run a shell command in the project working directory. Use this for git clone, builds, tests, and other command-line work. Commands that write files or use the network need the user's approval unless they chose Full access.",
+                              "Run a shell command in the project working directory. On iOS this is an in-process POSIX subset (pipes, redirects, git, common file/text tools). It cannot spawn compilers or run executables; use On-Device Build to compile. Commands that write files or use the network need the user's approval unless they chose Full access.",
                               properties, { "cmd" });
 
         if (auto* object = tool.getDynamicObject())
@@ -732,8 +733,8 @@ juce::var AiTools::getToolSchemas (bool includeCodexWebSearchFlags)
         tools.add (tool);
     }
 
-    /*  組み込みの git。iOS にはシェルが無いので、exec_command の代わりに
-        こちらを通す。実装は libgit2 で、同じプロセスの中で完結する。 */
+    /*  組み込みの git。実装は libgit2 で、同じプロセスの中で完結する。
+        iOS の exec_command からも同じ実装へ届く。 */
     {
         auto* properties = new juce::DynamicObject();
         properties->setProperty ("args", makeStringProperty (
@@ -746,8 +747,7 @@ juce::var AiTools::getToolSchemas (bool includeCodexWebSearchFlags)
             "Working directory relative to the project root. Defaults to the project root."));
 
         tools.add (makeTool ("git",
-                             "Run git in the editor process. This works on iOS, where no shell is available. "
-                             "Prefer it over exec_command for version control.",
+                             "Run git in the editor process. Prefer the git tool or `exec_command` with git; both hit the same in-process implementation.",
                              properties, { "args" }));
     }
 
@@ -1436,26 +1436,6 @@ AiTools::Result AiTools::doExecCommand (const juce::var& arguments,
 
     cancelRequested.store (false, std::memory_order_release);
 
-   #if JUCE_IOS
-    /*  iOS にはシェルも子プロセスも無い。git だけは組み込み実装へ回して、
-        それ以外は理由をはっきり返す。 */
-    if (ProjucerGit::isGitCommandLine (cmd))
-    {
-        const auto gitResult = ProjucerGit::runCommandLine (cmd, cwd, &cancelRequested);
-
-        juce::String text;
-        text << "exit_code: " << gitResult.exitCode << "\n"
-             << (gitResult.output.isNotEmpty() ? gitResult.output : juce::String ("(no output)"));
-
-        return { gitResult.exitCode == 0, text, preview };
-    }
-
-    return { false,
-             "There is no shell on iOS. Use the git tool for version control and the file tools "
-             "for everything else.",
-             preview };
-   #endif
-
     auto timeoutMs = defaultExecTimeoutMs;
 
     if (object->hasProperty ("yield_time_ms"))
@@ -1466,6 +1446,29 @@ AiTools::Result AiTools::doExecCommand (const juce::var& arguments,
             timeoutMs = juce::jlimit (minExecTimeoutMs, maxExecTimeoutMs,
                                       (int) static_cast<std::int64_t> (value));
     }
+
+   #if JUCE_IOS
+    ProjucerShell::Request request;
+    request.commandLine = cmd;
+    request.workingDirectory = cwd;
+    request.sandboxRoot = projectRoot;
+    request.cancelFlag = &cancelRequested;
+    request.timeoutMs = timeoutMs;
+    request.maxOutputChars = maxExecOutputChars;
+
+    const auto shellResult = ProjucerShell::run (request);
+
+    auto output = shellResult.output;
+
+    if (output.length() > maxExecOutputChars)
+        output = output.substring (0, maxExecOutputChars) + "\n...[truncated]";
+
+    juce::String resultText;
+    resultText << "exit_code: " << shellResult.exitCode << "\n"
+               << (output.isNotEmpty() ? output : juce::String ("(no output)"));
+
+    return { shellResult.exitCode == 0, resultText, preview };
+   #else
 
     if (useVisibleTerminal)
     {
@@ -1538,4 +1541,5 @@ AiTools::Result AiTools::doExecCommand (const juce::var& arguments,
         resultText << "(no output)";
 
     return { exitCode == 0, resultText, preview };
+   #endif
 }

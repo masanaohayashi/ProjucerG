@@ -691,6 +691,16 @@
       <FILE id="gitCmd2" name="jucer_GitCommand.cpp" compile="1" resource="0"
             file="Source/Git/jucer_GitCommand.cpp"/>
     </GROUP>
+    <GROUP id="{A1B2C3D4-0000-4000-8000-000000000004}" name="Shell">
+      <FILE id="shHd1" name="jucer_InProcessShell.h" compile="0" resource="0"
+            file="Source/Shell/jucer_InProcessShell.h"/>
+      <FILE id="shCpp1" name="jucer_InProcessShell.cpp" compile="1" resource="0"
+            file="Source/Shell/jucer_InProcessShell.cpp"/>
+      <FILE id="shApH1" name="jucer_ShellApplets.h" compile="0" resource="0"
+            file="Source/Shell/jucer_ShellApplets.h"/>
+      <FILE id="shApC1" name="jucer_ShellApplets.cpp" compile="1" resource="0"
+            file="Source/Shell/jucer_ShellApplets.cpp"/>
+    </GROUP>
     <GROUP id="{A1B2C3D4-0000-4000-8000-000000000002}" name="AI">
       <FILE id="aiSse1" name="jucer_SseParser.h" compile="0" resource="0"
             file="Source/AI/jucer_SseParser.h"/>

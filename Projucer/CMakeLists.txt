@@ -59,6 +59,8 @@ target_sources(Projucer PRIVATE
     Source/CodeEditor/jucer_OpenDocumentManager.cpp
     Source/CodeEditor/jucer_SourceCodeEditor.cpp
     Source/Git/jucer_GitCommand.cpp
+    Source/Shell/jucer_InProcessShell.cpp
+    Source/Shell/jucer_ShellApplets.cpp
     Source/Project/Modules/jucer_Modules.cpp
     Source/Project/UI/jucer_HeaderComponent.cpp
     Source/Project/jucer_Project.cpp
