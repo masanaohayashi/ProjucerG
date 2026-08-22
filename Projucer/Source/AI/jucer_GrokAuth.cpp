@@ -192,12 +192,29 @@ bool GrokAuth::adoptTokenResponse (const juce::String& response,
                                    juce::String& errorOut)
 {
     const auto parsed = juce::JSON::parse (response);
-    const auto accessToken  = parsed.getProperty ("access_token", {}).toString();
-    const auto refreshToken = parsed.getProperty ("refresh_token", {}).toString();
+    auto accessToken  = parsed.getProperty ("access_token", {}).toString();
+
+    if (accessToken.isEmpty())
+        accessToken = parsed.getProperty ("accessToken", {}).toString();
+
+    auto refreshToken = parsed.getProperty ("refresh_token", {}).toString();
+
+    if (refreshToken.isEmpty())
+        refreshToken = parsed.getProperty ("refreshToken", {}).toString();
 
     if (accessToken.isEmpty())
     {
-        errorOut = "Could not read the token response.";
+        /*  ここへ来るのは 2xx が返っているのに本文からトークンが読めない場合。
+            iPad には Xcode のコンソールが無いので、本文の頭を画面にも出す。
+            access_token が無いことは確認済みなので、これで秘密は漏れない
+            (refresh_token だけあった場合は safeErrorMessage 側が伏せる)。 */
+        const auto hint = response.trim().substring (0, 160);
+
+        errorOut = "Could not read the token response."
+                     + (hint.isEmpty() ? juce::String (" The body was empty.")
+                                       : " Body starts: " + hint);
+
+        DBG ("[AI][grok-auth] token body had no access_token: " << response.substring (0, 400));
         return false;
     }
 
@@ -216,11 +233,9 @@ bool GrokAuth::adoptTokenResponse (const juce::String& response,
     }
 
     if (! save())
-    {
-        errorOut = "Could not save the tokens to the keychain.";
-        return false;
-    }
+        DBG ("[AI][grok-auth] keychain save failed; keeping tokens in memory");
 
+    DBG ("[AI][grok-auth] signed in");
     return true;
 }
 
@@ -269,7 +284,7 @@ bool GrokAuth::signInWithBrowser (std::atomic<bool>& shouldStop, juce::String& e
     add ("referrer", "grok-build");
 
     beginAuthBackgroundTask();
-    presentAuthPage (juce::String (issuer) + "/oauth2/authorize?" + query);
+    presentAuthPage (juce::String (issuer) + "/oauth2/authorize?" + query, true);
 
     juce::String code, returnedState;
     const auto gotCode = server.waitForCode (shouldStop, code, returnedState, errorOut);
@@ -320,12 +335,19 @@ bool GrokAuth::signInWithBrowser (std::atomic<bool>& shouldStop, juce::String& e
 
 bool GrokAuth::submitPastedInput (const juce::String& input)
 {
-    const juce::ScopedLock sl (lock);
+    OAuthCallbackServer* callback = nullptr;
 
-    if (pendingCallback == nullptr)
+    {
+        const juce::ScopedLock sl (lock);
+        callback = pendingCallback;
+    }
+
+    if (callback == nullptr)
         return false;
 
-    pendingCallback->submitPastedInput (input);
+    callback->submitPastedInput (input);
+    /*  貼った時点で認可ページは用済み。残っていると結果が見えない。 */
+    dismissAuthPage();
     return true;
 }
 

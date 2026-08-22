@@ -110,10 +110,27 @@ void OAuthCallbackServer::submitPastedInput (const juce::String& input)
     if (code.isEmpty())
         code = trimmed;
 
+    {
+        const juce::ScopedLock sl (lock);
+        pastedCode = code;
+        pastedState = state;
+        hasPasted = true;
+    }
+
+    pastedEvent.signal();
+}
+
+bool OAuthCallbackServer::takePastedCode (juce::String& codeOut, juce::String& stateOut)
+{
     const juce::ScopedLock sl (lock);
-    pastedCode = code;
-    pastedState = state;
-    hasPasted = true;
+
+    if (! hasPasted || pastedCode.isEmpty())
+        return false;
+
+    codeOut = pastedCode;
+    stateOut = pastedState;
+    hasPasted = false;
+    return true;
 }
 
 bool OAuthCallbackServer::start (int preferredPort)
@@ -139,12 +156,13 @@ bool OAuthCallbackServer::start (int preferredPort)
 void OAuthCallbackServer::stop()
 {
     listener.close();
-    port = 0;
+    pastedEvent.signal();
 
     const juce::ScopedLock sl (lock);
     hasPasted = false;
     pastedCode.clear();
     pastedState.clear();
+    port = 0;
 }
 
 bool OAuthCallbackServer::waitForCode (std::atomic<bool>& shouldStop,
@@ -154,23 +172,15 @@ bool OAuthCallbackServer::waitForCode (std::atomic<bool>& shouldStop,
 {
     while (! shouldStop.load())
     {
+        if (takePastedCode (codeOut, stateOut))
+            return true;
+
+        /*  iOS では listen socket が ready のまま accept で止まることがある。
+            貼り付けは WaitableEvent だけで起こす。ループバックは macOS だけ。 */
+       #if ! JUCE_IOS
+        if (listener.waitUntilReady (true, 0) == 1)
         {
-            const juce::ScopedLock sl (lock);
-
-            if (hasPasted && pastedCode.isNotEmpty())
-            {
-                codeOut = pastedCode;
-                stateOut = pastedState;
-                hasPasted = false;
-                return true;
-            }
-        }
-
-        // 中断要求と貼り付けに応じられるよう、細かく区切って待つ。
-        if (listener.waitUntilReady (true, 200) != 1)
-            continue;
-
-        std::unique_ptr<juce::StreamingSocket> connection (listener.waitForNextConnection());
+            std::unique_ptr<juce::StreamingSocket> connection (listener.waitForNextConnection());
 
         if (connection == nullptr)
             continue;
@@ -253,6 +263,10 @@ bool OAuthCallbackServer::waitForCode (std::atomic<bool>& shouldStop,
         }
 
         return true;
+        }
+       #endif
+
+        pastedEvent.wait (100);
     }
 
     errorOut = "Sign-in was cancelled.";

@@ -118,6 +118,15 @@ namespace AiModels
         return getKnownModels().getFirst().id;
     }
 
+    juce::String getDefaultModelFor (Provider provider)
+    {
+        for (const auto& model : getKnownModels())
+            if (model.provider == provider)
+                return model.id;
+
+        return getDefaultModel();
+    }
+
     static juce::String defaultEffortFor (const juce::String& modelId)
     {
         for (const auto& model : getKnownModels())

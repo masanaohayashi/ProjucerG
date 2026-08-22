@@ -41,7 +41,10 @@ public:
     void stop();
 
 private:
+    bool takePastedCode (juce::String& codeOut, juce::String& stateOut);
+
     juce::StreamingSocket listener;
+    juce::WaitableEvent pastedEvent;
     juce::CriticalSection lock;
     juce::String callbackPath { "/auth/callback" };
     bool allowAccountsCors = false;

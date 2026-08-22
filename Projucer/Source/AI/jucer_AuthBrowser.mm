@@ -1,5 +1,7 @@
 #include "jucer_AuthBrowser.h"
 
+#include <juce_events/juce_events.h>
+
 #import <Foundation/Foundation.h>
 
 /*  このプロジェクトは ARC を使わない（jucer_Keychain.mm 参照）。__bridge 系の
@@ -100,7 +102,7 @@ void endAuthBackgroundTask()
     });
 }
 
-void presentAuthPage (const juce::String& authorizeUrl)
+void presentAuthPage (const juce::String& authorizeUrl, bool keepAppInteractive)
 {
     auto* urlString = [NSString stringWithUTF8String: authorizeUrl.toRawUTF8()];
     auto* url = [NSURL URLWithString: urlString];
@@ -121,6 +123,24 @@ void presentAuthPage (const juce::String& authorizeUrl)
         auto* controller = [[SFSafariViewController alloc] initWithURL: url];
         [url release];
 
+        if (keepAppInteractive)
+        {
+            /*  Grok はコードをアプリへ貼る。全面モーダルだと貼り付け欄に
+                届かないので、シートにして裏を触れるようにする。 */
+            controller.modalPresentationStyle = UIModalPresentationPageSheet;
+
+            if (auto* sheet = controller.sheetPresentationController)
+            {
+                sheet.detents = @[
+                    [UISheetPresentationControllerDetent mediumDetent],
+                    [UISheetPresentationControllerDetent largeDetent]
+                ];
+                sheet.selectedDetentIdentifier = UISheetPresentationControllerDetentIdentifierMedium;
+                sheet.prefersGrabberVisible = YES;
+                sheet.largestUndimmedDetentIdentifier = UISheetPresentationControllerDetentIdentifierMedium;
+            }
+        }
+
         if (auto* presenter = findPresentingController())
         {
             activeController = controller;
@@ -140,15 +160,26 @@ void dismissAuthPage()
         if (activeController == nil)
             return;
 
-        [activeController dismissViewControllerAnimated: YES completion: nil];
-        [activeController release];
+        auto* controller = activeController;
         activeController = nil;
+        [controller dismissViewControllerAnimated: NO completion: nil];
+        [controller release];
+    });
+}
+
+void runOnAppMainThread (std::function<void()> fn)
+{
+    auto* heapFn = new std::function<void()> (std::move (fn));
+
+    dispatch_async (dispatch_get_main_queue(), ^{
+        (*heapFn)();
+        delete heapFn;
     });
 }
 
 #else
 
-void presentAuthPage (const juce::String& authorizeUrl)
+void presentAuthPage (const juce::String& authorizeUrl, bool)
 {
     juce::URL (authorizeUrl).launchInDefaultBrowser();
 }
@@ -163,6 +194,11 @@ void beginAuthBackgroundTask()
 
 void endAuthBackgroundTask()
 {
+}
+
+void runOnAppMainThread (std::function<void()> fn)
+{
+    juce::MessageManager::callAsync (std::move (fn));
 }
 
 #endif

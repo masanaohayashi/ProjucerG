@@ -3,6 +3,7 @@
 #include "jucer_AiChatView.h"
 
 #include "jucer_AiModels.h"
+#include "jucer_AuthBrowser.h"
 
 #include <algorithm>
 #include <cmath>
@@ -62,7 +63,7 @@ namespace
                          juce::Component::SafePointer<AiChatView> view,
                          Fn&& fn)
     {
-        juce::MessageManager::callAsync ([lifetime, view, fn = std::forward<Fn> (fn)]() mutable
+        runOnAppMainThread ([lifetime, view, fn = std::forward<Fn> (fn)]() mutable
         {
             if (! lifetime->load (std::memory_order_acquire))
                 return;
@@ -660,11 +661,17 @@ public:
     {
         callOnLiveView (lifetimeToken, view, [isGrok = provider == SignInProvider::grok] (AiChatView& liveView)
         {
+            if (isGrok && liveView.grokAuth->isSignedIn())
+            {
+                liveView.updateVisibility();
+                return;
+            }
+
             if (isGrok)
             {
                 liveView.signInInstructions.setText (
-                    "Finish signing in in the browser. If it shows a code to paste into Grok Build, "
-                    "paste it below and press Continue.",
+                    "Finish signing in in the page above. If it shows a code, paste it below. "
+                    "Pull the page down if it covers this field.",
                     juce::dontSendNotification);
                 liveView.signInButton.setVisible (false);
                 liveView.grokSignInButton.setVisible (false);
@@ -696,8 +703,15 @@ public:
 
         if (signedIn)
         {
-            callOnLiveView (lifetimeToken, view, [] (AiChatView& liveView)
+            callOnLiveView (lifetimeToken, view, [isGrok = provider == SignInProvider::grok] (AiChatView& liveView)
             {
+                if (isGrok && AiModels::getSelectedProvider() != AiModels::Provider::grok)
+                    AiModels::setSelection (AiModels::getDefaultModelFor (AiModels::Provider::grok), {});
+
+                liveView.signInButton.setEnabled (true);
+                liveView.grokSignInButton.setEnabled (true);
+                liveView.grokPasteEditor.setVisible (false);
+                liveView.grokPasteButton.setVisible (false);
                 liveView.signInInstructions.setText ("Signed in successfully.",
                                                      juce::dontSendNotification);
                 liveView.updateVisibility();
@@ -711,10 +725,18 @@ public:
                 ? "Sign-in was cancelled."
                 : "Sign-in failed. Please try again.");
 
-        callOnLiveView (lifetimeToken, view, [displayError] (AiChatView& liveView)
+        callOnLiveView (lifetimeToken, view, [displayError,
+                                              isGrok = provider == SignInProvider::grok] (AiChatView& liveView)
         {
             liveView.signInInstructions.setText (displayError, juce::dontSendNotification);
+
+            /*  ここで updateVisibility() は呼べない。あれは「サインイン中か」を
+                ワーカースレッドが生きているかで見るが、このラムダはそのワーカー
+                自身から投げられるので、まだ生きている扱いになりボタンを全部
+                隠してしまう。可視状態はここで直接戻す。 */
+            liveView.signInButton.setVisible (! isGrok);
             liveView.signInButton.setEnabled (true);
+            liveView.grokSignInButton.setVisible (isGrok);
             liveView.grokSignInButton.setEnabled (true);
             liveView.deviceCodeButton.setVisible (liveView.providerShowsDeviceCode());
             liveView.grokPasteEditor.setVisible (false);
@@ -920,6 +942,16 @@ AiChatView::AiChatView (std::shared_ptr<AiSession> sessionToUse,
     grokPasteEditor.setTextToShowWhenEmpty ("Paste the code from the browser",
                                             chatForeground.withAlpha (0.4f));
     grokPasteEditor.addKeyListener (this);
+    grokPasteEditor.onReturnKey = [this] { submitGrokPaste(); };
+    grokPasteEditor.onTextChange = [this]
+    {
+        const auto pasted = grokPasteEditor.getText().trim();
+
+        /*  iPad はキーボードで Continue が隠れる。長いコードが一気に入ったら
+            そのまま進める。 */
+        if (pasted.length() >= 24 && ! pasted.containsChar (' '))
+            submitGrokPaste();
+    };
     signInCard.addChildComponent (grokPasteEditor);
 
     grokPasteButton.onClick = [this] { submitGrokPaste(); };
@@ -1221,11 +1253,14 @@ void AiChatView::updateVisibility()
     grokSignInButton.setVisible (! signedIn && ! signingIn);
     signInButton.setVisible (! signedIn && ! signingIn);
     deviceCodeButton.setVisible (! signedIn && ! selectedGrok && ! signingIn);
+    signInButton.setEnabled (! signingIn);
+    grokSignInButton.setEnabled (! signingIn);
 
     if (! signingIn)
     {
         grokPasteEditor.setVisible (false);
         grokPasteButton.setVisible (false);
+        grokPasteButton.setEnabled (true);
     }
     historyViewport.setVisible (signedIn);
     input.setVisible (signedIn);
@@ -1266,10 +1301,15 @@ void AiChatView::updateVisibility()
 
 void AiChatView::submitGrokPaste()
 {
+    if (! grokPasteButton.isVisible() || ! grokPasteButton.isEnabled())
+        return;
+
     const auto pasted = grokPasteEditor.getText().trim();
 
     if (pasted.isEmpty())
         return;
+
+    grokPasteEditor.giveAwayKeyboardFocus();
 
     if (! grokAuth->submitPastedInput (pasted))
     {
@@ -1722,9 +1762,22 @@ void AiChatView::resized()
         auto card = signInCard.getLocalBounds().reduced (padding);
         const auto contentWidth = juce::jmin (480, card.getWidth());
         const auto contentHeight = juce::jmin (grokPasteEditor.isVisible() ? 420 : 360, card.getHeight());
-        card = card.withSizeKeepingCentre (contentWidth, contentHeight);
+        auto content = juce::Rectangle<int> (0, 0, contentWidth, contentHeight);
+
+        if (grokPasteEditor.isVisible())
+            content = content.withX (card.getCentreX() - contentWidth / 2).withY (card.getY());
+        else
+            content = content.withCentre (card.getCentre());
+
+        card = content;
 
         signInTitle.setBounds (card.removeFromTop (rowHeight));
+
+        if (grokPasteEditor.isVisible())
+        {
+            grokPasteEditor.setBounds (card.removeFromTop (rowHeight).reduced (0, 2));
+            grokPasteButton.setBounds (card.removeFromTop (rowHeight).reduced (0, 2));
+        }
 
         if (signInCode.getText().isNotEmpty())
             signInCode.setBounds (card.removeFromTop (rowHeight + 18));
@@ -1740,12 +1793,6 @@ void AiChatView::resized()
 
         if (grokSignInButton.isVisible())
             grokSignInButton.setBounds (card.removeFromTop (rowHeight).reduced (0, 2));
-
-        if (grokPasteEditor.isVisible())
-        {
-            grokPasteEditor.setBounds (card.removeFromTop (rowHeight).reduced (0, 2));
-            grokPasteButton.setBounds (card.removeFromTop (rowHeight).reduced (0, 2));
-        }
 
         if (deviceCodeButton.isVisible())
             deviceCodeButton.setBounds (card.removeFromTop (rowHeight).reduced (0, 2));

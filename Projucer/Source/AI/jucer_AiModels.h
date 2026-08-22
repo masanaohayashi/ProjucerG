@@ -40,6 +40,7 @@ namespace AiModels
     juce::Array<Effort> getEffortsFor (const juce::String& modelId);
 
     juce::String getDefaultModel();
+    juce::String getDefaultModelFor (Provider provider);
 
     /** 現在の選択。未設定なら既定。 */
     juce::String getSelectedModel();

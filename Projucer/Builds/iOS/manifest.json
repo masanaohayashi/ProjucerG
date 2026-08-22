@@ -243,6 +243,10 @@
       "language": "c++"
     },
     {
+      "file": "Source/AI/jucer_GrokAuth.cpp",
+      "language": "c++"
+    },
+    {
       "file": "Source/AI/jucer_CodexClient.cpp",
       "language": "c++"
     },
