@@ -657,7 +657,7 @@ bool AiTools::requiresApproval (const juce::String& toolName)
     return toolName == "write_file" || toolName == "apply_patch" || toolName == "exec_command";
 }
 
-juce::var AiTools::getToolSchemas()
+juce::var AiTools::getToolSchemas (bool includeCodexWebSearchFlags)
 {
     juce::Array<juce::var> tools;
 
@@ -714,11 +714,14 @@ juce::var AiTools::getToolSchemas()
         tools にこの 1 項目を載せるだけでモデルが検索と取得を行う。
         Codex も同じ形で載せている (tools/src/tool_spec.rs の web_search)。
 
-        external_web_access = true で、キャッシュではなく実際にネットを見に行く。 */
+        external_web_access は Codex 専用。xAI はこれを見ると 400 を返す。 */
     {
         auto* webSearch = new juce::DynamicObject();
         webSearch->setProperty ("type", "web_search");
-        webSearch->setProperty ("external_web_access", true);
+
+        if (includeCodexWebSearchFlags)
+            webSearch->setProperty ("external_web_access", true);
+
         tools.add (juce::var (webSearch));
     }
 

@@ -40,6 +40,7 @@
 #include "../../AI/jucer_AiChatView.h"
 #include "../../AI/jucer_AiSession.h"
 #include "../../AI/jucer_CodexAuth.h"
+#include "../../AI/jucer_GrokAuth.h"
 
 struct WizardHolder
 {
@@ -379,9 +380,12 @@ void ProjectContentComponent::toggleAiView()
     if (codexAuth == nullptr)
         codexAuth = std::make_shared<CodexAuth>();
 
+    if (grokAuth == nullptr)
+        grokAuth = std::make_shared<GrokAuth>();
+
     if (aiSession == nullptr)
     {
-        aiSession = std::make_shared<AiSession> (codexAuth, project->getProjectFolder());
+        aiSession = std::make_shared<AiSession> (codexAuth, grokAuth, project->getProjectFolder());
         aiSession->setTerminalRunner ([this] (const String& commandLine,
                                               String& output,
                                               int timeoutMs,
@@ -408,7 +412,7 @@ void ProjectContentComponent::toggleAiView()
         aiReturnDocument = currentDocument;
 
     aiViewShowing = true;
-    contentViewComponent.setContent (std::make_unique<AiChatView> (aiSession, codexAuth),
+    contentViewComponent.setContent (std::make_unique<AiChatView> (aiSession, codexAuth, grokAuth),
                                      "AI Assistant");
     resized();
 }
@@ -455,6 +459,7 @@ void ProjectContentComponent::discardAiSession()
     aiReturnDocument = nullptr;
 
     aiSession.reset();
+    grokAuth.reset();
     codexAuth.reset();
 }
 

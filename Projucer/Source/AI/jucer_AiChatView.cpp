@@ -583,13 +583,17 @@ private:
 class AiChatView::SignInWorker final : public juce::Thread
 {
 public:
-    SignInWorker (std::shared_ptr<CodexAuth> authToUse,
+    SignInWorker (std::shared_ptr<CodexAuth> chatgptAuthToUse,
+                  std::shared_ptr<GrokAuth> grokAuthToUse,
+                  SignInProvider providerToUse,
                   const std::shared_ptr<std::atomic<bool>>& stopTokenToUse,
                   const std::shared_ptr<std::atomic<bool>>& lifetimeToUse,
                   juce::Component::SafePointer<AiChatView> viewToUse,
                   SignInMethod methodToUse)
         : juce::Thread ("AI Sign-In"),
-          auth (std::move (authToUse)),
+          chatgptAuth (std::move (chatgptAuthToUse)),
+          grokAuth (std::move (grokAuthToUse)),
+          provider (providerToUse),
           stopToken (stopTokenToUse),
           lifetimeToken (lifetimeToUse),
           view (std::move (viewToUse)),
@@ -606,7 +610,11 @@ public:
     {
         stopToken->store (true, std::memory_order_release);
         signalThreadShouldExit();
-        auth->cancelActiveRequest();
+
+        if (provider == SignInProvider::grok)
+            grokAuth->cancelActiveRequest();
+        else
+            chatgptAuth->cancelActiveRequest();
     }
 
     static void reapFinishedWorkers()
@@ -650,17 +658,38 @@ public:
         コード表示の UI は使わないので出さない。 */
     void runBrowserSignIn()
     {
-        callOnLiveView (lifetimeToken, view, [] (AiChatView& liveView)
+        callOnLiveView (lifetimeToken, view, [isGrok = provider == SignInProvider::grok] (AiChatView& liveView)
         {
-            liveView.signInInstructions.setText ("Waiting for you to finish signing in...",
-                                                 juce::dontSendNotification);
+            if (isGrok)
+            {
+                liveView.signInInstructions.setText (
+                    "Finish signing in in the browser. If it shows a code to paste into Grok Build, "
+                    "paste it below and press Continue.",
+                    juce::dontSendNotification);
+                liveView.signInButton.setVisible (false);
+                liveView.grokSignInButton.setVisible (false);
+                liveView.grokPasteEditor.clear();
+                liveView.grokPasteEditor.setVisible (true);
+                liveView.grokPasteButton.setVisible (true);
+                liveView.grokPasteButton.setEnabled (true);
+            }
+            else
+            {
+                liveView.signInInstructions.setText ("Waiting for you to finish signing in...",
+                                                     juce::dontSendNotification);
+                liveView.grokPasteEditor.setVisible (false);
+                liveView.grokPasteButton.setVisible (false);
+            }
+
             liveView.cancelSignInButton.setVisible (true);
             liveView.cancelSignInButton.setEnabled (true);
             liveView.resized();
         });
 
         juce::String error;
-        const auto signedIn = auth->signInWithBrowser (*stopToken, error);
+        const auto signedIn = provider == SignInProvider::grok
+                                ? grokAuth->signInWithBrowser (*stopToken, error)
+                                : chatgptAuth->signInWithBrowser (*stopToken, error);
 
         if (! lifetimeToken->load (std::memory_order_acquire))
             return;
@@ -686,7 +715,10 @@ public:
         {
             liveView.signInInstructions.setText (displayError, juce::dontSendNotification);
             liveView.signInButton.setEnabled (true);
-            liveView.deviceCodeButton.setVisible (true);
+            liveView.grokSignInButton.setEnabled (true);
+            liveView.deviceCodeButton.setVisible (liveView.providerShowsDeviceCode());
+            liveView.grokPasteEditor.setVisible (false);
+            liveView.grokPasteButton.setVisible (false);
             liveView.cancelSignInButton.setVisible (false);
             liveView.resized();
         });
@@ -695,7 +727,7 @@ public:
     void runDeviceCodeSignIn()
     {
         juce::String error;
-        const auto code = auth->requestDeviceCode (error, stopToken.get());
+        const auto code = chatgptAuth->requestDeviceCode (error, stopToken.get());
 
         if (! lifetimeToken->load (std::memory_order_acquire))
             return;
@@ -707,6 +739,7 @@ public:
                 liveView.signInInstructions.setText ("Sign-in was cancelled.",
                                                      juce::dontSendNotification);
                 liveView.signInButton.setEnabled (true);
+                liveView.grokSignInButton.setEnabled (true);
                 liveView.cancelSignInButton.setVisible (false);
                 liveView.openBrowserButton.setVisible (false);
                 liveView.resized();
@@ -723,6 +756,7 @@ public:
                 liveView.signInInstructions.setText (displayError,
                                                      juce::dontSendNotification);
                 liveView.signInButton.setEnabled (true);
+                liveView.grokSignInButton.setEnabled (true);
                 liveView.resized();
             });
             return;
@@ -754,7 +788,7 @@ public:
             liveView.resized();
         });
 
-        const auto signedIn = auth->pollForTokens (deviceCode, *stopToken, error);
+        const auto signedIn = chatgptAuth->pollForTokens (deviceCode, *stopToken, error);
 
         if (! lifetimeToken->load (std::memory_order_acquire))
             return;
@@ -783,6 +817,7 @@ public:
             liveView.signInInstructions.setText (displayError,
                                                  juce::dontSendNotification);
             liveView.signInButton.setEnabled (true);
+            liveView.grokSignInButton.setEnabled (true);
             liveView.copyCodeButton.setVisible (false);
             liveView.openBrowserButton.setVisible (false);
             liveView.cancelSignInButton.setVisible (false);
@@ -793,7 +828,9 @@ public:
     }
 
 private:
-    std::shared_ptr<CodexAuth> auth;
+    std::shared_ptr<CodexAuth> chatgptAuth;
+    std::shared_ptr<GrokAuth> grokAuth;
+    SignInProvider provider = SignInProvider::chatgpt;
     std::shared_ptr<std::atomic<bool>> stopToken;
     std::shared_ptr<std::atomic<bool>> lifetimeToken;
     juce::Component::SafePointer<AiChatView> view;
@@ -804,15 +841,17 @@ private:
 
 //==============================================================================
 AiChatView::AiChatView (std::shared_ptr<AiSession> sessionToUse,
-                        std::shared_ptr<CodexAuth> authToUse)
+                        std::shared_ptr<CodexAuth> chatgptAuthToUse,
+                        std::shared_ptr<GrokAuth> grokAuthToUse)
     : session (std::move (sessionToUse)),
-      auth (std::move (authToUse)),
+      chatgptAuth (std::move (chatgptAuthToUse)),
+      grokAuth (std::move (grokAuthToUse)),
       lifetimeToken (std::make_shared<std::atomic<bool>> (true))
 {
     setTitle ("AI Chat");
     setOpaque (false);
 
-    signInTitle.setText ("Sign in to ChatGPT", juce::dontSendNotification);
+    signInTitle.setText ("Sign in", juce::dontSendNotification);
     signInTitle.setJustificationType (juce::Justification::centred);
     signInTitle.setFont (juce::FontOptions { 18.0f, juce::Font::bold });
     signInCard.addAndMakeVisible (signInTitle);
@@ -823,7 +862,7 @@ AiChatView::AiChatView (std::shared_ptr<AiSession> sessionToUse,
 
     signInInstructions.setJustificationType (juce::Justification::centred);
     signInInstructions.setMinimumHorizontalScale (0.8f);
-    signInInstructions.setText ("Sign in with your ChatGPT account to use the assistant.",
+    signInInstructions.setText ("Sign in with ChatGPT or Grok to use the assistant.",
                                 juce::dontSendNotification);
     signInCard.addAndMakeVisible (signInInstructions);
 
@@ -839,12 +878,15 @@ AiChatView::AiChatView (std::shared_ptr<AiSession> sessionToUse,
     constexpr auto secondaryMethod = SignInMethod::deviceCode;
    #endif
 
-    signInButton.onClick = [this] { startSignIn (primaryMethod); };
+    signInButton.onClick = [this] { startSignIn (SignInProvider::chatgpt, primaryMethod); };
     signInCard.addAndMakeVisible (signInButton);
+
+    grokSignInButton.onClick = [this] { startSignIn (SignInProvider::grok, SignInMethod::browser); };
+    signInCard.addAndMakeVisible (grokSignInButton);
 
     // 代替経路。ChatGPT のセキュリティ設定でデバイスコード認証を有効にした
     // アカウントでしか使えないので、主ボタンの下に控えめに置く。
-    deviceCodeButton.onClick = [this] { startSignIn (secondaryMethod); };
+    deviceCodeButton.onClick = [this] { startSignIn (SignInProvider::chatgpt, secondaryMethod); };
     signInCard.addAndMakeVisible (deviceCodeButton);
 
     copyCodeButton.onClick = [this]
@@ -872,6 +914,16 @@ AiChatView::AiChatView (std::shared_ptr<AiSession> sessionToUse,
 
     cancelSignInButton.onClick = [this] { cancelSignIn(); };
     signInCard.addChildComponent (cancelSignInButton);
+
+    grokPasteEditor.setMultiLine (false);
+    grokPasteEditor.setReturnKeyStartsNewLine (false);
+    grokPasteEditor.setTextToShowWhenEmpty ("Paste the code from the browser",
+                                            chatForeground.withAlpha (0.4f));
+    grokPasteEditor.addKeyListener (this);
+    signInCard.addChildComponent (grokPasteEditor);
+
+    grokPasteButton.onClick = [this] { submitGrokPaste(); };
+    signInCard.addChildComponent (grokPasteButton);
 
     addAndMakeVisible (signInCard);
 
@@ -1003,12 +1055,27 @@ AiChatView::~AiChatView()
 }
 
 //==============================================================================
-void AiChatView::startSignIn (SignInMethod method)
+bool AiChatView::isSelectedProviderSignedIn() const
+{
+    return AiModels::getSelectedProvider() == AiModels::Provider::grok
+             ? grokAuth->isSignedIn()
+             : chatgptAuth->isSignedIn();
+}
+
+bool AiChatView::providerShowsDeviceCode() const
+{
+    return AiModels::getSelectedProvider() != AiModels::Provider::grok;
+}
+
+void AiChatView::startSignIn (SignInProvider provider, SignInMethod method)
 {
     stopSignInWorker();
 
     if (SignInWorker::hasRunningRetainedWorker())
         return;
+
+    if (provider == SignInProvider::grok)
+        method = SignInMethod::browser;
 
     signInStopToken = std::make_shared<std::atomic<bool>> (false);
     const auto stopToken = signInStopToken;
@@ -1018,18 +1085,26 @@ void AiChatView::startSignIn (SignInMethod method)
     const auto usingBrowser = method == SignInMethod::browser;
 
     signInButton.setEnabled (false);
+    grokSignInButton.setEnabled (false);
     deviceCodeButton.setVisible (false);
     copyCodeButton.setVisible (false);
     openBrowserButton.setVisible (false);
     cancelSignInButton.setVisible (false);
     signInCode.setText ({}, juce::dontSendNotification);
+    grokPasteEditor.setVisible (false);
+    grokPasteButton.setVisible (false);
+    grokPasteEditor.clear();
     verificationUrl.clear();
-    signInInstructions.setText (usingBrowser ? "Opening the ChatGPT sign-in page..."
-                                             : "Requesting a device code...",
+    signInInstructions.setText (usingBrowser
+                                    ? (provider == SignInProvider::grok
+                                           ? "Opening the Grok sign-in page..."
+                                           : "Opening the ChatGPT sign-in page...")
+                                    : "Requesting a device code...",
                                 juce::dontSendNotification);
     resized();
 
-    signInWorker = std::make_unique<SignInWorker> (auth, stopToken, viewLifetime, view, method);
+    signInWorker = std::make_unique<SignInWorker> (chatgptAuth, grokAuth, provider,
+                                                   stopToken, viewLifetime, view, method);
     const auto launched = signInWorker->startThread();
 
     if (! launched)
@@ -1039,6 +1114,7 @@ void AiChatView::startSignIn (SignInMethod method)
         signInInstructions.setText ("Could not start the sign-in worker. Please try again.",
                                     juce::dontSendNotification);
         signInButton.setEnabled (true);
+        grokSignInButton.setEnabled (true);
         resized();
     }
 }
@@ -1120,11 +1196,37 @@ bool AiChatView::isHistoryNearBottom() const
 
 void AiChatView::updateVisibility()
 {
-    const auto signedIn = auth->isSignedIn();
+    const auto signedIn = isSelectedProviderSignedIn();
     const auto busy = session->isBusy();
     const auto* approval = session->getPendingApproval();
+    const auto selectedGrok = AiModels::getSelectedProvider() == AiModels::Provider::grok;
+    const auto signingIn = signInWorker != nullptr && signInWorker->isThreadRunning();
+
+    if (selectedGrok)
+    {
+        signInTitle.setText ("Sign in to Grok", juce::dontSendNotification);
+        if (! signingIn)
+            signInInstructions.setText ("Sign in with SuperGrok or X Premium+ to use Grok.",
+                                        juce::dontSendNotification);
+    }
+    else
+    {
+        signInTitle.setText ("Sign in to ChatGPT", juce::dontSendNotification);
+        if (! signingIn)
+            signInInstructions.setText ("Sign in with your ChatGPT account to use the assistant.",
+                                        juce::dontSendNotification);
+    }
 
     signInCard.setVisible (! signedIn);
+    grokSignInButton.setVisible (! signedIn && ! signingIn);
+    signInButton.setVisible (! signedIn && ! signingIn);
+    deviceCodeButton.setVisible (! signedIn && ! selectedGrok && ! signingIn);
+
+    if (! signingIn)
+    {
+        grokPasteEditor.setVisible (false);
+        grokPasteButton.setVisible (false);
+    }
     historyViewport.setVisible (signedIn);
     input.setVisible (signedIn);
     input.setEnabled (signedIn && ! busy);
@@ -1137,7 +1239,8 @@ void AiChatView::updateVisibility()
     addFileButton->setVisible (signedIn);
     permissionButton->setVisible (signedIn);
     execTargetButton->setVisible (signedIn);
-    modelButton->setVisible (signedIn);
+    modelButton->setVisible (true);
+    updateModelButton();
     updateExecTargetButton();
     approvalCard.setVisible (signedIn && approval != nullptr);
 
@@ -1161,8 +1264,35 @@ void AiChatView::updateVisibility()
     repaint();
 }
 
+void AiChatView::submitGrokPaste()
+{
+    const auto pasted = grokPasteEditor.getText().trim();
+
+    if (pasted.isEmpty())
+        return;
+
+    if (! grokAuth->submitPastedInput (pasted))
+    {
+        signInInstructions.setText ("Sign-in is not waiting for a code. Try Sign in with Grok again.",
+                                    juce::dontSendNotification);
+        resized();
+        return;
+    }
+
+    grokPasteButton.setEnabled (false);
+    signInInstructions.setText ("Submitting the code...", juce::dontSendNotification);
+}
+
 bool AiChatView::keyPressed (const juce::KeyPress& key, juce::Component* origin)
 {
+    if (origin == &grokPasteEditor
+        && key.getKeyCode() == juce::KeyPress::returnKey
+        && grokPasteEditor.isVisible())
+    {
+        submitGrokPaste();
+        return true;
+    }
+
     if (origin != &input)
         return false;
 
@@ -1180,7 +1310,7 @@ bool AiChatView::keyPressed (const juce::KeyPress& key, juce::Component* origin)
 
 void AiChatView::sendCurrentInput()
 {
-    if (! auth->isSignedIn() || session->isBusy())
+    if (! isSelectedProviderSignedIn() || session->isBusy())
         return;
 
     const auto text = input.getText();
@@ -1253,10 +1383,23 @@ void AiChatView::showModelPicker()
     const auto tiers   = AiModels::getSpeedTiersFor (currentModel);
 
     juce::PopupMenu modelMenu;
+    bool addedChatGptHeader = false;
+    bool addedGrokHeader = false;
 
     for (int i = 0; i < models.size(); ++i)
     {
         const auto& model = models.getReference (i);
+
+        if (model.provider == AiModels::Provider::chatgpt && ! addedChatGptHeader)
+        {
+            modelMenu.addSectionHeader ("ChatGPT");
+            addedChatGptHeader = true;
+        }
+        else if (model.provider == AiModels::Provider::grok && ! addedGrokHeader)
+        {
+            modelMenu.addSectionHeader ("Grok");
+            addedGrokHeader = true;
+        }
 
         juce::PopupMenu::Item item;
         item.itemID = modelBaseId + i;
@@ -1293,8 +1436,13 @@ void AiChatView::showModelPicker()
 
     juce::PopupMenu menu;
     menu.addSubMenu ("Model           " + AiModels::displayNameFor (currentModel), modelMenu);
-    menu.addSubMenu ("Reasoning       " + AiModels::labelForEffort (currentEffort), effortMenu);
-    menu.addSubMenu ("Speed           " + AiModels::labelForSpeedTier (currentTier), speedMenu);
+
+    if (! efforts.isEmpty())
+        menu.addSubMenu ("Reasoning       " + AiModels::labelForEffort (currentEffort), effortMenu);
+
+    if (AiModels::getSelectedProvider() == AiModels::Provider::chatgpt)
+        menu.addSubMenu ("Speed           " + AiModels::labelForSpeedTier (currentTier), speedMenu);
+
     menu.addSeparator();
     menu.addItem (resetId, "Reset to default");
 
@@ -1331,6 +1479,7 @@ void AiChatView::showModelPicker()
         }
 
         safeThis->updateModelButton();
+        safeThis->updateVisibility();
     });
 }
 
@@ -1345,10 +1494,14 @@ void AiChatView::updateModelButton()
     modelButton->setButtonText (AiModels::displayNameFor (AiModels::getSelectedModel()));
 
     auto detail = AiModels::labelForEffort (AiModels::getSelectedEffort());
-    const auto tier = AiModels::getSelectedSpeedTier();
 
-    if (tier.isNotEmpty())
-        detail << " / " << AiModels::labelForSpeedTier (tier);
+    if (AiModels::getSelectedProvider() == AiModels::Provider::chatgpt)
+    {
+        const auto tier = AiModels::getSelectedSpeedTier();
+
+        if (tier.isNotEmpty())
+            detail << " / " << AiModels::labelForSpeedTier (tier);
+    }
 
     modelButton->setDetailText (detail);
     resized();
@@ -1558,18 +1711,41 @@ void AiChatView::resized()
 
     if (signInCard.isVisible())
     {
+        {
+            auto controlRow = bounds.removeFromBottom (controlRowHeight);
+            const auto modelWidth = juce::jmin (modelButton->getPreferredWidth(), controlRow.getWidth());
+            modelButton->setBounds (controlRow.removeFromRight (modelWidth).reduced (0, 3));
+        }
+
         signInCard.setBounds (bounds);
 
         auto card = signInCard.getLocalBounds().reduced (padding);
         const auto contentWidth = juce::jmin (480, card.getWidth());
-        const auto contentHeight = juce::jmin (360, card.getHeight());
+        const auto contentHeight = juce::jmin (grokPasteEditor.isVisible() ? 420 : 360, card.getHeight());
         card = card.withSizeKeepingCentre (contentWidth, contentHeight);
 
         signInTitle.setBounds (card.removeFromTop (rowHeight));
-        signInCode.setBounds (card.removeFromTop (rowHeight + 18));
-        copyCodeButton.setBounds (card.removeFromTop (rowHeight).reduced (0, 2));
-        signInInstructions.setBounds (card.removeFromTop (rowHeight + 34));
-        signInButton.setBounds (card.removeFromTop (rowHeight).reduced (0, 2));
+
+        if (signInCode.getText().isNotEmpty())
+            signInCode.setBounds (card.removeFromTop (rowHeight + 18));
+
+        if (copyCodeButton.isVisible())
+            copyCodeButton.setBounds (card.removeFromTop (rowHeight).reduced (0, 2));
+
+        signInInstructions.setBounds (card.removeFromTop (grokPasteEditor.isVisible() ? rowHeight + 52
+                                                                                      : rowHeight + 34));
+
+        if (signInButton.isVisible())
+            signInButton.setBounds (card.removeFromTop (rowHeight).reduced (0, 2));
+
+        if (grokSignInButton.isVisible())
+            grokSignInButton.setBounds (card.removeFromTop (rowHeight).reduced (0, 2));
+
+        if (grokPasteEditor.isVisible())
+        {
+            grokPasteEditor.setBounds (card.removeFromTop (rowHeight).reduced (0, 2));
+            grokPasteButton.setBounds (card.removeFromTop (rowHeight).reduced (0, 2));
+        }
 
         if (deviceCodeButton.isVisible())
             deviceCodeButton.setBounds (card.removeFromTop (rowHeight).reduced (0, 2));

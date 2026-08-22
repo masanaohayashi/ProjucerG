@@ -128,11 +128,13 @@ namespace
 }
 
 AgentLoop::AgentLoop (std::shared_ptr<AiSession> sessionToUse,
-                     std::shared_ptr<CodexAuth> auth,
+                     std::shared_ptr<CodexAuth> chatgptAuth,
+                     std::shared_ptr<GrokAuth> grokAuth,
                      const juce::File& projectRoot)
     : juce::Thread ("AI Agent Loop"),
       session (std::move (sessionToUse)),
-      client (std::move (auth)),
+      chatgptClient (std::move (chatgptAuth), CodexClient::chatgptBaseUrl),
+      grokClient (std::move (grokAuth), CodexClient::grokBaseUrl),
       tools (projectRoot),
       workingDirectory (projectRoot)
 {
@@ -168,7 +170,8 @@ void AgentLoop::start (const juce::String& userMessage,
 void AgentLoop::requestStop()
 {
     shouldStop.store (true);
-    client.cancelActiveRequest();
+    chatgptClient.cancelActiveRequest();
+    grokClient.cancelActiveRequest();
     tools.cancel();
     approvalArrived.signal();
 }
@@ -203,22 +206,33 @@ void AgentLoop::provideApproval (bool approved)
     approvalArrived.signal();
 }
 
+CodexClient& AgentLoop::activeClient()
+{
+    return AiModels::getSelectedProvider() == AiModels::Provider::grok ? grokClient : chatgptClient;
+}
+
 juce::var AgentLoop::buildRequestBody() const
 {
     auto* body = new juce::DynamicObject();
     body->setProperty ("model", AiModels::getSelectedModel());
 
-    // Codex と同じく reasoning.effort で推論の強さを伝える。
-    auto* reasoning = new juce::DynamicObject();
-    reasoning->setProperty ("effort", AiModels::getSelectedEffort());
-    body->setProperty ("reasoning", juce::var (reasoning));
+    if (! AiModels::getEffortsFor (AiModels::getSelectedModel()).isEmpty())
+    {
+        // ChatGPT も Grok も Responses API の reasoning.effort。
+        auto* reasoning = new juce::DynamicObject();
+        reasoning->setProperty ("effort", AiModels::getSelectedEffort());
+        body->setProperty ("reasoning", juce::var (reasoning));
+    }
 
-    /*  速度。Codex は service_tier をトップレベルに載せる (core/src/client.rs:175)。
-        標準のときは何も送らない。 */
-    const auto serviceTier = AiModels::getSelectedSpeedTier();
+    if (AiModels::getSelectedProvider() == AiModels::Provider::chatgpt)
+    {
+        /*  速度。Codex は service_tier をトップレベルに載せる。
+            標準のときは何も送らない。Grok には載せない。 */
+        const auto serviceTier = AiModels::getSelectedSpeedTier();
 
-    if (serviceTier.isNotEmpty())
-        body->setProperty ("service_tier", serviceTier);
+        if (serviceTier.isNotEmpty())
+            body->setProperty ("service_tier", serviceTier);
+    }
     /*  Codex と同じく、作業ディレクトリから .git のある祖先まで登って
         AGENTS.md を集め、内蔵の指示のあとに重ねる。ルート側が先、下位の
         ディレクトリの指示ほど後に来るので、競合したら下位が後勝ちになる。
@@ -235,7 +249,8 @@ juce::var AgentLoop::buildRequestBody() const
 
     body->setProperty ("instructions", instructions);
     body->setProperty ("input", conversation);
-    body->setProperty ("tools", AiTools::getToolSchemas());
+    body->setProperty ("tools", AiTools::getToolSchemas (
+                          AiModels::getSelectedProvider() == AiModels::Provider::chatgpt));
     body->setProperty ("stream", true);
     body->setProperty ("store", false);
     return juce::var (body);
@@ -270,7 +285,7 @@ void AgentLoop::run()
         juce::String assistantText;
         juce::String error;
 
-        const auto ok = client.streamResponse (buildRequestBody(), shouldStop,
+        const auto ok = activeClient().streamResponse (buildRequestBody(), shouldStop,
             [&] (const juce::var& event)
             {
                 const auto type = event.getProperty ("type", {}).toString();

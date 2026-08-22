@@ -53,8 +53,9 @@ namespace
     }
 }
 
-CodexClient::CodexClient (std::shared_ptr<CodexAuth> authToUse)
+CodexClient::CodexClient (std::shared_ptr<ResponsesAuth> authToUse, juce::String baseUrlToUse)
     : auth (std::move (authToUse)),
+      baseUrl (std::move (baseUrlToUse)),
       activeStream (std::make_shared<ActiveStream>())
 {
 }
@@ -79,10 +80,8 @@ bool CodexClient::attempt (const juce::var& requestBody,
 
     juce::String headers;
     headers << "Authorization: Bearer " << auth->getAccessToken() << "\r\n"
-            << "chatgpt-account-id: " << auth->getAccountId() << "\r\n"
+            << auth->extraHeaders()
             << "session_id: " << sessionId << "\r\n"
-            << "originator: codex_cli_rs\r\n"
-            << "OpenAI-Beta: responses=experimental\r\n"
             << "Content-Type: application/json\r\n"
             << "Accept: text/event-stream";
 
@@ -100,7 +99,7 @@ bool CodexClient::attempt (const juce::var& requestBody,
     if (! connected || stream->isError())
     {
         activeStream->clear();
-        errorOut = "Unable to connect to the Codex service.";
+        errorOut = "Unable to connect to the model service.";
         return false;
     }
 
@@ -118,7 +117,9 @@ bool CodexClient::attempt (const juce::var& requestBody,
         {
             // JSON なら message だけを取り出す。素の本文より読みやすい。
             const auto parsed = juce::JSON::parse (body);
-            auto detail = parsed.getProperty ("error", {}).getProperty ("message", {}).toString();
+            const auto errorField = parsed.getProperty ("error", {});
+            auto detail = errorField.isString() ? errorField.toString()
+                                                : errorField.getProperty ("message", {}).toString();
 
             if (detail.isEmpty())
                 detail = parsed.getProperty ("detail", {}).toString();
@@ -159,7 +160,7 @@ bool CodexClient::attempt (const juce::var& requestBody,
             {
                 if (! payload.empty())
                 {
-                    errorOut = "The Codex stream contained invalid JSON.";
+                    errorOut = "The model stream contained invalid JSON.";
                     activeStream->clear();
                     return false;
                 }
@@ -182,7 +183,7 @@ bool CodexClient::attempt (const juce::var& requestBody,
 
     if (! sawTerminalEvent)
     {
-        errorOut = "The Codex stream ended before completion.";
+        errorOut = "The model stream ended before completion.";
         activeStream->clear();
         return false;
     }

@@ -3,8 +3,11 @@
 
 #include <utility>
 
-AiSession::AiSession (std::shared_ptr<CodexAuth> authToUse, const juce::File& projectRootToUse)
-    : auth (std::move (authToUse)),
+AiSession::AiSession (std::shared_ptr<CodexAuth> chatgptAuthToUse,
+                     std::shared_ptr<GrokAuth> grokAuthToUse,
+                     const juce::File& projectRootToUse)
+    : chatgptAuth (std::move (chatgptAuthToUse)),
+      grokAuth (std::move (grokAuthToUse)),
       projectRoot (projectRootToUse)
 {
 }
@@ -29,7 +32,7 @@ void AiSession::sendMessage (const juce::String& text, const juce::Array<juce::F
     if (loop == nullptr)
     {
         AgentLoop::reapRetainedLoops();
-        loop = std::make_unique<AgentLoop> (shared_from_this(), auth, projectRoot);
+        loop = std::make_unique<AgentLoop> (shared_from_this(), chatgptAuth, grokAuth, projectRoot);
     }
 
     appendEntry (Entry::Kind::user, text);

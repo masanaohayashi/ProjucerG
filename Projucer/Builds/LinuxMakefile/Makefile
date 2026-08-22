@@ -119,6 +119,7 @@ OBJECTS_APP := \
   $(JUCE_OBJDIR)/jucer_Pkce_a02995f.o \
   $(JUCE_OBJDIR)/jucer_OAuthCallbackServer_3208e087.o \
   $(JUCE_OBJDIR)/jucer_CodexAuth_5ad8003b.o \
+  $(JUCE_OBJDIR)/jucer_GrokAuth_d8b65c91.o \
   $(JUCE_OBJDIR)/jucer_CodexClient_fabcd5e.o \
   $(JUCE_OBJDIR)/jucer_AiTools_1f244b1b.o \
   $(JUCE_OBJDIR)/jucer_AiSession_4e1e5796.o \
@@ -418,6 +419,11 @@ $(JUCE_OBJDIR)/jucer_OAuthCallbackServer_3208e087.o: ../../Source/AI/jucer_OAuth
 $(JUCE_OBJDIR)/jucer_CodexAuth_5ad8003b.o: ../../Source/AI/jucer_CodexAuth.cpp
 	-$(V_AT)mkdir -p $(@D)
 	@echo "Compiling jucer_CodexAuth.cpp"
+	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/jucer_GrokAuth_d8b65c91.o: ../../Source/AI/jucer_GrokAuth.cpp
+	-$(V_AT)mkdir -p $(@D)
+	@echo "Compiling jucer_GrokAuth.cpp"
 	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
 
 $(JUCE_OBJDIR)/jucer_CodexClient_fabcd5e.o: ../../Source/AI/jucer_CodexClient.cpp

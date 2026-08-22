@@ -1,6 +1,7 @@
 #pragma once
 
 #include "jucer_AiSession.h"
+#include "jucer_GrokAuth.h"
 
 #include <juce_core/juce_core.h>
 
@@ -13,7 +14,8 @@ class AgentLoop final : public juce::Thread
 {
 public:
     AgentLoop (std::shared_ptr<AiSession> session,
-               std::shared_ptr<CodexAuth> auth,
+               std::shared_ptr<CodexAuth> chatgptAuth,
+               std::shared_ptr<GrokAuth> grokAuth,
                const juce::File& projectRoot);
     ~AgentLoop() override;
 
@@ -28,10 +30,12 @@ public:
 
 private:
     juce::var buildRequestBody() const;
+    CodexClient& activeClient();
     bool waitForApproval();
 
     std::weak_ptr<AiSession> session;
-    CodexClient client;
+    CodexClient chatgptClient;
+    CodexClient grokClient;
     AiTools tools;
 
     /*  指示ファイルの収集に使う。ツールの作業範囲と同じディレクトリ。 */

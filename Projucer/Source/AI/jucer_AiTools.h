@@ -23,7 +23,9 @@ public:
         juce::String diffPreview;
     };
 
-    static juce::var getToolSchemas();
+    /** @param includeCodexWebSearchFlags  Codex 専用の external_web_access を載せるか。
+        Grok の Responses API はこれを拒否するので false にする。 */
+    static juce::var getToolSchemas (bool includeCodexWebSearchFlags = true);
     static bool requiresApproval (const juce::String& toolName);
 
     Result preview (const juce::String& toolName, const juce::var& arguments);

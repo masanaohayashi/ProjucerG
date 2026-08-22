@@ -724,6 +724,10 @@
             file="Source/AI/jucer_CodexAuth.h"/>
       <FILE id="aiAut2" name="jucer_CodexAuth.cpp" compile="1" resource="0"
             file="Source/AI/jucer_CodexAuth.cpp"/>
+      <FILE id="aiGrk1" name="jucer_GrokAuth.h" compile="0" resource="0"
+            file="Source/AI/jucer_GrokAuth.h"/>
+      <FILE id="aiGrk2" name="jucer_GrokAuth.cpp" compile="1" resource="0"
+            file="Source/AI/jucer_GrokAuth.cpp"/>
       <FILE id="aiCli1" name="jucer_CodexClient.h" compile="0" resource="0"
             file="Source/AI/jucer_CodexClient.h"/>
       <FILE id="aiCli2" name="jucer_CodexClient.cpp" compile="1" resource="0"

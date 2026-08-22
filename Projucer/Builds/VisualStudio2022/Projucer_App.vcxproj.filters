@@ -1144,6 +1144,9 @@
     <ClCompile Include="..\..\Source\AI\jucer_CodexAuth.cpp">
       <Filter>Projucer\AI</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Source\AI\jucer_GrokAuth.cpp">
+      <Filter>Projucer\AI</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Source\AI\jucer_CodexClient.cpp">
       <Filter>Projucer\AI</Filter>
     </ClCompile>
@@ -4858,6 +4861,9 @@
       <Filter>Projucer\AI</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\AI\jucer_CodexAuth.h">
+      <Filter>Projucer\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\AI\jucer_GrokAuth.h">
       <Filter>Projucer\AI</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\AI\jucer_CodexClient.h">

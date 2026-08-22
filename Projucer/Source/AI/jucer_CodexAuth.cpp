@@ -151,6 +151,13 @@ juce::String CodexAuth::getAccessToken() const
     return tokens.accessToken;
 }
 
+juce::String CodexAuth::extraHeaders() const
+{
+    return "chatgpt-account-id: " + getAccountId() + "\r\n"
+         + "originator: codex_cli_rs\r\n"
+         + "OpenAI-Beta: responses=experimental\r\n";
+}
+
 juce::String CodexAuth::getAccountId() const
 {
     const juce::ScopedLock sl (lock);

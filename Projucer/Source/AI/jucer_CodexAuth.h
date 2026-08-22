@@ -1,5 +1,7 @@
 #pragma once
 
+#include "jucer_CodexClient.h"
+
 #include <juce_core/juce_core.h>
 
 #include <atomic>
@@ -27,11 +29,11 @@
     ソケットの読み取りでブロックしている間は反応できないため、cancelActiveRequest() が
     実行中のリクエストそのものを畳めるようにしてある。UI の「中止」はこの両方を使う。
 */
-class CodexAuth
+class CodexAuth : public ResponsesAuth
 {
 public:
     CodexAuth();
-    ~CodexAuth();
+    ~CodexAuth() override;
 
     struct Tokens
     {
@@ -49,7 +51,8 @@ public:
     };
 
     bool isSignedIn() const;
-    juce::String getAccessToken() const;
+    juce::String getAccessToken() const override;
+    juce::String extraHeaders() const override;
     juce::String getAccountId() const;
 
     /** 既定のサインイン経路。認可ページを提示し、ループバックでコードを受け取り、
@@ -64,10 +67,10 @@ public:
     bool pollForTokens (const DeviceCode&, std::atomic<bool>& shouldStop, juce::String& errorOut);
 
     /** access token を更新する。成功したら保存し直す。 */
-    bool refresh (juce::String& errorOut, std::atomic<bool>* shouldStop = nullptr);
+    bool refresh (juce::String& errorOut, std::atomic<bool>* shouldStop = nullptr) override;
 
     /** 実行中のリクエストを畳む。読み取りでブロックしていても戻ってくる。 */
-    void cancelActiveRequest();
+    void cancelActiveRequest() override;
 
     void signOut();
 

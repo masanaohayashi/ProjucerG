@@ -19,16 +19,22 @@ namespace AiModels
         const char* description;
     };
 
+    enum class Provider { chatgpt, grok };
+
     struct Model
     {
         const char* id;
         const char* displayName;
         const char* description;
         const char* defaultEffort;
+        Provider provider = Provider::chatgpt;
     };
 
     /** 既知のモデル。先頭がサービス側の既定。 */
     juce::Array<Model> getKnownModels();
+
+    Provider providerFor (const juce::String& modelId);
+    Provider getSelectedProvider();
 
     /** そのモデルで選べる effort。 */
     juce::Array<Effort> getEffortsFor (const juce::String& modelId);

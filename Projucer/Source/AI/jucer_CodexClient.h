@@ -1,6 +1,5 @@
 #pragma once
 
-#include "jucer_CodexAuth.h"
 #include "jucer_SseParser.h"
 
 #include <juce_core/juce_core.h>
@@ -9,16 +8,28 @@
 #include <functional>
 #include <memory>
 
-/* Sends streaming Responses API requests to the Codex backend.
+/*  Responses API に載せる資格情報。ChatGPT と Grok で中身は違うが、
+    ストリーム側はトークンと追加ヘッダだけ見ればよい。 */
+class ResponsesAuth
+{
+public:
+    virtual ~ResponsesAuth() = default;
 
-   This is the only class that owns Codex-specific HTTP knowledge. The request
-   method blocks while reading the network stream and must not be called from
-   the message thread. Events are delivered on the calling thread.
+    virtual juce::String getAccessToken() const = 0;
+    virtual juce::String extraHeaders() const = 0;
+    virtual bool refresh (juce::String& errorOut, std::atomic<bool>* shouldStop) = 0;
+    virtual void cancelActiveRequest() = 0;
+};
+
+/* Sends streaming Responses API requests.
+
+   The request method blocks while reading the network stream and must not be
+   called from the message thread. Events are delivered on the calling thread.
 */
 class CodexClient
 {
 public:
-    explicit CodexClient (std::shared_ptr<CodexAuth> authToUse);
+    CodexClient (std::shared_ptr<ResponsesAuth> authToUse, juce::String baseUrlToUse);
 
     /* Sends a request and delivers each decoded SSE JSON event to onEvent.
        A 401 response refreshes the access token and retries exactly once. */
@@ -29,7 +40,8 @@ public:
 
     void cancelActiveRequest();
 
-    static constexpr const char* baseUrl = "https://chatgpt.com/backend-api/codex";
+    static constexpr const char* chatgptBaseUrl = "https://chatgpt.com/backend-api/codex";
+    static constexpr const char* grokBaseUrl    = "https://api.x.ai/v1";
 
 private:
     class ActiveStream;
@@ -40,7 +52,8 @@ private:
                   int& statusOut,
                   juce::String& errorOut);
 
-    std::shared_ptr<CodexAuth> auth;
+    std::shared_ptr<ResponsesAuth> auth;
+    juce::String baseUrl;
     juce::String sessionId { juce::Uuid().toDashedString() };
     std::shared_ptr<ActiveStream> activeStream;
 };

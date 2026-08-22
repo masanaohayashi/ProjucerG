@@ -43,6 +43,7 @@ class Sidebar;
 class TerminalPanel;
 class AiSession;
 class CodexAuth;
+class GrokAuth;
 struct WizardHolder;
 
 //==============================================================================
@@ -166,6 +167,7 @@ private:
     std::unique_ptr<ResizableEdgeComponent> terminalResizerBar;
     ComponentBoundsConstrainer terminalSizeConstrainer;
     std::shared_ptr<CodexAuth> codexAuth;
+    std::shared_ptr<GrokAuth> grokAuth;
     std::shared_ptr<AiSession> aiSession;
     OpenDocumentManager::Document* aiReturnDocument = nullptr;
     bool aiViewShowing = false;

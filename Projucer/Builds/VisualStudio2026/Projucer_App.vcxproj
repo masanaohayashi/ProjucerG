@@ -383,6 +383,7 @@
     <ClCompile Include="..\..\Source\AI\jucer_Pkce.cpp"/>
     <ClCompile Include="..\..\Source\AI\jucer_OAuthCallbackServer.cpp"/>
     <ClCompile Include="..\..\Source\AI\jucer_CodexAuth.cpp"/>
+    <ClCompile Include="..\..\Source\AI\jucer_GrokAuth.cpp"/>
     <ClCompile Include="..\..\Source\AI\jucer_CodexClient.cpp"/>
     <ClCompile Include="..\..\Source\AI\jucer_AiTools.cpp"/>
     <ClCompile Include="..\..\Source\AI\jucer_AiSession.cpp"/>
@@ -3548,6 +3549,7 @@
     <ClInclude Include="..\..\Source\AI\jucer_OAuthCallbackServer.h"/>
     <ClInclude Include="..\..\Source\AI\jucer_AuthBrowser.h"/>
     <ClInclude Include="..\..\Source\AI\jucer_CodexAuth.h"/>
+    <ClInclude Include="..\..\Source\AI\jucer_GrokAuth.h"/>
     <ClInclude Include="..\..\Source\AI\jucer_CodexClient.h"/>
     <ClInclude Include="..\..\Source\AI\jucer_AiTools.h"/>
     <ClInclude Include="..\..\Source\AI\jucer_AiSession.h"/>

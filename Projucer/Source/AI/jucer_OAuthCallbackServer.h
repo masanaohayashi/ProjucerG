@@ -16,6 +16,12 @@ public:
     /** 待ち受けを開始する。preferredPort が埋まっていれば OS 任せの空きポートを使う。 */
     bool start (int preferredPort);
 
+    /** 認可コードを受け取る経路。ChatGPT は /auth/callback、Grok は /callback。 */
+    void setCallbackPath (juce::String path);
+
+    /** Grok の accounts アプリが 127.0.0.1 へ CORS でコードを渡すときに必要。 */
+    void setAllowAccountsCors (bool shouldAllow);
+
     /** 実際に待ち受けているポート。redirect_uri の組み立てに使う。 */
     int getPort() const noexcept    { return port; }
 
@@ -28,9 +34,19 @@ public:
                       juce::String& stateOut,
                       juce::String& errorOut);
 
+    /** ブラウザに出たコードやコールバック URL をユーザーが貼ったとき。
+        ループバックと競合するので、待っているスレッドを起こす。 */
+    void submitPastedInput (const juce::String& input);
+
     void stop();
 
 private:
     juce::StreamingSocket listener;
+    juce::CriticalSection lock;
+    juce::String callbackPath { "/auth/callback" };
+    bool allowAccountsCors = false;
+    bool hasPasted = false;
+    juce::String pastedCode;
+    juce::String pastedState;
     int port = 0;
 };

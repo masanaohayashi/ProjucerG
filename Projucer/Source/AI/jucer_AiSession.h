@@ -1,7 +1,8 @@
 #pragma once
 
 #include "jucer_AiTools.h"
-#include "jucer_CodexClient.h"
+#include "jucer_CodexAuth.h"
+#include "jucer_GrokAuth.h"
 
 #include <juce_events/juce_events.h>
 
@@ -16,7 +17,9 @@ class AiSession final : public juce::ChangeBroadcaster,
                         public std::enable_shared_from_this<AiSession>
 {
 public:
-    AiSession (std::shared_ptr<CodexAuth> auth, const juce::File& projectRoot);
+    AiSession (std::shared_ptr<CodexAuth> chatgptAuth,
+               std::shared_ptr<GrokAuth> grokAuth,
+               const juce::File& projectRoot);
     ~AiSession() override;
 
     struct Entry
@@ -93,7 +96,8 @@ private:
     void clearPendingApproval();
     void finishTurn();
 
-    std::shared_ptr<CodexAuth> auth;
+    std::shared_ptr<CodexAuth> chatgptAuth;
+    std::shared_ptr<GrokAuth> grokAuth;
     juce::File projectRoot;
     juce::Array<Entry> entries;
     std::unique_ptr<PendingApproval> pendingApproval;

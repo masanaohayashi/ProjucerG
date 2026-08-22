@@ -2,6 +2,7 @@
 
 #include "jucer_AiSession.h"
 #include "jucer_CodexAuth.h"
+#include "jucer_GrokAuth.h"
 
 #include <juce_gui_extra/juce_gui_extra.h>
 
@@ -16,7 +17,8 @@ class AiChatView final : public juce::Component,
 {
 public:
     AiChatView (std::shared_ptr<AiSession> sessionToUse,
-                std::shared_ptr<CodexAuth> authToUse);
+                std::shared_ptr<CodexAuth> chatgptAuthToUse,
+                std::shared_ptr<GrokAuth> grokAuthToUse);
     ~AiChatView() override;
 
     void paint (juce::Graphics&) override;
@@ -38,8 +40,12 @@ private:
         デバイスコード経路は ChatGPT のセキュリティ設定で有効にしたアカウントでしか
         使えないため、代替として置いてある。 */
     enum class SignInMethod { browser, deviceCode };
+    enum class SignInProvider { chatgpt, grok };
 
-    void startSignIn (SignInMethod method);
+    void startSignIn (SignInProvider provider, SignInMethod method);
+    void submitGrokPaste();
+    bool isSelectedProviderSignedIn() const;
+    bool providerShowsDeviceCode() const;
     void cancelSignIn();
     void stopSignInWorker();
     void rebuildHistory();
@@ -67,7 +73,8 @@ private:
     static constexpr int speedBaseId  = 300;
 
     std::shared_ptr<AiSession> session;
-    std::shared_ptr<CodexAuth> auth;
+    std::shared_ptr<CodexAuth> chatgptAuth;
+    std::shared_ptr<GrokAuth> grokAuth;
 
     juce::Component signInCard;
     juce::Label signInTitle;
@@ -84,10 +91,13 @@ private:
     std::unique_ptr<RoundIconButton> sendStopButton;
 
     juce::TextButton signInButton { "Sign in with ChatGPT" };
+    juce::TextButton grokSignInButton { "Sign in with Grok" };
     juce::TextButton deviceCodeButton { "Use the other sign-in method" };
     juce::TextButton copyCodeButton { "Copy code" };
     juce::TextButton openBrowserButton { "Open browser" };
     juce::TextButton cancelSignInButton { "Cancel" };
+    juce::TextEditor grokPasteEditor;
+    juce::TextButton grokPasteButton { "Continue" };
 
     std::shared_ptr<std::atomic<bool>> lifetimeToken;
     std::shared_ptr<std::atomic<bool>> signInStopToken;
