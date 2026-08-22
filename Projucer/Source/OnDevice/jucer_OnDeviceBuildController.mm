@@ -7,6 +7,8 @@
 */
 
 #include "../Application/jucer_Headers.h"
+#include "../Application/jucer_Application.h"
+#include "../Project/UI/jucer_ProjectContentComponent.h"
 #include "../ProjectSaving/jucer_ProjectExporter.h"
 #include "jucer_OnDeviceBuildController.h"
 
@@ -275,15 +277,155 @@ public:
 
     bool start (ProjectExporter& exporter)
     {
-        if (building)
-            return false;
+        {
+            const juce::ScopedLock sl (buildLock);
 
-        building = true;
+            if (building)
+                return false;
+
+            building = true;
+        }
+
         cancelRequested.store (false);
         closeWhenFinished = false;
         previousIdleTimerDisabled = UIApplication.sharedApplication.idleTimerDisabled;
         UIApplication.sharedApplication.idleTimerDisabled = YES;
+        showProgressPanel();
 
+        const auto documents = documentsDirectory();
+        const auto projectRoot = exporter.getProject().getProjectFolder();
+        const auto manifestFile = exporter.getTargetFolder().getChildFile ("manifest.json");
+        const auto projectName = projectRoot.getFileName();
+        const bool simulator = TARGET_OS_SIMULATOR != 0;
+
+        std::thread ([this, documents, projectRoot, manifestFile, projectName, simulator]() mutable
+        {
+            try
+            {
+                runBuild (documents, projectRoot, manifestFile, projectName, simulator, true);
+            }
+            catch (const std::exception& e)
+            {
+                appendLine ("exception: " + String (CharPointer_UTF8 (e.what())));
+                finish (true);
+            }
+            catch (...)
+            {
+                appendLine ("unknown exception during on-device build");
+                finish (true);
+            }
+        }).detach();
+
+        return true;
+    }
+
+    bool isBuilding() const
+    {
+        const juce::ScopedLock sl (buildLock);
+        return building;
+    }
+
+    bool runCapturing (const File& requestedRoot, String& logOut, std::atomic<bool>& cancelled)
+    {
+        if (isBuilding())
+        {
+            logOut = "A build is already running.";
+            return false;
+        }
+
+        lastSuccess.store (false);
+        externalCancel = &cancelled;
+        captureLog = &logOut;
+
+        juce::WaitableEvent launched;
+        String launchError;
+        bool launchOk = false;
+
+        auto kickOff = [this, requestedRoot, &launched, &launchError, &launchOk]
+        {
+            auto* project = findOpenProject (requestedRoot);
+
+            if (project == nullptr)
+            {
+                launchError = "No open project matches this working directory.";
+                launched.signal();
+                return;
+            }
+
+            ProjectContentComponent* content = nullptr;
+
+            for (auto* window : ProjucerApplication::getApp().mainWindowList.windows)
+                if (window->getProject() == project)
+                    content = window->getProjectContentComponent();
+
+            if (content == nullptr)
+            {
+                launchError = "The project window is not open.";
+                launched.signal();
+                return;
+            }
+
+            content->openInSelectedIDE (true, [this, &launched, &launchError, &launchOk] (bool started)
+            {
+                launchOk = started && isBuilding();
+                if (! launchOk)
+                    launchError = "Could not start On-Device Build. Choose the On-Device exporter and try again.";
+                launched.signal();
+            });
+        };
+
+        if (MessageManager::getInstance()->isThisTheMessageThread())
+            kickOff();
+        else
+            MessageManager::callAsync (kickOff);
+
+        while (! launched.wait (200))
+        {
+            if (cancelled.load())
+            {
+                logOut = "The build was stopped.";
+                captureLog = nullptr;
+                externalCancel = nullptr;
+                return false;
+            }
+        }
+
+        if (! launchOk)
+        {
+            logOut = launchError.isNotEmpty() ? launchError : "Could not start On-Device Build.";
+            captureLog = nullptr;
+            externalCancel = nullptr;
+            return false;
+        }
+
+        while (isBuilding())
+        {
+            if (cancelled.load())
+                cancelRequested.store (true);
+
+            juce::Thread::sleep (200);
+        }
+
+        captureLog = nullptr;
+        externalCancel = nullptr;
+        return lastSuccess.load();
+    }
+
+private:
+    static Project* findOpenProject (const File& root)
+    {
+        const auto wanted = root.getFullPathName();
+
+        for (auto* window : ProjucerApplication::getApp().mainWindowList.windows)
+            if (auto* project = window->getProject())
+                if (project->getProjectFolder().getFullPathName() == wanted)
+                    return project;
+
+        return ProjucerApplication::getApp().mainWindowList.getFrontmostProject();
+    }
+
+    void showProgressPanel()
+    {
         auto* panel = new OnDeviceProgressPanel();
         panelPtr = panel;
         panel->setStartTime (Time::getMillisecondCounterHiRes() / 1000.0);
@@ -306,42 +448,28 @@ public:
                 appendLine ("app entered background - I/O is now throttled");
             }];
         }
-
-        const auto documents = documentsDirectory();
-        const auto projectRoot = exporter.getProject().getProjectFolder();
-        const auto manifestFile = exporter.getTargetFolder().getChildFile ("manifest.json");
-        const auto projectName = projectRoot.getFileName();
-        const bool simulator = TARGET_OS_SIMULATOR != 0;
-
-        std::thread ([this, documents, projectRoot, manifestFile, projectName, simulator]() mutable
-        {
-            try
-            {
-                runBuild (documents, projectRoot, manifestFile, projectName, simulator);
-            }
-            catch (const std::exception& e)
-            {
-                appendLine ("exception: " + String (CharPointer_UTF8 (e.what())));
-                finish (true);
-            }
-            catch (...)
-            {
-                appendLine ("unknown exception during on-device build");
-                finish (true);
-            }
-        }).detach();
-
-        return true;
     }
 
-private:
     void appendLine (const String& line)
     {
+        {
+            const juce::ScopedLock sl (logLock);
+
+            if (captureLog != nullptr)
+            {
+                if (captureLog->isNotEmpty())
+                    *captureLog << "\n";
+
+                *captureLog << line;
+            }
+        }
+
         if (! MessageManager::getInstance()->isThisTheMessageThread())
         {
             MessageManager::callAsync ([this, line]
             {
-                appendLine (line);
+                if (auto* panel = panelPtr.getComponent())
+                    panel->appendLine (line);
             });
             return;
         }
@@ -352,7 +480,10 @@ private:
 
     void finish (bool restoreIdle)
     {
-        auto complete = [this, restoreIdle]
+        const bool waitForMain = panelPtr.getComponent() == nullptr
+                              && ! MessageManager::getInstance()->isThisTheMessageThread();
+        juce::WaitableEvent done;
+        auto complete = [this, restoreIdle, waitForMain, &done]
         {
             if (auto* panel = panelPtr.getComponent())
                 panel->markFinished();
@@ -360,22 +491,31 @@ private:
             if (restoreIdle)
                 UIApplication.sharedApplication.idleTimerDisabled = previousIdleTimerDisabled;
 
-            building = false;
+            {
+                const juce::ScopedLock sl (buildLock);
+                building = false;
+            }
 
             if (closeWhenFinished)
             {
                 closeWhenFinished = false;
                 closeDialog();
             }
+
+            if (waitForMain)
+                done.signal();
         };
 
-        if (! MessageManager::getInstance()->isThisTheMessageThread())
+        if (MessageManager::getInstance()->isThisTheMessageThread())
         {
-            MessageManager::callAsync (complete);
+            complete();
             return;
         }
 
-        complete();
+        MessageManager::callAsync (complete);
+
+        if (waitForMain)
+            done.wait();
     }
 
     void requestClose()
@@ -433,8 +573,10 @@ private:
             dialog->exitModalState (0);
     }
 
-    void runBuild (File documents, File projectRoot, File manifestFile, String projectName, bool simulator)
+    bool runBuild (File documents, File projectRoot, File manifestFile, String projectName,
+                   bool simulator, bool installWhenSuccessful)
     {
+        lastSuccess.store (false);
         juce::Array<String> missing;
         const auto resourceDir = clangResourceDir();
         const auto stddefFile = resourceDir.getChildFile ("include").getChildFile ("stddef.h");
@@ -485,14 +627,14 @@ private:
                 appendLine ("  " + path);
 
             finish (true);
-            return;
+            return false;
         }
 
         if (linkerDisabled)
         {
             appendLine ("linker previously reported canRunAgain=false; refusing further builds");
             finish (true);
-            return;
+            return false;
         }
 
         const auto password = simulator ? std::string()
@@ -513,7 +655,7 @@ private:
                 appendLine ("PKCS#12 re-encode failed: " + juceStringFromStd (reencodeError));
                 appendLine ("Place an AES-256-CBC p12 named *.modern.p12 (or a re-encodable *.p12) in OnDeviceSigning.");
                 finish (true);
-                return;
+                return false;
             }
         }
 
@@ -529,7 +671,7 @@ private:
         {
             appendLine ("SDK extract failed: " + juceStringFromStd (extractError));
             finish (true);
-            return;
+            return false;
         }
 
         const auto work = documents.getChildFile ("OnDeviceWork").getChildFile (projectName);
@@ -552,7 +694,11 @@ private:
         request.p12Password = password;
         request.provisionPath = simulator ? std::string() : stdStringFromFile (provision);
         request.threads = threads;
-        request.shouldCancel = [this] { return cancelRequested.load(); };
+        request.shouldCancel = [this]
+        {
+            return cancelRequested.load()
+                || (externalCancel != nullptr && externalCancel->load());
+        };
         request.onProgress = [this] (const std::string& line)
         {
             appendLine (juceStringFromStd (line));
@@ -565,11 +711,12 @@ private:
         if (! result.linkerCanRunAgain)
             linkerDisabled = true;
 
-        if (result.cancelled || cancelRequested.load())
+        if (result.cancelled || cancelRequested.load()
+            || (externalCancel != nullptr && externalCancel->load()))
         {
             appendLine ("BUILD CANCELLED");
             finish (true);
-            return;
+            return false;
         }
 
         if (! result.success)
@@ -578,13 +725,21 @@ private:
             appendLine (juceStringFromStd (result.failureMessage));
             appendLine ("peak rss " + formatBytes (result.peakResidentBytes));
             finish (true);
-            return;
+            return false;
         }
 
+        appendLine ("BUILD SUCCEEDED");
         appendLine ((simulator ? "Simulator app ready: " : "IPA ready: ")
                     + juceStringFromStd (simulator ? result.appFolder : result.ipaPath));
         appendLine ("compile " + String (result.compileSeconds, 1) + " s, peak rss "
                     + formatBytes (result.peakResidentBytes));
+
+        if (! installWhenSuccessful)
+        {
+            lastSuccess.store (true);
+            finish (true);
+            return true;
+        }
 
         if (simulator)
         {
@@ -600,7 +755,7 @@ private:
                     appendLine (installOutput);
 
                 finish (true);
-                return;
+                return false;
             }
 
             appendLine ("Simulator app installed and launched: "
@@ -611,7 +766,9 @@ private:
             serveAndInstall (result.ipaPath, manifestJson);
         }
 
+        lastSuccess.store (true);
         finish (true);
+        return true;
     }
 
     bool installSimulatorApp (const std::string& appPath, const std::string& manifestJson, String& output)
@@ -728,7 +885,9 @@ private:
             const auto host = [NSString stringWithFormat: @"%@.backloop.dev",
                                NSUUID.UUID.UUIDString.lowercaseString];
             const auto base = [NSString stringWithFormat: @"https://%@:%u", host, kLoopbackPort];
-            manifestURL = [base stringByAppendingString: @"/manifest.plist"];
+            /*  JUCE は MRC。ここでの autorelease 文字列を __block に入れると、
+                この dispatch_sync が終わった瞬間に解放される。 */
+            manifestURL = [[base stringByAppendingString: @"/manifest.plist"] copy];
 
             NSDictionary* plist = @{
                 @"items": @[@{
@@ -757,6 +916,7 @@ private:
         if (! started)
         {
             appendLine ("loopback HTTPS server failed to start");
+            [manifestURL release];
             return;
         }
 
@@ -764,6 +924,7 @@ private:
         {
             appendLine ("loopback listener did not become ready; not opening itms-services");
             dispatch_sync (dispatch_get_main_queue(), ^{ [server stop]; });
+            [manifestURL release];
             return;
         }
 
@@ -771,9 +932,9 @@ private:
         {
             appendLine ("tap Install when prompted (itms-services)");
 
-            const auto encoded = [manifestURL stringByAddingPercentEncodingWithAllowedCharacters:
-                                  NSCharacterSet.alphanumericCharacterSet];
-            const auto url = [NSURL URLWithString: [NSString stringWithFormat:
+            NSString* encoded = [manifestURL stringByAddingPercentEncodingWithAllowedCharacters:
+                                 NSCharacterSet.alphanumericCharacterSet];
+            NSURL* url = [NSURL URLWithString: [NSString stringWithFormat:
                 @"itms-services://?action=download-manifest&url=%@", encoded]];
 
             [UIApplication.sharedApplication openURL: url
@@ -784,6 +945,8 @@ private:
                                : "openURL refused the itms-services URL");
             }];
         });
+
+        [manifestURL release];
     }
 
     Component::SafePointer<DialogWindow> dialogPtr;
@@ -793,6 +956,11 @@ private:
     id backgroundObserver = nil;
     BOOL previousIdleTimerDisabled = NO;
     std::atomic<bool> cancelRequested { false };
+    std::atomic<bool>* externalCancel = nullptr;
+    juce::CriticalSection buildLock;
+    juce::CriticalSection logLock;
+    String* captureLog = nullptr;
+    std::atomic<bool> lastSuccess { false };
     bool building = false;
     bool closeWhenFinished = false;
     bool cancelPromptShown = false;
@@ -803,6 +971,13 @@ private:
 bool startOnDeviceBuild (ProjectExporter& exporter)
 {
     return OnDeviceBuildController::get().start (exporter);
+}
+
+bool runOnDeviceBuildCapturingLog (const File& projectRoot,
+                                   String& logOut,
+                                   std::atomic<bool>& cancelled)
+{
+    return OnDeviceBuildController::get().runCapturing (projectRoot, logOut, cancelled);
 }
 
 #endif

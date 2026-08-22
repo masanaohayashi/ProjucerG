@@ -72,7 +72,7 @@ public:
     /** 実行中のリクエストを畳む。読み取りでブロックしていても戻ってくる。 */
     void cancelActiveRequest() override;
 
-    void signOut();
+    void signOut() override;
 
     static constexpr const char* clientId = "app_EMoamEEZ73f0CkXaXp7hrann";
     static constexpr const char* issuer = "https://auth.openai.com";

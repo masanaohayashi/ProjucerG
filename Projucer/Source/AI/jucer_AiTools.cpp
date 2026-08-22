@@ -4,6 +4,10 @@
 #include "../Git/jucer_GitCommand.h"
 #include "../Shell/jucer_InProcessShell.h"
 
+#if JUCE_IOS
+ #include "../OnDevice/jucer_OnDeviceBuildController.h"
+#endif
+
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -363,7 +367,7 @@ namespace
                 errorOut = "The file could not be read safely.";
                 return false;
             }
-            contents = juce::String::fromUTF8 (bytes.data(), static_cast<int> (bytes.size()));
+            contents = juce::String::createStringFromData (bytes.data(), static_cast<int> (bytes.size()));
         }
 
         return true;
@@ -677,7 +681,8 @@ bool AiTools::requiresApproval (const juce::String& toolName, const juce::var& a
         return true;
     }
 
-    return toolName == "write_file" || toolName == "apply_patch" || toolName == "exec_command";
+    return toolName == "write_file" || toolName == "apply_patch"
+        || toolName == "exec_command" || toolName == "build";
 }
 
 juce::var AiTools::getToolSchemas (bool includeCodexWebSearchFlags)
@@ -718,12 +723,12 @@ juce::var AiTools::getToolSchemas (bool includeCodexWebSearchFlags)
         合わせて受け取り、知らないものは無視する。 */
     {
         auto* properties = new juce::DynamicObject();
-        properties->setProperty ("cmd", makeStringProperty ("Shell command to execute. Runs in a login shell so git and compilers from the user PATH are available."));
+        properties->setProperty ("cmd", makeStringProperty ("Shell command to execute. On iOS only the in-process commands listed in the system instructions exist; clang/make and binaries fail. On desktop this is a login shell."));
         properties->setProperty ("workdir", makeStringProperty ("Working directory relative to the project root. Defaults to the project root. Must stay inside the project."));
         properties->setProperty ("yield_time_ms", makeIntegerProperty ("Maximum time to wait in milliseconds. Defaults to 300000 (5 minutes). Range 10000-300000."));
 
         auto tool = makeTool ("exec_command",
-                              "Run a shell command in the project working directory. On iOS this is an in-process POSIX subset (pipes, redirects, git, common file/text tools). It cannot spawn compilers or run executables; use On-Device Build to compile. Commands that write files or use the network need the user's approval unless they chose Full access.",
+                              "Run a shell command in the project working directory. On iOS this is an in-process POSIX subset: only the commands listed in the system instructions exist. clang/make/xcodebuild and running binaries fail. Use the build tool to compile. Commands that write files or use the network need the user's approval unless they chose Full access.",
                               properties, { "cmd" });
 
         if (auto* object = tool.getDynamicObject())
@@ -750,6 +755,17 @@ juce::var AiTools::getToolSchemas (bool includeCodexWebSearchFlags)
                              "Run git in the editor process. Prefer the git tool or `exec_command` with git; both hit the same in-process implementation.",
                              properties, { "args" }));
     }
+
+   #if JUCE_IOS
+    {
+        auto* properties = new juce::DynamicObject();
+        tools.add (makeTool ("build",
+                             "Compile the open project with the in-app On-Device Build and return the compiler and linker log. "
+                             "Do not use exec_command, clang, make, or xcodebuild. This does not install the app. "
+                             "On failure, read the log, fix source with apply_patch, and call build again.",
+                             properties, {}));
+    }
+   #endif
 
     /*  Web 検索はサーバー側が持つ組み込みツール。こちらで実装する必要はなく、
         tools にこの 1 項目を載せるだけでモデルが検索と取得を行う。
@@ -875,6 +891,22 @@ AiTools::Result AiTools::preview (const juce::String& toolName, const juce::var&
         return result;
     }
 
+    if (toolName == "build")
+    {
+        pendingPreview.reset();
+        PreviewState state;
+        const auto result = doBuild (arguments, false, &state);
+
+        if (result.ok)
+        {
+            state.toolName = toolName;
+            state.argumentsKey = makeArgumentsKey (arguments);
+            pendingPreview = state;
+        }
+
+        return result;
+    }
+
     return { false, "The tool does not require approval.", {} };
 }
 
@@ -911,6 +943,13 @@ AiTools::Result AiTools::execute (const juce::String& toolName, const juce::var&
     if (toolName == "exec_command")
     {
         const auto result = doExecCommand (arguments, true);
+        pendingPreview.reset();
+        return result;
+    }
+
+    if (toolName == "build")
+    {
+        const auto result = doBuild (arguments, true);
         pendingPreview.reset();
         return result;
     }
@@ -1541,5 +1580,57 @@ AiTools::Result AiTools::doExecCommand (const juce::var& arguments,
         resultText << "(no output)";
 
     return { exitCode == 0, resultText, preview };
+   #endif
+}
+
+AiTools::Result AiTools::doBuild (const juce::var&,
+                                  bool actuallyRun,
+                                  PreviewState* previewStateOut)
+{
+    juce::String preview;
+    preview << "Save the project and run On-Device Build (same as the Build button).\n"
+            << "Returns the compiler, linker and install log.\n\n"
+            << "Project:\n"
+            << projectRoot.getFullPathName();
+
+    if (! actuallyRun)
+    {
+        if (previewStateOut != nullptr)
+        {
+            previewStateOut->file = projectRoot;
+            previewStateOut->existed = projectRoot.isDirectory();
+            previewStateOut->content = "build";
+        }
+
+        return { true, "Preview generated.", preview };
+    }
+
+    if (pendingPreview.has_value())
+    {
+        const auto& previewState = *pendingPreview;
+
+        if (previewState.toolName != "build")
+            return { false, "The approval preview does not match this request.", preview };
+    }
+
+    cancelRequested.store (false, std::memory_order_release);
+
+   #if JUCE_IOS
+    juce::String log;
+    const auto ok = runOnDeviceBuildCapturingLog (projectRoot, log, cancelRequested);
+
+    if (log.length() > maxExecOutputChars)
+        log = "...[truncated]\n" + log.substring (log.length() - maxExecOutputChars);
+
+    juce::String resultText;
+    resultText << "status: " << (ok ? "ok" : "failed") << "\n"
+               << (log.isNotEmpty() ? log : juce::String ("(no output)"));
+
+    return { ok, resultText, preview };
+   #else
+    return { false,
+             "The build tool is only available on iOS (On-Device Build). "
+             "On this platform use exec_command to compile.",
+             preview };
    #endif
 }

@@ -1422,8 +1422,7 @@ namespace
         if (block.getSize() == 0)
             text = {};
         else
-            text = juce::String::fromUTF8 (static_cast<const char*> (block.getData()),
-                                           (int) block.getSize());
+            text = juce::String::createStringFromData (block.getData(), (int) block.getSize());
 
         return true;
     }

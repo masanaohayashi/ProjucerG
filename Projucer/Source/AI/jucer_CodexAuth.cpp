@@ -551,6 +551,7 @@ bool CodexAuth::refresh (juce::String& errorOut, std::atomic<bool>* shouldStop)
 
     if (currentRefreshToken.isEmpty())
     {
+        signOut();
         errorOut = "You need to sign in.";
         return false;
     }
@@ -570,6 +571,9 @@ bool CodexAuth::refresh (juce::String& errorOut, std::atomic<bool>* shouldStop)
 
     if (status < 200 || status >= 300)
     {
+        if (status == 400 || status == 401 || status == 403)
+            signOut();
+
         errorOut = "Could not refresh the session. Please sign in again.";
         return false;
     }

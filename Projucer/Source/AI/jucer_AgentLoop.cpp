@@ -4,6 +4,7 @@
 #include "jucer_ProjectInstructions.h"
 #include "../Application/jucer_Headers.h"
 #include "../Application/jucer_Application.h"
+#include "../Shell/jucer_InProcessShell.h"
 
 #include <algorithm>
 #include <memory>
@@ -119,7 +120,11 @@ namespace
         "You have exec_command. Use it to run shell commands in the project directory.\n"
         "On iOS there is an in-process POSIX shell (no child processes): pipes, redirects,\n"
         "variables, git, and common file/text tools work. There is no clang/make/xcodebuild\n"
-        "and no running of compiled binaries; compilation is the in-app On-Device Build.\n"
+        "and no running of compiled binaries.\n"
+        "You have a build tool. Use it to save and compile the open project with On-Device Build\n"
+        "(the same path as the Build button, including install). It returns the compiler,\n"
+        "linker and install log. After a failed build, read the log, fix the source, and call\n"
+        "build again.\n"
         "Do not say you lack a terminal or git.\n"
         "If the user chose the bottom terminal, the command is typed there and the\n"
         "captured output is returned to you. Use that output instead of asking them to\n"
@@ -245,6 +250,10 @@ juce::var AgentLoop::buildRequestBody() const
         ディレクトリの指示ほど後に来るので、競合したら下位が後勝ちになる。
         登るのは指示の収集だけで、ツールの作業範囲は広がらない。 */
     juce::String instructions (systemInstructions);
+
+   #if JUCE_IOS
+    instructions << "\n\n" << ProjucerShell::iosAgentGuidance();
+   #endif
 
     const auto projectInstructions = ProjectInstructions::buildText (workingDirectory);
 

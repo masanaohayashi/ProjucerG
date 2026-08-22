@@ -71,11 +71,41 @@ inline void writeOnDeviceManifest (const ProjectExporter& constExporter)
     includes.addIfNotAlreadyThere (exporter.getProject().getRelativePathForFile (exporter.getProject().getGeneratedCodeFolder())
                                        .replaceCharacter ('\\', '/'));
 
-    for (const auto& path : exporter.extraSearchPaths)
+    const auto addHeaderPath = [&exporter, &includes] (const String& path)
     {
-        const build_tools::RelativePath buildPath (path, build_tools::RelativePath::buildTargetFolder);
+        auto unix = path.replaceCharacter ('\\', '/').trim();
+
+        if (unix.isEmpty())
+            return;
+
+        if (unix == ".")
+        {
+            includes.addIfNotAlreadyThere (".");
+            return;
+        }
+
+        if (File::isAbsolutePath (unix))
+        {
+            const auto relative = exporter.getProject().getRelativePathForFile (File (unix))
+                                      .replaceCharacter ('\\', '/');
+            includes.addIfNotAlreadyThere (relative.isNotEmpty() ? relative : unix);
+            return;
+        }
+
+        const build_tools::RelativePath buildPath (unix, build_tools::RelativePath::buildTargetFolder);
         includes.addIfNotAlreadyThere (exporter.rebaseFromBuildTargetToProjectFolder (buildPath).toUnixStyle());
-    }
+    };
+
+    for (const auto& path : exporter.extraSearchPaths)
+        addHeaderPath (path);
+
+    /*  Xcode と同じ。jucer の headerPath（プロジェクトと Configuration）を
+        -I に載せる。TWV の Source と Teensy4 のような隣同士のフォルダは
+        ここに書いてある。 */
+    if (exporter.getNumConfigurations() > 0)
+        if (auto config = exporter.getConfiguration (0))
+            for (const auto& path : config->getHeaderSearchPaths())
+                addHeaderPath (path);
 
     Array<var> includeList;
 

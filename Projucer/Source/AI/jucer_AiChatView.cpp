@@ -892,15 +892,10 @@ AiChatView::AiChatView (std::shared_ptr<AiSession> sessionToUse,
         経路があり、そのあいだアプリがバックグラウンドへ回ってループバックの
         待ち受けが止まる。デバイスコード経路はソケットを使わないので、
         アプリ間を行き来しても壊れない。iOS ではこちらを既定にする。 */
-   #if JUCE_IOS
-    constexpr auto primaryMethod   = SignInMethod::deviceCode;
-    constexpr auto secondaryMethod = SignInMethod::browser;
-   #else
-    constexpr auto primaryMethod   = SignInMethod::browser;
-    constexpr auto secondaryMethod = SignInMethod::deviceCode;
-   #endif
-
-    signInButton.onClick = [this] { startSignIn (SignInProvider::chatgpt, primaryMethod); };
+    signInButton.onClick = [this]
+    {
+        startSignIn (SignInProvider::chatgpt, defaultSignInMethodFor (SignInProvider::chatgpt));
+    };
     signInCard.addAndMakeVisible (signInButton);
 
     grokSignInButton.onClick = [this] { startSignIn (SignInProvider::grok, SignInMethod::browser); };
@@ -908,7 +903,13 @@ AiChatView::AiChatView (std::shared_ptr<AiSession> sessionToUse,
 
     // 代替経路。ChatGPT のセキュリティ設定でデバイスコード認証を有効にした
     // アカウントでしか使えないので、主ボタンの下に控えめに置く。
-    deviceCodeButton.onClick = [this] { startSignIn (SignInProvider::chatgpt, secondaryMethod); };
+    deviceCodeButton.onClick = [this]
+    {
+        const auto usual = defaultSignInMethodFor (SignInProvider::chatgpt);
+        startSignIn (SignInProvider::chatgpt,
+                     usual == SignInMethod::browser ? SignInMethod::deviceCode
+                                                    : SignInMethod::browser);
+    };
     signInCard.addAndMakeVisible (deviceCodeButton);
 
     copyCodeButton.onClick = [this]
@@ -1003,6 +1004,15 @@ AiChatView::AiChatView (std::shared_ptr<AiSession> sessionToUse,
     };
     approvalCard.addAndMakeVisible (autoApproveToggle);
 
+    for (auto* button : { static_cast<juce::Component*> (&approveButton),
+                          static_cast<juce::Component*> (&runInTerminalButton),
+                          static_cast<juce::Component*> (&rejectButton),
+                          static_cast<juce::Component*> (&autoApproveToggle) })
+    {
+        button->setWantsKeyboardFocus (false);
+        button->setMouseClickGrabsKeyboardFocus (false);
+    }
+
     addChildComponent (approvalCard);
 
     input.setMultiLine (true, true);
@@ -1047,7 +1057,7 @@ AiChatView::AiChatView (std::shared_ptr<AiSession> sessionToUse,
 
     modelButton = std::make_unique<FlatButton> ("model");
     modelButton->setShowsChevron (true);
-    modelButton->setTooltip ("Choose the model, reasoning effort and speed");
+    modelButton->setTooltip ("Choose the model, or sign in again");
     modelButton->onClick = [this] { showModelPicker(); };
     addAndMakeVisible (*modelButton);
 
@@ -1097,6 +1107,34 @@ bool AiChatView::isSelectedProviderSignedIn() const
 bool AiChatView::providerShowsDeviceCode() const
 {
     return AiModels::getSelectedProvider() != AiModels::Provider::grok;
+}
+
+AiChatView::SignInMethod AiChatView::defaultSignInMethodFor (SignInProvider provider) const
+{
+    if (provider == SignInProvider::grok)
+        return SignInMethod::browser;
+
+   #if JUCE_IOS
+    return SignInMethod::deviceCode;
+   #else
+    return SignInMethod::browser;
+   #endif
+}
+
+void AiChatView::restartSignIn()
+{
+    session->stop();
+
+    const auto grok = AiModels::getSelectedProvider() == AiModels::Provider::grok;
+    const auto provider = grok ? SignInProvider::grok : SignInProvider::chatgpt;
+
+    if (grok)
+        grokAuth->signOut();
+    else
+        chatgptAuth->signOut();
+
+    updateVisibility();
+    startSignIn (provider, defaultSignInMethodFor (provider));
 }
 
 void AiChatView::startSignIn (SignInProvider provider, SignInMethod method)
@@ -1262,29 +1300,39 @@ void AiChatView::updateVisibility()
         grokPasteButton.setVisible (false);
         grokPasteButton.setEnabled (true);
     }
+    const auto reviewing = signedIn && approval != nullptr;
+
     historyViewport.setVisible (signedIn);
-    input.setVisible (signedIn);
-    input.setEnabled (signedIn && ! busy);
+    input.setVisible (signedIn && ! reviewing);
+    input.setEnabled (signedIn && ! busy && ! reviewing);
+
+    if (reviewing || busy)
+        if (auto* focused = juce::Component::getCurrentlyFocusedComponent())
+            focused->giveAwayKeyboardFocus();
     /*  送信と停止は同じ丸ボタン。実行中は停止に変わる。押す場所が動かないので、
         止めたいときに探さずに済む。 */
     sendStopButton->setVisible (signedIn);
     sendStopButton->setIcon (busy ? RoundIconButton::Icon::stop : RoundIconButton::Icon::send);
     sendStopButton->setEnabled (signedIn);
 
-    addFileButton->setVisible (signedIn);
-    permissionButton->setVisible (signedIn);
-    execTargetButton->setVisible (signedIn);
-    modelButton->setVisible (true);
+    addFileButton->setVisible (signedIn && ! reviewing);
+    permissionButton->setVisible (signedIn && ! reviewing);
+    execTargetButton->setVisible (signedIn && ! reviewing);
+    modelButton->setVisible (! reviewing);
     updateModelButton();
     updateExecTargetButton();
-    approvalCard.setVisible (signedIn && approval != nullptr);
+    approvalCard.setVisible (reviewing);
+
+    if (reviewing)
+        approvalCard.toFront (false);
 
     if (approval != nullptr)
     {
         /*  組み込み git もコマンドとして見せる。ただし下のターミナルへは
             回せない（プロセスの中で動くので）。 */
         const auto isShellCommand = approval->toolName == "exec_command";
-        const auto isCommand = isShellCommand || approval->toolName == "git";
+        const auto isCommand = isShellCommand || approval->toolName == "git"
+                            || approval->toolName == "build";
         approvalTitle.setText (isCommand ? "Review command"
                                          : "Review " + approval->toolName + " change",
                                juce::dontSendNotification);
@@ -1372,6 +1420,7 @@ void AiChatView::sendCurrentInput()
     pendingAttachments.clear();
 
     input.clear();
+    input.giveAwayKeyboardFocus();
     session->sendMessage (text, attachments);
     updateHistoryLayout (true);
 }
@@ -1394,11 +1443,18 @@ bool AiChatView::handleSlashCommand (const juce::String& text)
         return true;
     }
 
+    if (command == "/signin" || command == "/login" || command == "/logout")
+    {
+        restartSignIn();
+        return true;
+    }
+
     if (command == "/help")
     {
         session->addLocalNotice ("Commands:\n"
-                                 "  /model  choose the model and reasoning effort\n"
-                                 "  /help   show this list\n"
+                                 "  /model   choose the model and reasoning effort\n"
+                                 "  /signin  sign in again (also /login, /logout)\n"
+                                 "  /help    show this list\n"
                                  "\nCurrent model: " + AiModels::describeSelection());
         return true;
     }
@@ -1488,6 +1544,7 @@ void AiChatView::showModelPicker()
         menu.addSubMenu ("Speed           " + AiModels::labelForSpeedTier (currentTier), speedMenu);
 
     menu.addSeparator();
+    menu.addItem (signInAgainId, "Sign in again...");
     menu.addItem (resetId, "Reset to default");
 
     juce::Component::SafePointer<AiChatView> safeThis (this);
@@ -1497,6 +1554,12 @@ void AiChatView::showModelPicker()
     {
         if (safeThis == nullptr || chosen <= 0)
             return;
+
+        if (chosen == signInAgainId)
+        {
+            safeThis->restartSignIn();
+            return;
+        }
 
         if (chosen == resetId)
         {
@@ -1834,7 +1897,10 @@ void AiChatView::resized()
         execTargetButton->setBounds (controlRow.removeFromLeft (execWidth).reduced (0, 3));
     }
 
-    input.setBounds (bounds.removeFromBottom (inputHeight - controlRowHeight + rowHeight).reduced (0, 2));
+    if (input.isVisible())
+        input.setBounds (bounds.removeFromBottom (inputHeight - controlRowHeight + rowHeight).reduced (0, 2));
+    else
+        input.setBounds ({});
 
     /*  入力欄と履歴が地続きだと、どこまでが AI の出力か分かりにくい。
         Projucer の地色で帯を挟んで切り分ける。左右はチャット端まで伸ばす。 */
@@ -1846,7 +1912,8 @@ void AiChatView::resized()
 
     if (approvalCard.isVisible())
     {
-        auto approvalHeight = juce::jmin (260, juce::jmax (140, bounds.getHeight() / 2));
+        constexpr int actionRowHeight = 44;
+        auto approvalHeight = juce::jmin (320, juce::jmax (160, bounds.getHeight() * 2 / 3));
         approvalHeight = juce::jmin (approvalHeight, bounds.getHeight());
         auto cardArea = bounds.removeFromBottom (approvalHeight);
         approvalCard.setBounds (cardArea);
@@ -1854,14 +1921,14 @@ void AiChatView::resized()
         auto card = approvalCard.getLocalBounds().reduced (4);
         approvalTitle.setBounds (card.removeFromTop (rowHeight));
 
-        auto actionArea = card.removeFromBottom (rowHeight);
-        const auto applyWidth = runInTerminalButton.isVisible() ? 150 : 90;
+        auto actionArea = card.removeFromBottom (actionRowHeight);
+        const auto applyWidth = runInTerminalButton.isVisible() ? 150 : 96;
         approveButton.setBounds (actionArea.removeFromLeft (applyWidth).reduced (2));
 
         if (runInTerminalButton.isVisible())
             runInTerminalButton.setBounds (actionArea.removeFromLeft (140).reduced (2));
 
-        rejectButton.setBounds (actionArea.removeFromLeft (90).reduced (2));
+        rejectButton.setBounds (actionArea.removeFromLeft (96).reduced (2));
         autoApproveToggle.setBounds (actionArea.reduced (2));
         approvalDiffViewport.setBounds (card.reduced (0, 4));
 

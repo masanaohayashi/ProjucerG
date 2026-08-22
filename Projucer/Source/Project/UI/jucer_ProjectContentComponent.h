@@ -39,6 +39,8 @@
 #include "jucer_ProjectMessagesComponent.h"
 #include "jucer_ContentViewComponent.h"
 
+#include <functional>
+
 class Sidebar;
 class TerminalPanel;
 class AiSession;
@@ -88,7 +90,7 @@ public:
 
     void saveProjectAsync();
     void closeProject();
-    void openInSelectedIDE (bool saveFirst);
+    void openInSelectedIDE (bool saveFirst, std::function<void (bool started)> afterLaunch = {});
     void showNewExporterMenu();
 
     void showFilesPanel()        { showProjectPanel (0); }

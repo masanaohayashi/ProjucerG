@@ -362,8 +362,8 @@ juce::String TerminalView::copyCapture() const
     if (captureBytes.getSize() == 0)
         return {};
 
-    return juce::String::fromUTF8 (static_cast<const char*> (captureBytes.getData()),
-                                   (int) captureBytes.getSize());
+    return juce::String::createStringFromData (captureBytes.getData(),
+                                               (int) captureBytes.getSize());
 }
 
 namespace

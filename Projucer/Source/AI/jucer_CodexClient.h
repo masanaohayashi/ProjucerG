@@ -19,6 +19,7 @@ public:
     virtual juce::String extraHeaders() const = 0;
     virtual bool refresh (juce::String& errorOut, std::atomic<bool>* shouldStop) = 0;
     virtual void cancelActiveRequest() = 0;
+    virtual void signOut() = 0;
 };
 
 /* Sends streaming Responses API requests.

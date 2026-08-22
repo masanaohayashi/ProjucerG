@@ -70,8 +70,11 @@ namespace
     struct Buffer
     {
         ~Buffer()                       { git_buf_dispose (&buf); }
-        juce::String toString() const   { return buf.ptr != nullptr ? juce::String::fromUTF8 (buf.ptr, (int) buf.size)
-                                                                    : juce::String(); }
+        juce::String toString() const
+        {
+            return buf.ptr != nullptr ? juce::String::createStringFromData (buf.ptr, (int) buf.size)
+                                      : juce::String();
+        }
         git_buf buf { nullptr, 0, 0 };
     };
 
@@ -428,7 +431,7 @@ namespace
             || line->origin == GIT_DIFF_LINE_DELETION)
             out << juce::String::charToString ((juce::juce_wchar) line->origin);
 
-        out << juce::String::fromUTF8 (line->content, (int) line->content_len);
+        out << juce::String::createStringFromData (line->content, (int) line->content_len);
         return 0;
     }
 

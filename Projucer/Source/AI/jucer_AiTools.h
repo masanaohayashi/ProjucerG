@@ -64,6 +64,7 @@ private:
     Result doApplyPatch (const juce::var& arguments, bool actuallyWrite, PreviewState* previewStateOut = nullptr) const;
     Result doExecCommand (const juce::var& arguments, bool actuallyRun, PreviewState* previewStateOut = nullptr);
     Result doGit (const juce::var& arguments, bool actuallyRun, PreviewState* previewStateOut = nullptr);
+    Result doBuild (const juce::var& arguments, bool actuallyRun, PreviewState* previewStateOut = nullptr);
     bool resolveExecWorkdir (const juce::var& arguments, juce::File& directoryOut, juce::String& errorOut) const;
 
     static juce::String makeArgumentsKey (const juce::var& arguments);

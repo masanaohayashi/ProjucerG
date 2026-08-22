@@ -661,10 +661,15 @@ StringArray ProjectContentComponent::getExportersWhichCanLaunch() const
     return s;
 }
 
-void ProjectContentComponent::openInSelectedIDE (bool saveFirst)
+void ProjectContentComponent::openInSelectedIDE (bool saveFirst, std::function<void (bool)> afterLaunch)
 {
     if (project == nullptr)
+    {
+        if (afterLaunch)
+            afterLaunch (false);
+
         return;
+    }
 
     if (auto selectedExporter = headerComponent.getSelectedExporter())
     {
@@ -673,20 +678,38 @@ void ProjectContentComponent::openInSelectedIDE (bool saveFirst)
             if (project->isTemporaryProject())
             {
                 project->saveAndMoveTemporaryProject (true);
+
+                if (afterLaunch)
+                    afterLaunch (false);
+
                 return;
             }
 
             SafePointer<ProjectContentComponent> safeThis { this };
-            project->saveAsync (true, true, [safeThis] (Project::SaveResult r)
+            project->saveAsync (true, true, [safeThis, afterLaunch] (Project::SaveResult r)
                                 {
                                     if (safeThis != nullptr && r == Project::SaveResult::savedOk)
-                                        safeThis->openInSelectedIDE (false);
+                                    {
+                                        safeThis->openInSelectedIDE (false, afterLaunch);
+                                        return;
+                                    }
+
+                                    if (afterLaunch)
+                                        afterLaunch (false);
                                 });
             return;
         }
 
         project->openProjectInIDE (*selectedExporter);
+
+        if (afterLaunch)
+            afterLaunch (true);
+
+        return;
     }
+
+    if (afterLaunch)
+        afterLaunch (false);
 }
 
 void ProjectContentComponent::showNewExporterMenu()

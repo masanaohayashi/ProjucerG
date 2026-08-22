@@ -30,4 +30,8 @@ namespace ProjucerShell
 
     Result run (const Request&);
     juce::StringArray availableCommands();
+
+    /*  iOS の AI 向け。使えるコマンドと、それ以外は動かないこと、
+        コンパイルは build ツールに任せること。 */
+    juce::String iosAgentGuidance();
 }

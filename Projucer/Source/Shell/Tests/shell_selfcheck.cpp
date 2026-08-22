@@ -133,6 +133,13 @@ int main()
     root.getChildFile ("u.cpp").replaceWithText ("int foo;\nint baz;\n", false, false, "\n");
     expectContains ("grep -n foo t.cpp", "1:int foo;");
     expectOutput ("grep -c foo t.cpp", "1\n");
+
+    {
+        const char raw[] = { 'x', '\xff', 'y', '\n' };
+        assert (root.getChildFile ("latin1.txt").replaceWithData (raw, sizeof (raw)));
+        expectContains ("grep y latin1.txt", "y");
+        expectContains ("rg y latin1.txt", "y");
+    }
     expectContains ("grep -r bar .", "t.cpp");
     expectContains ("rg foo t.cpp", "1:int foo;");
     expectContains ("rg bar", "t.cpp");
@@ -156,7 +163,18 @@ int main()
 
     expectExit ("clang++ foo.cpp -o foo", 127);
     expectContains ("clang++ foo.cpp -o foo", "On-Device Build");
+    expectContains ("clang++ foo.cpp -o foo", "build tool");
     expectContains ("make", "On-Device Build");
+
+    {
+        const auto guidance = ProjucerShell::iosAgentGuidance();
+        assert (guidance.contains ("echo"));
+        assert (guidance.contains ("git"));
+        assert (guidance.contains ("rg"));
+        assert (guidance.contains ("build tool"));
+        assert (guidance.contains ("clang"));
+        juce::ignoreUnused (guidance);
+    }
 
     expectExit ("echo pwned > ../outside.txt", 1);
     expectExit ("cd ..", 1);
@@ -231,7 +249,7 @@ int main()
                 if (n <= 0)
                     break;
 
-                all += juce::String::fromUTF8 (buf, n);
+                all += juce::String::createStringFromData (buf, n);
             }
 
             return all;

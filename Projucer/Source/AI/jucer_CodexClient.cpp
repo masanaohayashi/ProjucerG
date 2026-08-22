@@ -276,6 +276,9 @@ bool CodexClient::streamResponse (const juce::var& requestBody,
                     ? "The request failed (HTTP " + juce::String (status) + ")."
                     : "The request failed.");
 
+    if (status == 401)
+        auth->signOut();
+
     finish();
     return false;
 }

@@ -66,7 +66,7 @@ namespace
     juce::String compilerRefuseMessage (const juce::String& name)
     {
         return name + " cannot run as a process on iOS.\n"
-             + "Compile and install with the in-app On-Device Build. "
+             + "Compile with the build tool (in-app On-Device Build). "
                "This shell does not produce or run executables.\n";
     }
 
@@ -1432,6 +1432,17 @@ namespace ProjucerShell
 
         names.sort (false);
         return names;
+    }
+
+    juce::String iosAgentGuidance()
+    {
+        return "On iOS, exec_command is an in-process POSIX subset with no child processes.\n"
+               "The only available commands are:\n"
+             + availableCommands().joinIntoString (" ") + "\n"
+             + "Any other command fails, including clang, clang++, cc, c++, swiftc, make, cmake, "
+               "ninja, xcodebuild, ld, ar, and running compiled binaries.\n"
+               "To compile this project, call the build tool. It saves the project and runs the "
+               "same On-Device Build as the Build button. Do not try to compile through exec_command.\n";
     }
 
     Result run (const Request& request)

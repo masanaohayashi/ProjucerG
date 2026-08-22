@@ -43,6 +43,8 @@ private:
     enum class SignInProvider { chatgpt, grok };
 
     void startSignIn (SignInProvider provider, SignInMethod method);
+    void restartSignIn();
+    SignInMethod defaultSignInMethodFor (SignInProvider provider) const;
     void submitGrokPaste();
     bool isSelectedProviderSignedIn() const;
     bool providerShowsDeviceCode() const;
@@ -67,8 +69,9 @@ private:
     static constexpr int controlRowHeight = 30;
     static constexpr int roundButtonSize  = 26;
 
-    static constexpr int resetId      = 1;
-    static constexpr int modelBaseId  = 100;
+    static constexpr int resetId         = 1;
+    static constexpr int signInAgainId   = 2;
+    static constexpr int modelBaseId     = 100;
     static constexpr int effortBaseId = 200;
     static constexpr int speedBaseId  = 300;
 

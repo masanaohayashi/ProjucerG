@@ -33,7 +33,9 @@
 
     log = [logger copy];
     queue = dispatch_queue_create ("pocselfinstall.server", DISPATCH_QUEUE_SERIAL);
-    resources = [NSMutableDictionary dictionary];
+    /*  JUCE は MRC。[NSMutableDictionary dictionary] だと init 後に
+        プールが空いて辞書が消え、後で Network のオブジェクトが同じ番地に乗る。 */
+    resources = [[NSMutableDictionary alloc] init];
 
     CFArrayRef imported = NULL;
     NSDictionary* options = @{ (__bridge id) kSecImportExportPassphrase: passphrase };
@@ -66,6 +68,19 @@
 
     CFRelease (imported);
     return self;
+}
+
+- (void) dealloc
+{
+    [self stop];
+    identity = nil;
+    queue = nil;
+    readySemaphore = nil;
+    [resources release];
+    resources = nil;
+    [log release];
+    log = nil;
+    [super dealloc];
 }
 
 - (void) serveData: (NSData*) data atPath: (NSString*) path contentType: (NSString*) contentType

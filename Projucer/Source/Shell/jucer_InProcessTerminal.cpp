@@ -15,7 +15,7 @@ namespace
             return {};
 
         to = juce::jmin (to, text.size());
-        return juce::String::fromUTF8 (text.data() + (int) from, (int) (to - from));
+        return juce::String::createStringFromData (text.data() + from, (int) (to - from));
     }
 
     int utf8Codepoints (const std::string& text, size_t from, size_t to)
@@ -260,7 +260,7 @@ void InProcessTerminal::finishLine()
         appendOut (utf8Slice (lineBytes, cursorBytes, lineBytes.size()));
 
     appendOut ("\n");
-    const auto line = juce::String::fromUTF8 (lineBytes.data(), (int) lineBytes.size());
+    const auto line = juce::String::createStringFromData (lineBytes.data(), (int) lineBytes.size());
 
     if (lineBytes.size() > 0)
         history.push_back (lineBytes);

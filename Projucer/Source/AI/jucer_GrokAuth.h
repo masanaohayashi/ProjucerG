@@ -40,7 +40,7 @@ public:
 
     bool refresh (juce::String& errorOut, std::atomic<bool>* shouldStop = nullptr) override;
     void cancelActiveRequest() override;
-    void signOut();
+    void signOut() override;
 
     static constexpr const char* clientId = "b1a00492-073a-47ea-816f-4c329264a828";
     static constexpr const char* issuer   = "https://auth.x.ai";
