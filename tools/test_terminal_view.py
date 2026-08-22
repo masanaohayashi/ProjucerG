@@ -157,6 +157,65 @@ int main (void)
         CHECK ("selection includes complete middle rows", middle.first == 0 && middle.second == 80);
         CHECK ("reverse drags normalize and include the final cell", last.first == 0 && last.second == 3);
         CHECK ("rows outside a selection are empty", outside.first == 0 && outside.second == 0);
+
+        const auto word = getTerminalWordColumnRange ("hello world_1", 1);
+        CHECK ("a letter expands to the surrounding word", word.first == 0 && word.second == 5);
+        const auto second = getTerminalWordColumnRange ("hello world_1", 8);
+        CHECK ("a later word includes underscore and digits", second.first == 6 && second.second == 13);
+        const auto space = getTerminalWordColumnRange ("hello world_1", 5);
+        CHECK ("whitespace selects only that cell", space.first == 5 && space.second == 6);
+        const auto pastEnd = getTerminalWordColumnRange ("ab", 8);
+        CHECK ("a column past the line still expands the last word",
+               pastEnd.first == 0 && pastEnd.second == 2);
+
+        const TerminalRect cell { 10, 20, 8, 16 };
+        const auto startHandle = getTerminalStartHandleBounds (cell);
+        const auto endHandle = getTerminalEndHandleBounds (cell);
+        CHECK ("the start handle sits above the first cell",
+               startHandle.y + startHandle.height <= cell.y + 1);
+        CHECK ("the end handle sits below the last cell",
+               endHandle.y >= cell.y + cell.height - 1);
+        CHECK ("a point on the start handle is a start-handle hit",
+               hitTerminalSelectionHandle (startHandle, endHandle,
+                                           startHandle.x + startHandle.width / 2,
+                                           startHandle.y + startHandle.height / 2)
+                   == TerminalSelectionHandle::start);
+        CHECK ("a point on the end handle is an end-handle hit",
+               hitTerminalSelectionHandle (startHandle, endHandle,
+                                           endHandle.x + endHandle.width / 2,
+                                           endHandle.y + endHandle.height / 2)
+                   == TerminalSelectionHandle::end);
+        CHECK ("a point just outside the drawn circle still hits the handle",
+               hitTerminalSelectionHandle (startHandle, endHandle,
+                                           startHandle.x + startHandle.width / 2,
+                                           startHandle.y - 4)
+                   == TerminalSelectionHandle::start);
+        CHECK ("a distant point is not a handle hit",
+               hitTerminalSelectionHandle (startHandle, endHandle, 200, 200)
+                   == TerminalSelectionHandle::none);
+
+        const auto startCentreX = startHandle.x + startHandle.width / 2;
+        const auto startCentreY = startHandle.y + startHandle.height / 2;
+        const auto fromStart = adjustPointForTerminalHandleDrag (startCentreX, startCentreY,
+                                                                 TerminalSelectionHandle::start);
+        CHECK ("dragging the start handle samples the cell below the knob",
+               fromStart.second >= cell.y && fromStart.second < cell.y + cell.height);
+
+        const auto endCentreX = endHandle.x + endHandle.width / 2;
+        const auto endCentreY = endHandle.y + endHandle.height / 2;
+        const auto fromEnd = adjustPointForTerminalHandleDrag (endCentreX, endCentreY,
+                                                               TerminalSelectionHandle::end);
+        CHECK ("dragging the end handle samples the cell above the knob",
+               fromEnd.second >= cell.y && fromEnd.second < cell.y + cell.height);
+
+        TerminalSelectionPoint a { 0, 8 };
+        TerminalSelectionPoint b { 0, 2 };
+        applyTerminalHandleDrag (a, b, TerminalSelectionHandle::start, { 0, 1 });
+        CHECK ("dragging the visual start handle moves the leftmost end",
+               a.column == 8 && b.column == 1);
+        applyTerminalHandleDrag (a, b, TerminalSelectionHandle::end, { 0, 12 });
+        CHECK ("dragging the visual end handle moves the rightmost end",
+               a.column == 12 && b.column == 1);
     }
 
     vt = vterm_new (24, 80);
@@ -334,6 +393,15 @@ int main (void)
     EXPECT_KEY ("return", VTERM_KEY_ENTER, 0, 0, VTERM_MOD_NONE, "\r");
     EXPECT_KEY ("escape", VTERM_KEY_ESCAPE, 0, 0, VTERM_MOD_NONE, "\x1b");
     EXPECT_KEY ("backspace", VTERM_KEY_BACKSPACE, 0, 0, VTERM_MOD_NONE, "\x7f");
+
+    {
+        char bytes[4] = {};
+        CHECK ("iOS empty replacement with an empty buffer sends DEL",
+               ptyBytesForEmptyTextInputReplacement (0, bytes, 4) == 1
+                && bytes[0] == '\x7f');
+        CHECK ("iOS empty replacement while composing sends nothing",
+               ptyBytesForEmptyTextInputReplacement (1, bytes, 4) == 0);
+    }
     EXPECT_KEY ("cursor up", VTERM_KEY_UP, 0, 0, VTERM_MOD_NONE, "\x1b[A");
     EXPECT_KEY ("alt-a is an escape prefix", VTERM_KEY_NONE, 'a', 'A', VTERM_MOD_ALT, "\x1b" "a");
 

@@ -289,6 +289,27 @@ int main()
         assert (afterBs.contains ("command not found: ab"));
         assert (! afterBs.contains ("command not found: abcd"));
 
+        const char typed3[] = "abc";
+        term.feed (typed3, (int) sizeof (typed3) - 1);
+        const char leftLeft[] = "\x1b[D\x1b[D";
+        term.feed (leftLeft, (int) sizeof (leftLeft) - 1);
+        const char insertX[] = "X";
+        term.feed (insertX, 1);
+        const char enter3[] = "\r";
+        term.feed (enter3, 1);
+        const auto afterLeft = drain();
+        assert (afterLeft.contains ("command not found: aXbc"));
+
+        const char hist1[] = "echo one\r";
+        term.feed (hist1, (int) sizeof (hist1) - 1);
+        drain();
+        const char hist2[] = "echo two\r";
+        term.feed (hist2, (int) sizeof (hist2) - 1);
+        drain();
+        const char upEnter[] = "\x1b[A\r";
+        term.feed (upEnter, (int) sizeof (upEnter) - 1);
+        assert (drain().contains ("two"));
+
         const char line9[] = "exit 7\r";
         term.feed (line9, (int) sizeof (line9) - 1);
         drain();

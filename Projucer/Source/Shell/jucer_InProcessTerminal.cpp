@@ -9,17 +9,57 @@ namespace
         return juce::String::charToString ((juce::juce_wchar) cp);
     }
 
-    void popUtf8Codepoint (std::string& text)
+    juce::String utf8Slice (const std::string& text, size_t from, size_t to)
     {
-        if (text.empty())
-            return;
+        if (from >= text.size() || to <= from)
+            return {};
 
-        size_t i = text.size() - 1;
+        to = juce::jmin (to, text.size());
+        return juce::String::fromUTF8 (text.data() + (int) from, (int) (to - from));
+    }
 
-        while (i > 0 && (((unsigned char) text[i]) & 0xc0) == 0x80)
-            --i;
+    int utf8Codepoints (const std::string& text, size_t from, size_t to)
+    {
+        int count = 0;
+        to = juce::jmin (to, text.size());
 
-        text.erase (i);
+        for (size_t i = from; i < to; ++i)
+            if ((((unsigned char) text[i]) & 0xc0) != 0x80)
+                ++count;
+
+        return count;
+    }
+
+    size_t previousUtf8 (const std::string& text, size_t index)
+    {
+        if (index == 0)
+            return 0;
+
+        --index;
+
+        while (index > 0 && (((unsigned char) text[index]) & 0xc0) == 0x80)
+            --index;
+
+        return index;
+    }
+
+    size_t nextUtf8 (const std::string& text, size_t index)
+    {
+        if (index >= text.size())
+            return text.size();
+
+        ++index;
+
+        while (index < text.size() && (((unsigned char) text[index]) & 0xc0) == 0x80)
+            ++index;
+
+        return index;
+    }
+
+    void appendCursorLeft (juce::String& moves, int count)
+    {
+        for (int i = 0; i < count; ++i)
+            moves += "\x1b[D";
     }
 }
 
@@ -40,6 +80,10 @@ void InProcessTerminal::start (const juce::File& workingDirectory, const juce::F
     state.env["TERM"] = "xterm-256color";
 
     lineBytes.clear();
+    cursorBytes = 0;
+    history.clear();
+    historyDraft.clear();
+    historyIndex = -1;
     escState = EscState::Normal;
     utf8Need = 0;
     utf8Acc = 0;
@@ -193,20 +237,154 @@ void InProcessTerminal::executeLine (const juce::String& line)
 
 void InProcessTerminal::handleBackspace()
 {
-    if (lineBytes.empty())
+    if (cursorBytes == 0)
         return;
 
-    popUtf8Codepoint (lineBytes);
-    appendOut ("\b \b");
+    const auto start = previousUtf8 (lineBytes, cursorBytes);
+    const auto tail = lineBytes.substr (cursorBytes);
+    lineBytes.erase (start, cursorBytes - start);
+    cursorBytes = start;
+
+    appendOut ("\b");
+    appendOut (utf8Slice (tail, 0, tail.size()));
+    appendOut (" ");
+
+    juce::String back;
+    appendCursorLeft (back, utf8Codepoints (tail, 0, tail.size()) + 1);
+    appendOut (back);
 }
 
 void InProcessTerminal::finishLine()
 {
+    if (cursorBytes < lineBytes.size())
+        appendOut (utf8Slice (lineBytes, cursorBytes, lineBytes.size()));
+
     appendOut ("\n");
     const auto line = juce::String::fromUTF8 (lineBytes.data(), (int) lineBytes.size());
+
+    if (lineBytes.size() > 0)
+        history.push_back (lineBytes);
+
     lineBytes.clear();
+    cursorBytes = 0;
+    historyDraft.clear();
+    historyIndex = -1;
     utf8Need = 0;
     executeLine (line);
+}
+
+void InProcessTerminal::moveCursorLeft()
+{
+    if (cursorBytes == 0)
+        return;
+
+    cursorBytes = previousUtf8 (lineBytes, cursorBytes);
+    appendOut ("\x1b[D");
+}
+
+void InProcessTerminal::moveCursorRight()
+{
+    if (cursorBytes >= lineBytes.size())
+        return;
+
+    cursorBytes = nextUtf8 (lineBytes, cursorBytes);
+    appendOut ("\x1b[C");
+}
+
+void InProcessTerminal::moveCursorToStart()
+{
+    juce::String back;
+    appendCursorLeft (back, utf8Codepoints (lineBytes, 0, cursorBytes));
+    appendOut (back);
+    cursorBytes = 0;
+}
+
+void InProcessTerminal::moveCursorToEnd()
+{
+    if (cursorBytes >= lineBytes.size())
+        return;
+
+    appendOut (utf8Slice (lineBytes, cursorBytes, lineBytes.size()));
+    cursorBytes = lineBytes.size();
+}
+
+void InProcessTerminal::insertAtCursor (const juce::String& text)
+{
+    if (text.isEmpty())
+        return;
+
+    const auto raw = text.toRawUTF8();
+    const auto n = (size_t) text.getNumBytesAsUTF8();
+    const auto tail = lineBytes.substr (cursorBytes);
+    lineBytes.insert (cursorBytes, raw, n);
+    cursorBytes += n;
+    appendOut (text);
+
+    if (tail.empty())
+        return;
+
+    appendOut (utf8Slice (tail, 0, tail.size()));
+    juce::String back;
+    appendCursorLeft (back, utf8Codepoints (tail, 0, tail.size()));
+    appendOut (back);
+}
+
+void InProcessTerminal::replaceCurrentLine (const std::string& next)
+{
+    moveCursorToStart();
+    appendOut ("\x1b[K");
+    lineBytes = next;
+    cursorBytes = next.size();
+    appendOut (utf8Slice (lineBytes, 0, lineBytes.size()));
+}
+
+void InProcessTerminal::recallHistory (int direction)
+{
+    if (history.empty())
+        return;
+
+    if (direction < 0)
+    {
+        if (historyIndex < 0)
+        {
+            historyDraft = lineBytes;
+            historyIndex = (int) history.size() - 1;
+        }
+        else if (historyIndex > 0)
+        {
+            --historyIndex;
+        }
+
+        replaceCurrentLine (history[(size_t) historyIndex]);
+        return;
+    }
+
+    if (historyIndex < 0)
+        return;
+
+    if (historyIndex + 1 < (int) history.size())
+    {
+        ++historyIndex;
+        replaceCurrentLine (history[(size_t) historyIndex]);
+        return;
+    }
+
+    historyIndex = -1;
+    replaceCurrentLine (historyDraft);
+}
+
+void InProcessTerminal::handleCsi (unsigned char finalByte)
+{
+    switch (finalByte)
+    {
+        case 'A': recallHistory (-1); break;
+        case 'B': recallHistory (1);  break;
+        case 'C': moveCursorRight();  break;
+        case 'D': moveCursorLeft();   break;
+        case 'H': moveCursorToStart(); break;
+        case 'F': moveCursorToEnd();  break;
+        default: break;
+    }
 }
 
 void InProcessTerminal::handleByte (unsigned char c)
@@ -221,13 +399,23 @@ void InProcessTerminal::handleByte (unsigned char c)
                 escState = EscState::Csi;
             else if (c == ']')
                 escState = EscState::Osc;
+            else if (c == 'O')
+                escState = EscState::Ss3;
             else
                 escState = EscState::Normal;
             return;
 
         case EscState::Csi:
             if (c >= 0x40 && c <= 0x7e)
+            {
                 escState = EscState::Normal;
+                handleCsi (c);
+            }
+            return;
+
+        case EscState::Ss3:
+            escState = EscState::Normal;
+            handleCsi (c);
             return;
 
         case EscState::Osc:
@@ -252,12 +440,7 @@ void InProcessTerminal::handleByte (unsigned char c)
             utf8Acc = (utf8Acc << 6) | (juce::uint32) (c & 0x3f);
 
             if (--utf8Need == 0)
-            {
-                const auto ch = utf8FromCodepoint (utf8Acc);
-                const auto raw = ch.toRawUTF8();
-                lineBytes.append (raw, std::strlen (raw));
-                appendOut (ch);
-            }
+                insertAtCursor (utf8FromCodepoint (utf8Acc));
 
             return;
         }
@@ -269,9 +452,17 @@ void InProcessTerminal::handleByte (unsigned char c)
         return;
     }
 
+    if (c == 0x9b)
+    {
+        escState = EscState::Csi;
+        return;
+    }
+
     if (c == 0x03)
     {
         lineBytes.clear();
+        cursorBytes = 0;
+        historyIndex = -1;
         utf8Need = 0;
         appendOut ("^C\n");
         writePrompt();
@@ -298,9 +489,7 @@ void InProcessTerminal::handleByte (unsigned char c)
 
     if (c == 0x15)
     {
-        while (! lineBytes.empty())
-            handleBackspace();
-
+        replaceCurrentLine ({});
         return;
     }
 
@@ -318,8 +507,7 @@ void InProcessTerminal::handleByte (unsigned char c)
 
     if (c < 0x80)
     {
-        lineBytes.push_back ((char) c);
-        appendOut (juce::String::charToString ((juce::juce_wchar) c));
+        insertAtCursor (juce::String::charToString ((juce::juce_wchar) c));
         return;
     }
 

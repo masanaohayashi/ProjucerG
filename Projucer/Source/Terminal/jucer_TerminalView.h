@@ -5,6 +5,7 @@
 
 #include <atomic>
 #include <deque>
+#include <memory>
 #include <vector>
 
 //==============================================================================
@@ -47,6 +48,7 @@ public:
     void mouseDown (const juce::MouseEvent&) override;
     void mouseDrag (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
+    void mouseDoubleClick (const juce::MouseEvent&) override;
     void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
 
     juce::ApplicationCommandTarget* getNextCommandTarget() override;
@@ -94,11 +96,23 @@ private:
     void clearSelection();
     void copySelectionToClipboard() const;
     void pasteFromClipboard();
+    void selectWordAt (juce::Point<int>);
+    void selectAllTerminalText();
+    void showSelectionMenu();
     juce::String getSelectedText() const;
+    juce::String getRowCharacters (int logicalRow) const;
     bool getCell (int logicalRow, int column, VTermScreenCell&) const;
+    bool getVisibleCellBounds (TerminalSelectionPoint, juce::Rectangle<int>&) const;
+    bool getSelectionHandleBounds (juce::Rectangle<int>& startHandle,
+                                   juce::Rectangle<int>& endHandle) const;
+    TerminalSelectionHandle hitSelectionHandle (juce::Point<int>) const;
+    bool isPointInsideSelection (juce::Point<int>) const;
     TerminalSelectionPoint getSelectionPoint (juce::Point<int>) const;
     juce::Rectangle<int> getTerminalBounds() const;
     juce::Rectangle<int> getCellBounds (int row, int column, int widthInCells = 1) const;
+    void beginTouchScroll (const juce::MouseEvent&);
+    void dragTouchScroll (const juce::MouseEvent&);
+    void endTouchScroll();
 
     PseudoTerminal pty;
     VTerm* vterm = nullptr;
@@ -148,6 +162,23 @@ private:
     TerminalSelectionPoint selectionAnchor {};
     TerminalSelectionPoint selectionEnd {};
     bool terminalSelectionActive = false;
+
+    class InertialScroller;
+    std::unique_ptr<InertialScroller> inertialScroller;
+
+    enum class TouchDragKind
+    {
+        none,
+        pending,
+        scroll,
+        startHandle,
+        endHandle,
+        extendSelection
+    };
+
+    TouchDragKind touchDrag = TouchDragKind::none;
+    float touchScrollStartY = 0.0f;
+    bool touchLongPressSelected = false;
 
     juce::String textInputBuffer;
     juce::Range<int> textInputSelection;

@@ -166,6 +166,28 @@ private:
     TerminalView& view;
 };
 
+class TerminalView::InertialScroller final
+    : public juce::AnimatedPosition<juce::AnimatedPositionBehaviours::ContinuousWithMomentum>::Listener
+{
+public:
+    explicit InertialScroller (TerminalView& ownerToUse)
+        : owner (ownerToUse)
+    {
+        position.addListener (this);
+        position.behaviour.setFriction (0.08);
+        position.behaviour.setMinimumVelocity (0.15);
+    }
+
+    void positionChanged (juce::AnimatedPosition<juce::AnimatedPositionBehaviours::ContinuousWithMomentum>&,
+                          double newPosition) override
+    {
+        owner.setScrollOffset (juce::roundToInt (newPosition));
+    }
+
+    juce::AnimatedPosition<juce::AnimatedPositionBehaviours::ContinuousWithMomentum> position;
+    TerminalView& owner;
+};
+
 //==============================================================================
 static const VTermScreenCallbacks screenCallbacks =
 {
@@ -187,9 +209,14 @@ TerminalView::TerminalView (const juce::File& workingDirectory)
     setOpaque (true);
 
     addAndMakeVisible (scrollBar);
-    scrollBar.setAutoHide (false);
     scrollBar.setSingleStepSize (1.0);
     scrollBar.addListener (this);
+   #if JUCE_IOS
+    scrollBar.setVisible (false);
+    inertialScroller = std::make_unique<InertialScroller> (*this);
+   #else
+    scrollBar.setAutoHide (false);
+   #endif
 
     font = getAppSettings().appearance.getCodeFont();
     updateFontMetrics();
@@ -277,6 +304,10 @@ void TerminalView::consumePendingBytes()
     {
         clearSelection();
         setScrollOffset (0);
+
+        if (inertialScroller != nullptr)
+            inertialScroller->position.setPosition (0.0);
+
         updateScrollBar();
     }
 }
@@ -552,7 +583,10 @@ juce::Rectangle<int> TerminalView::getCellBounds (int row, int column, int width
 juce::Rectangle<int> TerminalView::getTerminalBounds() const
 {
     auto bounds = getLocalBounds();
-    bounds.removeFromRight (scrollBar.getWidth());
+
+    if (scrollBar.isVisible())
+        bounds.removeFromRight (scrollBar.getWidth());
+
     return bounds;
 }
 
@@ -599,8 +633,16 @@ void TerminalView::updateGridSizeFromBounds()
 
 void TerminalView::resized()
 {
-    const int width = juce::jmax (10, getLookAndFeel().getDefaultScrollbarWidth());
-    scrollBar.setBounds (getLocalBounds().removeFromRight (width));
+    if (scrollBar.isVisible())
+    {
+        const int width = juce::jmax (10, getLookAndFeel().getDefaultScrollbarWidth());
+        scrollBar.setBounds (getLocalBounds().removeFromRight (width));
+    }
+    else
+    {
+        scrollBar.setBounds ({});
+    }
+
     updateGridSizeFromBounds();
 }
 
@@ -758,6 +800,20 @@ void TerminalView::paint (juce::Graphics& g)
         }
     }
 
+   #if JUCE_IOS
+    if (terminalSelectionActive)
+    {
+        juce::Rectangle<int> startHandle, endHandle;
+
+        if (getSelectionHandleBounds (startHandle, endHandle))
+        {
+            g.setColour (selectionBackground.withAlpha (1.0f));
+            g.fillEllipse (startHandle.toFloat());
+            g.fillEllipse (endHandle.toFloat());
+        }
+    }
+   #endif
+
     if (textInputBuffer.isNotEmpty())
     {
         const auto textBounds = getTextBounds ({ 0, textInputBuffer.length() }).getBounds();
@@ -835,9 +891,208 @@ void TerminalView::clearSelection()
     repaint();
 }
 
+juce::String TerminalView::getRowCharacters (int logicalRow) const
+{
+    juce::String row;
+
+    for (int column = 0; column < numColumns; ++column)
+    {
+        VTermScreenCell cell {};
+
+        if (! getCell (logicalRow, column, cell) || cell.chars[0] == 0 || cell.chars[0] == (uint32_t) -1)
+        {
+            row += " ";
+            continue;
+        }
+
+        const auto character = cell.chars[0];
+        row += character < 128 ? juce::String::charToString ((juce::juce_wchar) character)
+                               : juce::String (" ");
+    }
+
+    return row;
+}
+
+void TerminalView::selectWordAt (juce::Point<int> point)
+{
+    const auto cell = getSelectionPoint (point);
+    const auto row = getRowCharacters (cell.row);
+    const auto range = getTerminalWordColumnRange (row.toRawUTF8(), cell.column);
+
+    if (range.second <= range.first)
+        return;
+
+    selectionAnchor = { cell.row, range.first };
+    selectionEnd = { cell.row, range.second - 1 };
+    terminalSelectionActive = true;
+    repaint();
+}
+
+void TerminalView::selectAllTerminalText()
+{
+    const int lastRow = juce::jmax (0, (int) scrollback.size() + numRows - 1);
+    selectionAnchor = { 0, 0 };
+    selectionEnd = { lastRow, juce::jmax (0, numColumns - 1) };
+    terminalSelectionActive = true;
+    repaint();
+}
+
+void TerminalView::showSelectionMenu()
+{
+    juce::PopupMenu menu;
+    const auto hasSelection = getSelectedText().isNotEmpty();
+
+    menu.addItem ("Copy", hasSelection, false, [this] { copySelectionToClipboard(); });
+    menu.addItem ("Select All", true, false, [this]
+    {
+        selectAllTerminalText();
+        showSelectionMenu();
+    });
+    menu.addItem ("Paste", shellRunning.load(), false, [this] { pasteFromClipboard(); });
+
+    juce::Rectangle<int> startHandle, endHandle;
+    auto target = getScreenBounds();
+
+    if (getSelectionHandleBounds (startHandle, endHandle))
+        target = localAreaToGlobal (startHandle.getUnion (endHandle));
+
+    menu.showMenuAsync (juce::PopupMenu::Options()
+                            .withTargetComponent (this)
+                            .withTargetScreenArea (target));
+}
+
+bool TerminalView::getVisibleCellBounds (TerminalSelectionPoint point, juce::Rectangle<int>& bounds) const
+{
+    const int visibleRow = point.row - ((int) scrollback.size() - scrollOffset);
+
+    if (visibleRow < 0 || visibleRow >= numRows
+         || point.column < 0 || point.column >= numColumns)
+        return false;
+
+    bounds = getCellBounds (visibleRow, point.column);
+    return true;
+}
+
+bool TerminalView::getSelectionHandleBounds (juce::Rectangle<int>& startHandle,
+                                             juce::Rectangle<int>& endHandle) const
+{
+    if (! terminalSelectionActive)
+        return false;
+
+    auto first = selectionAnchor;
+    auto last = selectionEnd;
+
+    if (last < first)
+        std::swap (first, last);
+
+    juce::Rectangle<int> firstCell, lastCell;
+
+    if (! getVisibleCellBounds (first, firstCell) || ! getVisibleCellBounds (last, lastCell))
+        return false;
+
+    const auto toRect = [] (TerminalRect r)
+    {
+        return juce::Rectangle<int> { r.x, r.y, r.width, r.height };
+    };
+
+    startHandle = toRect (getTerminalStartHandleBounds ({ firstCell.getX(), firstCell.getY(),
+                                                          firstCell.getWidth(), firstCell.getHeight() }));
+    endHandle = toRect (getTerminalEndHandleBounds ({ lastCell.getX(), lastCell.getY(),
+                                                      lastCell.getWidth(), lastCell.getHeight() }));
+    return true;
+}
+
+TerminalSelectionHandle TerminalView::hitSelectionHandle (juce::Point<int> point) const
+{
+    juce::Rectangle<int> startHandle, endHandle;
+
+    if (! getSelectionHandleBounds (startHandle, endHandle))
+        return TerminalSelectionHandle::none;
+
+    const auto toRect = [] (juce::Rectangle<int> r) -> TerminalRect
+    {
+        return { r.getX(), r.getY(), r.getWidth(), r.getHeight() };
+    };
+
+    return hitTerminalSelectionHandle (toRect (startHandle), toRect (endHandle), point.x, point.y);
+}
+
+bool TerminalView::isPointInsideSelection (juce::Point<int> point) const
+{
+    if (! terminalSelectionActive)
+        return false;
+
+    const auto cell = getSelectionPoint (point);
+    const auto columns = getTerminalSelectedColumns (selectionAnchor, selectionEnd, cell.row, numColumns);
+    return cell.column >= columns.first && cell.column < columns.second;
+}
+
+void TerminalView::beginTouchScroll (const juce::MouseEvent& event)
+{
+    if (inertialScroller == nullptr)
+        return;
+
+    inertialScroller->position.setLimits ({ 0.0, (double) scrollback.size() });
+    inertialScroller->position.setPosition ((double) scrollOffset);
+    inertialScroller->position.beginDrag();
+    juce::ignoreUnused (event);
+    touchDrag = TouchDragKind::scroll;
+}
+
+void TerminalView::dragTouchScroll (const juce::MouseEvent& event)
+{
+    if (inertialScroller == nullptr || cellHeight <= 0)
+        return;
+
+    const auto deltaRows = (event.position.y - touchScrollStartY) / (float) cellHeight;
+    inertialScroller->position.drag ((double) deltaRows);
+}
+
+void TerminalView::endTouchScroll()
+{
+    if (inertialScroller != nullptr)
+        inertialScroller->position.endDrag();
+}
+
 void TerminalView::mouseDown (const juce::MouseEvent& event)
 {
     grabKeyboardFocus();
+
+   #if JUCE_IOS
+    if (event.source.isTouch())
+    {
+        touchLongPressSelected = false;
+
+        if (event.mods.isPopupMenu())
+        {
+            selectWordAt (event.position.toInt());
+            touchLongPressSelected = true;
+            touchDrag = TouchDragKind::extendSelection;
+            return;
+        }
+
+        const auto handle = hitSelectionHandle (event.position.toInt());
+
+        if (handle == TerminalSelectionHandle::start)
+        {
+            touchDrag = TouchDragKind::startHandle;
+            return;
+        }
+
+        if (handle == TerminalSelectionHandle::end)
+        {
+            touchDrag = TouchDragKind::endHandle;
+            return;
+        }
+
+        if (inertialScroller != nullptr)
+            inertialScroller->position.setPosition ((double) scrollOffset);
+
+        touchDrag = TouchDragKind::pending;
+        touchScrollStartY = event.position.y;
+        return;
+    }
+   #endif
 
     if (event.mods.isPopupMenu())
         return;
@@ -849,6 +1104,46 @@ void TerminalView::mouseDown (const juce::MouseEvent& event)
 
 void TerminalView::mouseDrag (const juce::MouseEvent& event)
 {
+   #if JUCE_IOS
+    if (event.source.isTouch())
+    {
+        if (touchDrag == TouchDragKind::pending
+             && event.source.hasMouseMovedSignificantlySincePressed())
+            beginTouchScroll (event);
+
+        if (touchDrag == TouchDragKind::scroll)
+        {
+            dragTouchScroll (event);
+            return;
+        }
+
+        if (touchDrag == TouchDragKind::startHandle || touchDrag == TouchDragKind::endHandle)
+        {
+            const auto handle = touchDrag == TouchDragKind::startHandle
+                                    ? TerminalSelectionHandle::start
+                                    : TerminalSelectionHandle::end;
+            const auto adjusted = adjustPointForTerminalHandleDrag (event.position.x,
+                                                                    event.position.y,
+                                                                    handle);
+            applyTerminalHandleDrag (selectionAnchor, selectionEnd, handle,
+                                     getSelectionPoint ({ adjusted.first, adjusted.second }));
+            terminalSelectionActive = true;
+            repaint();
+            return;
+        }
+
+        if (touchDrag == TouchDragKind::extendSelection)
+        {
+            selectionEnd = getSelectionPoint (event.position.toInt());
+            terminalSelectionActive = true;
+            repaint();
+            return;
+        }
+
+        return;
+    }
+   #endif
+
     selectionEnd = getSelectionPoint (event.position.toInt());
     terminalSelectionActive = true;
     repaint();
@@ -856,6 +1151,33 @@ void TerminalView::mouseDrag (const juce::MouseEvent& event)
 
 void TerminalView::mouseUp (const juce::MouseEvent& event)
 {
+   #if JUCE_IOS
+    if (event.source.isTouch())
+    {
+        if (touchDrag == TouchDragKind::scroll)
+            endTouchScroll();
+
+        if (touchLongPressSelected
+             || touchDrag == TouchDragKind::startHandle
+             || touchDrag == TouchDragKind::endHandle
+             || touchDrag == TouchDragKind::extendSelection)
+        {
+            if (terminalSelectionActive)
+                showSelectionMenu();
+        }
+        else if (touchDrag == TouchDragKind::pending)
+        {
+            if (terminalSelectionActive && isPointInsideSelection (event.position.toInt()))
+                showSelectionMenu();
+            else
+                clearSelection();
+        }
+
+        touchDrag = TouchDragKind::none;
+        return;
+    }
+   #endif
+
     if (event.mods.isPopupMenu() || ! event.mouseWasDraggedSinceMouseDown())
         return;
 
@@ -864,9 +1186,25 @@ void TerminalView::mouseUp (const juce::MouseEvent& event)
     repaint();
 }
 
+void TerminalView::mouseDoubleClick (const juce::MouseEvent& event)
+{
+    selectWordAt (event.position.toInt());
+
+   #if JUCE_IOS
+    if (event.source.isTouch())
+        showSelectionMenu();
+   #endif
+}
+
 void TerminalView::mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails& wheel)
 {
-    setScrollOffset (scrollOffset + getTerminalWheelRows (wheel.deltaY));
+    const auto next = juce::jlimit (0, (int) scrollback.size(),
+                                    scrollOffset + getTerminalWheelRows (wheel.deltaY));
+
+    if (inertialScroller != nullptr)
+        inertialScroller->position.setPosition ((double) next);
+    else
+        setScrollOffset (next);
 }
 
 juce::String TerminalView::getSelectedText() const
@@ -1043,6 +1381,17 @@ juce::String TerminalView::getTextInRange (const juce::Range<int>& range) const
 
 void TerminalView::insertTextAtCaret (const juce::String& text)
 {
+    if (text.isEmpty() && textInputBuffer.isEmpty())
+    {
+        char del = 0;
+        const int n = ptyBytesForEmptyTextInputReplacement (0, &del, 1);
+
+        if (n > 0)
+            sendToShell (&del, n);
+
+        return;
+    }
+
     const auto selection = juce::Range<int> { 0, textInputBuffer.length() }
                                .constrainRange (textInputSelection);
 

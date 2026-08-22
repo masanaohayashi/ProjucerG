@@ -1,8 +1,10 @@
 #pragma once
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <utility>
 
@@ -180,6 +182,138 @@ inline std::pair<int, int> getTerminalSelectedColumns (TerminalSelectionPoint a,
     return { std::min (start, end), std::max (start, end) };
 }
 
+inline bool isTerminalWordChar (unsigned char c) noexcept
+{
+    return std::isalnum ((int) c) != 0 || c == '_';
+}
+
+/** Half-open [start, end) column range of the word at `column` in a single-row
+    ASCII line. Non-word cells select themselves. */
+inline std::pair<int, int> getTerminalWordColumnRange (const char* line, int column)
+{
+    const int n = line != nullptr ? (int) std::strlen (line) : 0;
+
+    if (n <= 0)
+        return { 0, 0 };
+
+    column = std::clamp (column, 0, n - 1);
+
+    if (! isTerminalWordChar ((unsigned char) line[(size_t) column]))
+        return { column, column + 1 };
+
+    int start = column;
+
+    while (start > 0 && isTerminalWordChar ((unsigned char) line[(size_t) start - 1]))
+        --start;
+
+    int end = column + 1;
+
+    while (end < n && isTerminalWordChar ((unsigned char) line[(size_t) end]))
+        ++end;
+
+    return { start, end };
+}
+
+enum class TerminalSelectionHandle
+{
+    none,
+    start,
+    end
+};
+
+inline constexpr int terminalSelectionHandleSize = 22;
+inline constexpr int terminalSelectionHandleHitRadius = 20;
+
+inline TerminalRect getTerminalStartHandleBounds (TerminalRect firstCell)
+{
+    const int size = terminalSelectionHandleSize;
+    return { firstCell.x - size / 2, firstCell.y - size, size, size };
+}
+
+inline TerminalRect getTerminalEndHandleBounds (TerminalRect lastCell)
+{
+    const int size = terminalSelectionHandleSize;
+    return { lastCell.x + lastCell.width - size / 2, lastCell.y + lastCell.height, size, size };
+}
+
+inline int terminalHandleCentreX (TerminalRect handle) noexcept
+{
+    return handle.x + handle.width / 2;
+}
+
+inline int terminalHandleCentreY (TerminalRect handle) noexcept
+{
+    return handle.y + handle.height / 2;
+}
+
+inline int terminalDistanceSquared (int x1, int y1, int x2, int y2) noexcept
+{
+    const int dx = x1 - x2;
+    const int dy = y1 - y2;
+    return dx * dx + dy * dy;
+}
+
+inline TerminalSelectionHandle hitTerminalSelectionHandle (TerminalRect startHandle,
+                                                           TerminalRect endHandle,
+                                                           int x, int y) noexcept
+{
+    const int radiusSquared = terminalSelectionHandleHitRadius * terminalSelectionHandleHitRadius;
+    const int startDist = terminalDistanceSquared (x, y,
+                                                   terminalHandleCentreX (startHandle),
+                                                   terminalHandleCentreY (startHandle));
+    const int endDist = terminalDistanceSquared (x, y,
+                                                 terminalHandleCentreX (endHandle),
+                                                 terminalHandleCentreY (endHandle));
+    const bool startHit = startDist <= radiusSquared;
+    const bool endHit = endDist <= radiusSquared;
+
+    if (startHit && endHit)
+        return startDist <= endDist ? TerminalSelectionHandle::start
+                                    : TerminalSelectionHandle::end;
+
+    if (startHit)
+        return TerminalSelectionHandle::start;
+
+    if (endHit)
+        return TerminalSelectionHandle::end;
+
+    return TerminalSelectionHandle::none;
+}
+
+inline std::pair<int, int> adjustPointForTerminalHandleDrag (int x, int y,
+                                                             TerminalSelectionHandle handle) noexcept
+{
+    if (handle == TerminalSelectionHandle::start)
+        y += terminalSelectionHandleSize;
+    else if (handle == TerminalSelectionHandle::end)
+        y -= terminalSelectionHandleSize;
+
+    return { x, y };
+}
+
+inline void applyTerminalHandleDrag (TerminalSelectionPoint& anchor,
+                                     TerminalSelectionPoint& end,
+                                     TerminalSelectionHandle handle,
+                                     TerminalSelectionPoint point)
+{
+    const bool anchorIsFirst = ! (end < anchor);
+
+    if (handle == TerminalSelectionHandle::start)
+    {
+        if (anchorIsFirst)
+            anchor = point;
+        else
+            end = point;
+    }
+    else if (handle == TerminalSelectionHandle::end)
+    {
+        if (anchorIsFirst)
+            end = point;
+        else
+            anchor = point;
+    }
+}
+
 struct TerminalCellStyle
 {
     uint32_t character;         /**< 0 means "draw nothing", including for a plain space. */
@@ -320,4 +454,18 @@ inline bool sendTerminalKeyPress (VTerm* vt, VTermKey specialKey,
     }
 
     return false;
+}
+
+/** iOS delivers Backspace as insertTextAtCaret(""). ASCII already committed
+    to the pty leaves the composition buffer empty; that empty replacement
+    must become DEL, same as VTERM_KEY_BACKSPACE. A non-empty buffer is IME
+    editing and must not send anything to the pty. */
+inline int ptyBytesForEmptyTextInputReplacement (int compositionBufferLength,
+                                                 char* dest, int destSize)
+{
+    if (compositionBufferLength != 0 || dest == nullptr || destSize < 1)
+        return 0;
+
+    dest[0] = '\x7f';
+    return 1;
 }

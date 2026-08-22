@@ -4,6 +4,7 @@
 
 #include <mutex>
 #include <string>
+#include <vector>
 
 /*  対話用のプロセス内シェル。1 行ごとに runInProcessScript を回し、
     cwd / env / $? をセッションの間保持する。PTY は持たない。 */
@@ -35,11 +36,23 @@ private:
     void handleByte (unsigned char c);
     void handleBackspace();
     void finishLine();
+    void handleCsi (unsigned char finalByte);
+    void moveCursorLeft();
+    void moveCursorRight();
+    void moveCursorToStart();
+    void moveCursorToEnd();
+    void insertAtCursor (const juce::String& text);
+    void replaceCurrentLine (const std::string& next);
+    void recallHistory (int direction);
 
-    enum class EscState { Normal, Esc, Csi, Osc };
+    enum class EscState { Normal, Esc, Csi, Osc, Ss3 };
 
     ShellState state;
     std::string lineBytes;
+    size_t cursorBytes = 0;
+    std::vector<std::string> history;
+    std::string historyDraft;
+    int historyIndex = -1;
     EscState escState = EscState::Normal;
     int utf8Need = 0;
     juce::uint32 utf8Acc = 0;
