@@ -118,6 +118,9 @@ namespace
         "Writing is limited to the project root and always needs the user's approval.\n"
         "You have exec_command. Use it to run shell commands in the project directory,\n"
         "including git clone, builds and tests. Do not say you lack a terminal or git.\n"
+        "If the user chose the bottom terminal, the command is typed there and the\n"
+        "captured output is returned to you. Use that output instead of asking them to\n"
+        "paste it.\n"
         "Prefer apply_patch for editing existing files; use exec_command when a command\n"
         "is the right tool. You have web_search. Use it whenever the answer depends on\n"
         "anything current, such as upstream repositories, releases or documentation.\n"
@@ -133,6 +136,15 @@ AgentLoop::AgentLoop (std::shared_ptr<AiSession> sessionToUse,
       tools (projectRoot),
       workingDirectory (projectRoot)
 {
+    tools.setVisibleTerminalRunner ([weakSession = session] (const juce::String& commandLine,
+                                                             juce::String& output,
+                                                             int timeoutMs,
+                                                             std::atomic<bool>& cancelled)
+    {
+        auto liveSession = weakSession.lock();
+        return liveSession != nullptr
+            && liveSession->dispatchToTerminal (commandLine, output, timeoutMs, cancelled);
+    });
 }
 
 AgentLoop::~AgentLoop()
@@ -469,6 +481,11 @@ void AgentLoop::run()
                     continue;
                 }
             }
+
+            /*  行き先は承認のあとで読む。ダイアログで「ターミナルで実行」を
+                押した場合に、承認前の値で上書きしない。 */
+            tools.setUseVisibleTerminal (liveSession->getExecDestination()
+                                         == AiSession::ExecDestination::visibleTerminal);
 
             const auto result = tools.execute (call.name, arguments);
             toolOutput = result.output;

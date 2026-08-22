@@ -9,6 +9,8 @@
 #include "../Application/jucer_Headers.h"
 #include "jucer_TerminalView.h"
 
+#include <cstring>
+
 static_assert (std::is_base_of_v<juce::TextInputTarget, TerminalView>);
 
 #if JUCE_MAC
@@ -129,6 +131,19 @@ public:
                 if (size2 > 0) memcpy (buffer + start2, chunk + size1, (size_t) size2);
 
                 fifo.finishedWrite (size1 + size2);
+
+                if (view.capturing.load (std::memory_order_acquire))
+                {
+                    const juce::ScopedLock lock (view.captureLock);
+                    const auto already = view.captureBytes.getSize();
+
+                    if (already < TerminalView::maxCaptureBytes)
+                    {
+                        const auto room = TerminalView::maxCaptureBytes - already;
+                        view.captureBytes.append (chunk, (size_t) juce::jmin (numRead, (int) room));
+                    }
+                }
+
                 view.triggerAsyncUpdate();
             }
             else if (numRead < 0)
@@ -274,6 +289,207 @@ void TerminalView::sendToShell (const char* bytes, int numBytes)
     // timer to retry, rather than spinning here on the message thread.
     queueTerminalOutput (pendingOutput, bytes, numBytes,
                          [this] (const char* b, int n) { return pty.writeBytes (b, n); });
+}
+
+void TerminalView::sendCommandLine (const juce::String& command)
+{
+    auto line = command;
+
+    while (line.endsWithChar ('\n') || line.endsWithChar ('\r'))
+        line = line.dropLastCharacters (1);
+
+    line << "\n";
+    sendToShell (line.toRawUTF8(), (int) std::strlen (line.toRawUTF8()));
+}
+
+bool TerminalView::isShellRunning() const noexcept
+{
+    return shellRunning.load (std::memory_order_acquire);
+}
+
+void TerminalView::sendInterrupt()
+{
+    const char ctrlC = 3;
+    sendToShell (&ctrlC, 1);
+}
+
+void TerminalView::beginCapture()
+{
+    const juce::ScopedLock lock (captureLock);
+    captureBytes.reset();
+    capturing.store (true, std::memory_order_release);
+}
+
+void TerminalView::endCapture()
+{
+    capturing.store (false, std::memory_order_release);
+}
+
+juce::String TerminalView::copyCapture() const
+{
+    const juce::ScopedLock lock (captureLock);
+    if (captureBytes.getSize() == 0)
+        return {};
+
+    return juce::String::fromUTF8 (static_cast<const char*> (captureBytes.getData()),
+                                   (int) captureBytes.getSize());
+}
+
+namespace
+{
+    juce::String stripTerminalNoise (const juce::String& text)
+    {
+        juce::MemoryOutputStream out;
+        const auto* p = text.toRawUTF8();
+
+        while (*p != 0)
+        {
+            if (*p == '\x1b')
+            {
+                ++p;
+
+                if (*p == '[')
+                {
+                    ++p;
+                    while (*p != 0 && ! (*p >= '@' && *p <= '~'))
+                        ++p;
+                    if (*p != 0)
+                        ++p;
+                    continue;
+                }
+
+                if (*p == ']')
+                {
+                    ++p;
+                    while (*p != 0 && *p != '\x07' && ! (*p == '\x1b' && p[1] == '\\'))
+                        ++p;
+                    if (*p == '\x07')
+                        ++p;
+                    else if (*p != 0)
+                        p += 2;
+                    continue;
+                }
+
+                if (*p != 0)
+                    ++p;
+                continue;
+            }
+
+            if (*p == '\r')
+            {
+                ++p;
+                if (*p != '\n')
+                    out << '\n';
+                continue;
+            }
+
+            if (*p == '\x07')
+            {
+                ++p;
+                continue;
+            }
+
+            out << *p++;
+        }
+
+        return out.toString();
+    }
+}
+
+bool TerminalView::runCommandAndWait (const juce::String& command,
+                                      juce::String& output,
+                                      int timeoutMs,
+                                      std::atomic<bool>& cancelled)
+{
+    output = {};
+    const auto token = "__PROJUCER_DONE_" + juce::String::toHexString (juce::Random::getSystemRandom().nextInt64());
+    auto wrapped = command.trimEnd();
+    wrapped << "; printf '\\n" << token << ":%s\\n' \"$?\"";
+
+    juce::Component::SafePointer<TerminalView> safe (this);
+    juce::WaitableEvent started;
+    std::atomic<bool> sent { false };
+
+    juce::MessageManager::callAsync ([safe, wrapped, &started, &sent]
+    {
+        if (safe != nullptr)
+        {
+            safe->beginCapture();
+            safe->sendCommandLine (wrapped);
+            sent.store (true, std::memory_order_release);
+        }
+
+        started.signal();
+    });
+
+    if (! started.wait (2000) || ! sent.load (std::memory_order_acquire) || safe == nullptr)
+        return false;
+
+    const auto startedAt = juce::Time::getMillisecondCounter();
+    juce::String captured;
+    auto sawToken = false;
+
+    while (! cancelled.load (std::memory_order_acquire)
+           && (int) (juce::Time::getMillisecondCounter() - startedAt) < timeoutMs)
+    {
+        if (safe == nullptr)
+            return false;
+
+        captured = copyCapture();
+
+        if (captured.contains (token))
+        {
+            sawToken = true;
+            break;
+        }
+
+        juce::Thread::sleep (40);
+    }
+
+    if (cancelled.load (std::memory_order_acquire) && safe != nullptr)
+    {
+        juce::MessageManager::callAsync ([safe]
+        {
+            if (safe != nullptr)
+                safe->sendInterrupt();
+        });
+    }
+
+    juce::WaitableEvent stopped;
+    juce::MessageManager::callAsync ([safe, &stopped]
+    {
+        if (safe != nullptr)
+            safe->endCapture();
+        stopped.signal();
+    });
+    stopped.wait (500);
+
+    captured = stripTerminalNoise (copyCapture());
+
+    auto exitCode = -1;
+    const auto tokenIndex = captured.indexOf (token);
+
+    if (tokenIndex >= 0)
+    {
+        auto after = captured.substring (tokenIndex + token.length());
+
+        if (after.startsWithChar (':'))
+            exitCode = after.substring (1).upToFirstOccurrenceOf ("\n", false, false).getIntValue();
+
+        captured = captured.substring (0, tokenIndex).trimEnd();
+        sawToken = true;
+    }
+
+    juce::String resultText;
+    resultText << "exit_code: " << (sawToken ? juce::String (exitCode) : juce::String ("timeout")) << "\n";
+
+    if (captured.isNotEmpty())
+        resultText << captured;
+    else
+        resultText << "(no output)";
+
+    output = resultText;
+    return sawToken && exitCode == 0;
 }
 
 //==============================================================================

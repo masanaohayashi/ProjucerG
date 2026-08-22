@@ -380,7 +380,29 @@ void ProjectContentComponent::toggleAiView()
         codexAuth = std::make_shared<CodexAuth>();
 
     if (aiSession == nullptr)
+    {
         aiSession = std::make_shared<AiSession> (codexAuth, project->getProjectFolder());
+        aiSession->setTerminalRunner ([this] (const String& commandLine,
+                                              String& output,
+                                              int timeoutMs,
+                                              std::atomic<bool>& cancelled)
+        {
+            juce::WaitableEvent shown;
+            std::atomic<bool> ok { false };
+
+            juce::MessageManager::callAsync ([this, &shown, &ok]
+            {
+                ensureTerminalVisible();
+                ok.store (terminalPanel != nullptr);
+                shown.signal();
+            });
+
+            if (! shown.wait (2000) || ! ok.load() || terminalPanel == nullptr)
+                return false;
+
+            return terminalPanel->runCommandAndWait (commandLine, output, timeoutMs, cancelled);
+        });
+    }
 
     if (currentDocument != nullptr)
         aiReturnDocument = currentDocument;
@@ -1066,33 +1088,69 @@ bool ProjectContentComponent::isTerminalVisible() const
     return terminalPanel != nullptr && terminalPanel->isVisible();
 }
 
+void ProjectContentComponent::createTerminalIfNeeded()
+{
+    if (project == nullptr || terminalPanel != nullptr)
+        return;
+
+    terminalPanel = std::make_unique<TerminalPanel> (project->getProjectFolder());
+    terminalPanel->setSize (getWidth(),
+                            getGlobalProperties().getIntValue (terminalPanelHeightProperty,
+                                                               TerminalPanel::defaultHeight));
+    addAndMakeVisible (terminalPanel.get());
+
+    terminalSizeConstrainer.setMinimumHeight (TerminalPanel::minimumHeight);
+    terminalSizeConstrainer.setMaximumHeight (maximumTerminalPanelHeight);
+
+    terminalResizerBar = std::make_unique<ResizableEdgeComponent> (terminalPanel.get(),
+                                                                  &terminalSizeConstrainer,
+                                                                  ResizableEdgeComponent::topEdge);
+    addAndMakeVisible (terminalResizerBar.get());
+    terminalResizerBar->setAlwaysOnTop (true);
+}
+
+void ProjectContentComponent::ensureTerminalVisible()
+{
+    createTerminalIfNeeded();
+
+    if (terminalPanel == nullptr)
+        return;
+
+    if (! terminalPanel->isVisible())
+    {
+        terminalPanel->setVisible (true);
+
+        if (terminalResizerBar != nullptr)
+            terminalResizerBar->setVisible (true);
+
+        resized();
+    }
+}
+
+bool ProjectContentComponent::runCommandInTerminal (const String& commandLine)
+{
+    ensureTerminalVisible();
+    return terminalPanel != nullptr && terminalPanel->runCommand (commandLine);
+}
+
 void ProjectContentComponent::toggleTerminal()
 {
     if (project == nullptr)
         return;
 
+    const auto existed = terminalPanel != nullptr;
+    createTerminalIfNeeded();
+
     if (terminalPanel == nullptr)
-    {
-        terminalPanel = std::make_unique<TerminalPanel> (project->getProjectFolder());
-        terminalPanel->setSize (getWidth(),
-                                getGlobalProperties().getIntValue (terminalPanelHeightProperty,
-                                                                   TerminalPanel::defaultHeight));
-        addAndMakeVisible (terminalPanel.get());
+        return;
 
-        terminalSizeConstrainer.setMinimumHeight (TerminalPanel::minimumHeight);
-        terminalSizeConstrainer.setMaximumHeight (maximumTerminalPanelHeight);
-
-        terminalResizerBar = std::make_unique<ResizableEdgeComponent> (terminalPanel.get(),
-                                                                      &terminalSizeConstrainer,
-                                                                      ResizableEdgeComponent::topEdge);
-        addAndMakeVisible (terminalResizerBar.get());
-        terminalResizerBar->setAlwaysOnTop (true);
-    }
-    else
+    if (existed)
     {
         const auto nowVisible = ! terminalPanel->isVisible();
         terminalPanel->setVisible (nowVisible);
-        terminalResizerBar->setVisible (nowVisible);
+
+        if (terminalResizerBar != nullptr)
+            terminalResizerBar->setVisible (nowVisible);
     }
 
     resized();

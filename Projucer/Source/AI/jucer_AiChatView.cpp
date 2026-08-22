@@ -221,9 +221,9 @@ public:
 
     void paintButton (juce::Graphics& g, bool highlighted, bool down) override
     {
-        if (highlighted || down)
+        if (highlighted || down || getToggleState())
         {
-            g.setColour (chatForeground.withAlpha (down ? 0.16f : 0.10f));
+            g.setColour (chatForeground.withAlpha (down ? 0.16f : getToggleState() ? 0.14f : 0.10f));
             g.fillRoundedRectangle (getLocalBounds().toFloat(), 5.0f);
         }
 
@@ -892,8 +892,22 @@ AiChatView::AiChatView (std::shared_ptr<AiSession> sessionToUse,
     approvalDiffViewport.setScrollBarsShown (true, false);
     approvalCard.addAndMakeVisible (approvalDiffViewport);
 
-    approveButton.onClick = [this] { session->resolveApproval (true); };
+    approveButton.onClick = [this]
+    {
+        if (session->getPendingApproval() != nullptr
+            && session->getPendingApproval()->toolName == "exec_command")
+            session->setExecDestination (AiSession::ExecDestination::subprocess);
+
+        session->resolveApproval (true);
+    };
     approvalCard.addAndMakeVisible (approveButton);
+
+    runInTerminalButton.onClick = [this]
+    {
+        session->setExecDestination (AiSession::ExecDestination::visibleTerminal);
+        session->resolveApproval (true);
+    };
+    approvalCard.addChildComponent (runInTerminalButton);
 
     rejectButton.onClick = [this] { session->resolveApproval (false); };
     approvalCard.addAndMakeVisible (rejectButton);
@@ -935,6 +949,18 @@ AiChatView::AiChatView (std::shared_ptr<AiSession> sessionToUse,
     permissionButton->onClick = [this] { showPermissionMenu(); };
     addAndMakeVisible (*permissionButton);
 
+    execTargetButton = std::make_unique<FlatButton> ("Terminal");
+    execTargetButton->setClickingTogglesState (true);
+    execTargetButton->setTooltip ("Run commands in the bottom terminal");
+    execTargetButton->onClick = [this]
+    {
+        session->setExecDestination (execTargetButton->getToggleState()
+            ? AiSession::ExecDestination::visibleTerminal
+            : AiSession::ExecDestination::subprocess);
+        updateExecTargetButton();
+    };
+    addAndMakeVisible (*execTargetButton);
+
     modelButton = std::make_unique<FlatButton> ("model");
     modelButton->setShowsChevron (true);
     modelButton->setTooltip ("Choose the model, reasoning effort and speed");
@@ -953,6 +979,7 @@ AiChatView::AiChatView (std::shared_ptr<AiSession> sessionToUse,
 
     updateModelButton();
     updatePermissionButton();
+    updateExecTargetButton();
     input.onReturnKey = [this] { sendCurrentInput(); };
     addAndMakeVisible (input);
 
@@ -1109,18 +1136,24 @@ void AiChatView::updateVisibility()
 
     addFileButton->setVisible (signedIn);
     permissionButton->setVisible (signedIn);
+    execTargetButton->setVisible (signedIn);
     modelButton->setVisible (signedIn);
+    updateExecTargetButton();
     approvalCard.setVisible (signedIn && approval != nullptr);
 
     if (approval != nullptr)
     {
-        if (approval->toolName == "exec_command")
-            approvalTitle.setText ("Review command", juce::dontSendNotification);
-        else
-            approvalTitle.setText ("Review " + approval->toolName + " change",
-                                   juce::dontSendNotification);
-
+        const auto isCommand = approval->toolName == "exec_command";
+        approvalTitle.setText (isCommand ? "Review command"
+                                         : "Review " + approval->toolName + " change",
+                               juce::dontSendNotification);
+        approveButton.setButtonText (isCommand ? "Run in background" : "Apply");
+        runInTerminalButton.setVisible (isCommand);
         approvalDiffContent->setText (approval->diffPreview);
+    }
+    else
+    {
+        runInTerminalButton.setVisible (false);
     }
 
     autoApproveToggle.setToggleState (session->getAutoApprove(), juce::dontSendNotification);
@@ -1331,6 +1364,17 @@ void AiChatView::updatePermissionButton()
         case AiSession::ApprovalMode::onUnsafe: permissionButton->setButtonText ("Approve on my behalf"); break;
         case AiSession::ApprovalMode::full:     permissionButton->setButtonText ("Full access"); break;
     }
+    resized();
+}
+
+void AiChatView::updateExecTargetButton()
+{
+    const auto inTerminal = session->getExecDestination()
+                            == AiSession::ExecDestination::visibleTerminal;
+    execTargetButton->setToggleState (inTerminal, juce::dontSendNotification);
+    execTargetButton->setTooltip (inTerminal
+        ? "Commands go to the bottom terminal. Click to switch back to background."
+        : "Click to type commands into the bottom terminal.");
     resized();
 }
 
@@ -1557,6 +1601,10 @@ void AiChatView::resized()
         const auto permissionWidth = juce::jmin (permissionButton->getPreferredWidth(),
                                                  controlRow.getWidth());
         permissionButton->setBounds (controlRow.removeFromLeft (permissionWidth).reduced (0, 3));
+
+        const auto execWidth = juce::jmin (execTargetButton->getPreferredWidth(),
+                                           controlRow.getWidth());
+        execTargetButton->setBounds (controlRow.removeFromLeft (execWidth).reduced (0, 3));
     }
 
     input.setBounds (bounds.removeFromBottom (inputHeight - controlRowHeight + rowHeight).reduced (0, 2));
@@ -1580,7 +1628,12 @@ void AiChatView::resized()
         approvalTitle.setBounds (card.removeFromTop (rowHeight));
 
         auto actionArea = card.removeFromBottom (rowHeight);
-        approveButton.setBounds (actionArea.removeFromLeft (90).reduced (2));
+        const auto applyWidth = runInTerminalButton.isVisible() ? 150 : 90;
+        approveButton.setBounds (actionArea.removeFromLeft (applyWidth).reduced (2));
+
+        if (runInTerminalButton.isVisible())
+            runInTerminalButton.setBounds (actionArea.removeFromLeft (140).reduced (2));
+
         rejectButton.setBounds (actionArea.removeFromLeft (90).reduced (2));
         autoApproveToggle.setBounds (actionArea.reduced (2));
         approvalDiffViewport.setBounds (card.reduced (0, 4));

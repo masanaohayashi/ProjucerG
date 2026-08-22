@@ -34,6 +34,24 @@ namespace
         return juce::var (property);
     }
 
+    juce::String quoteForShell (const juce::String& text)
+    {
+        juce::String quoted ("'");
+
+        for (int i = 0; i < text.length(); ++i)
+        {
+            const auto c = text[i];
+
+            if (c == '\'')
+                quoted << "'\\''";
+            else
+                quoted << c;
+        }
+
+        quoted << "'";
+        return quoted;
+    }
+
     juce::var makeTool (const juce::String& name,
                         const juce::String& description,
                         juce::DynamicObject* properties,
@@ -1296,6 +1314,26 @@ AiTools::Result AiTools::doExecCommand (const juce::var& arguments,
         if (value.isInt() || value.isInt64() || value.isDouble())
             timeoutMs = juce::jlimit (minExecTimeoutMs, maxExecTimeoutMs,
                                       (int) static_cast<std::int64_t> (value));
+    }
+
+    if (useVisibleTerminal)
+    {
+        auto line = cmd.trimEnd();
+
+        if (cwd.getFullPathName() != projectRoot.getFullPathName())
+            line = "(cd -- " + quoteForShell (cwd.getFullPathName()) + " && " + line + ")";
+
+        if (visibleTerminalRunner == nullptr)
+            return { false, "The bottom terminal is not available.", preview };
+
+        juce::String output;
+
+        if (! visibleTerminalRunner (line, output, timeoutMs, cancelRequested))
+            return { false, output.isNotEmpty() ? output
+                                                : "Could not run the command in the bottom terminal.",
+                     preview };
+
+        return { output.contains ("exit_code: 0"), output, preview };
     }
 
    #if JUCE_WINDOWS

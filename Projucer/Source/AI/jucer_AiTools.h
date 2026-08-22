@@ -3,6 +3,7 @@
 #include <juce_core/juce_core.h>
 
 #include <atomic>
+#include <functional>
 #include <optional>
 
 /* File tools exposed to the AI agent. */
@@ -27,6 +28,15 @@ public:
 
     Result preview (const juce::String& toolName, const juce::var& arguments);
     Result execute (const juce::String& toolName, const juce::var& arguments);
+
+    void setUseVisibleTerminal (bool shouldUse) noexcept    { useVisibleTerminal = shouldUse; }
+    void setVisibleTerminalRunner (std::function<bool (const juce::String&,
+                                                       juce::String&,
+                                                       int,
+                                                       std::atomic<bool>&)> runner)
+    {
+        visibleTerminalRunner = std::move (runner);
+    }
 
 private:
     struct PreviewState
@@ -65,6 +75,8 @@ private:
     mutable std::optional<PreviewState> pendingPreview;
     juce::ChildProcess runningProcess;
     std::atomic<bool> cancelRequested { false };
+    bool useVisibleTerminal = false;
+    std::function<bool (const juce::String&, juce::String&, int, std::atomic<bool>&)> visibleTerminalRunner;
 
     static constexpr int maxReadBytes = 1024 * 1024;
     static constexpr int defaultExecTimeoutMs = 300000;

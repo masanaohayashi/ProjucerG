@@ -117,6 +117,36 @@ void TerminalPanel::focusCurrentTerminal()
         terminal->grabKeyboardFocus();
 }
 
+bool TerminalPanel::runCommand (const juce::String& commandLine)
+{
+    auto* terminal = getCurrentTerminal();
+
+    if (terminal == nullptr)
+        return false;
+
+    terminal->sendCommandLine (commandLine);
+    focusCurrentTerminal();
+    return true;
+}
+
+bool TerminalPanel::runCommandAndWait (const juce::String& commandLine,
+                                       juce::String& output,
+                                       int timeoutMs,
+                                       std::atomic<bool>& cancelled)
+{
+    auto* terminal = getCurrentTerminal();
+
+    if (terminal == nullptr)
+        return false;
+
+    juce::MessageManager::callAsync ([this]
+    {
+        focusCurrentTerminal();
+    });
+
+    return terminal->runCommandAndWait (commandLine, output, timeoutMs, cancelled);
+}
+
 void TerminalPanel::paint (juce::Graphics& g)
 {
     g.fillAll (findColour (backgroundColourId));

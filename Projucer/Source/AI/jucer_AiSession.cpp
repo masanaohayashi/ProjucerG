@@ -74,6 +74,28 @@ void AiSession::setAutoApprove (bool shouldAutoApprove)
     setApprovalMode (shouldAutoApprove ? ApprovalMode::onUnsafe : ApprovalMode::ask);
 }
 
+void AiSession::setExecDestination (ExecDestination destination)
+{
+    execDestination.store (destination);
+    sendChangeMessage();
+}
+
+void AiSession::setTerminalRunner (TerminalRunner runner)
+{
+    terminalRunner = std::move (runner);
+}
+
+bool AiSession::dispatchToTerminal (const juce::String& commandLine,
+                                    juce::String& output,
+                                    int timeoutMs,
+                                    std::atomic<bool>& cancelled)
+{
+    if (terminalRunner == nullptr)
+        return false;
+
+    return terminalRunner (commandLine, output, timeoutMs, cancelled);
+}
+
 void AiSession::appendEntry (Entry::Kind kind, const juce::String& text)
 {
     jassert (juce::MessageManager::getInstance()->isThisTheMessageThread());

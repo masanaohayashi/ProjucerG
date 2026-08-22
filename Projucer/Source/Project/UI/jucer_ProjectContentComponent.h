@@ -101,6 +101,8 @@ public:
 
     void toggleTerminal();
     bool isTerminalVisible() const;
+    void ensureTerminalVisible();
+    bool runCommandInTerminal (const String& commandLine);
 
     void toggleAiView();
     bool isAiViewShowing() const noexcept    { return aiViewShowing; }
@@ -146,6 +148,7 @@ private:
     //==============================================================================
     void showProjectPanel (int index);
     bool canSelectedProjectBeLaunch();
+    void createTerminalIfNeeded();
 
     //==============================================================================
     Project* project = nullptr;

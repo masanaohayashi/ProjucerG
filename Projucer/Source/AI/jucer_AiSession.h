@@ -6,6 +6,7 @@
 #include <juce_events/juce_events.h>
 
 #include <atomic>
+#include <functional>
 #include <memory>
 
 class AgentLoop;
@@ -66,6 +67,23 @@ public:
     void setAutoApprove (bool shouldAutoApprove);
     bool getAutoApprove() const { return approvalMode.load() != ApprovalMode::ask; }
 
+    /*  コマンドの実行先。subprocess は結果をチャットへ返す。
+        visibleTerminal は下のターミナルへ打ち込む。 */
+    enum class ExecDestination { subprocess, visibleTerminal };
+
+    void setExecDestination (ExecDestination destination);
+    ExecDestination getExecDestination() const { return execDestination.load(); }
+
+    using TerminalRunner = std::function<bool (const juce::String& commandLine,
+                                               juce::String& output,
+                                               int timeoutMs,
+                                               std::atomic<bool>& cancelled)>;
+    void setTerminalRunner (TerminalRunner runner);
+    bool dispatchToTerminal (const juce::String& commandLine,
+                             juce::String& output,
+                             int timeoutMs,
+                             std::atomic<bool>& cancelled);
+
 private:
     friend class AgentLoop;
 
@@ -81,6 +99,8 @@ private:
     std::unique_ptr<PendingApproval> pendingApproval;
     std::unique_ptr<AgentLoop> loop;
     std::atomic<ApprovalMode> approvalMode { ApprovalMode::ask };
+    std::atomic<ExecDestination> execDestination { ExecDestination::subprocess };
+    TerminalRunner terminalRunner;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AiSession)
 };

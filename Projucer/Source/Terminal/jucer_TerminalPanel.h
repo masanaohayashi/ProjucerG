@@ -2,6 +2,8 @@
 
 #include "jucer_TerminalView.h"
 
+#include <atomic>
+
 //==============================================================================
 /**
     The dock at the bottom of the project window: a row of tabs, each holding
@@ -20,6 +22,11 @@ public:
     void addTerminal();
     void closeCurrentTerminal();
     void focusCurrentTerminal();
+    bool runCommand (const juce::String& commandLine);
+    bool runCommandAndWait (const juce::String& commandLine,
+                            juce::String& output,
+                            int timeoutMs,
+                            std::atomic<bool>& cancelled);
 
     void paint (juce::Graphics&) override;
     void resized() override;

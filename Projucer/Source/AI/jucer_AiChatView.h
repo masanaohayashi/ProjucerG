@@ -53,6 +53,7 @@ private:
     void updateModelButton();
     void updatePermissionButton();
     void showPermissionMenu();
+    void updateExecTargetButton();
     void chooseFilesToMention();
     juce::File projectRootForChooser() const;
 
@@ -78,6 +79,7 @@ private:
         左から「ファイル追加(+)」「承認の扱い」、右へ寄せて「モデル設定」「送信/停止」。 */
     std::unique_ptr<FlatButton> modelButton;
     std::unique_ptr<FlatButton> permissionButton;
+    std::unique_ptr<FlatButton> execTargetButton;
     std::unique_ptr<RoundIconButton> addFileButton;
     std::unique_ptr<RoundIconButton> sendStopButton;
 
@@ -100,6 +102,7 @@ private:
     std::unique_ptr<DiffPreviewView> approvalDiffContent;
     juce::Viewport approvalDiffViewport;
     juce::TextButton approveButton { "Apply" };
+    juce::TextButton runInTerminalButton { "Run in terminal" };
     juce::TextButton rejectButton { "Reject" };
     juce::ToggleButton autoApproveToggle { "Auto-approve changes" };
 

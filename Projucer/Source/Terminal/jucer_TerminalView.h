@@ -3,6 +3,7 @@
 #include "jucer_PseudoTerminal.h"
 #include "jucer_TerminalTranslation.h"
 
+#include <atomic>
 #include <deque>
 #include <vector>
 
@@ -26,6 +27,19 @@ class TerminalView final : public juce::Component,
 public:
     explicit TerminalView (const juce::File& workingDirectory);
     ~TerminalView() override;
+
+    /** Types a command into the shell as if the user had pressed Return. */
+    void sendCommandLine (const juce::String& command);
+    bool isShellRunning() const noexcept;
+
+    /** Sends the command, waits until it finishes, and returns the PTY text.
+        Safe to call from a background thread. */
+    bool runCommandAndWait (const juce::String& command,
+                            juce::String& output,
+                            int timeoutMs,
+                            std::atomic<bool>& cancelled);
+
+    void sendInterrupt();
 
     void paint (juce::Graphics&) override;
     void resized() override;
@@ -68,6 +82,9 @@ private:
 
     void consumePendingBytes();
     void sendToShell (const char* bytes, int numBytes);
+    void beginCapture();
+    void endCapture();
+    juce::String copyCapture() const;
     void updateFontMetrics();
     void changeFontSize (int steps);
     void updateGridSizeFromBounds();
@@ -99,6 +116,10 @@ private:
         reporting true forever. This flag is this class's own record of "the
         reader gave up", set at the moment that happens. */
     std::atomic<bool> shellRunning { false };
+    std::atomic<bool> capturing { false };
+    mutable juce::CriticalSection captureLock;
+    juce::MemoryBlock captureBytes;
+    static constexpr size_t maxCaptureBytes = 256 * 1024;
 
     juce::Font font { juce::FontOptions {} };
     float cellWidth = 8.0f;
