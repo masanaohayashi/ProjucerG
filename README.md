@@ -530,7 +530,8 @@ scripts/run_git_selfcheck.sh
 
 ```text
 version init clone status add rm mv commit log diff show branch checkout switch
-reset rev-parse ls-files tag remote fetch pull push merge config credential
+reset rev-parse ls-files tag remote fetch pull push merge config submodule
+credential
 ```
 
 - リモートは HTTPS + トークンのみ。SSH は未対応。
@@ -539,7 +540,10 @@ reset rev-parse ls-files tag remote fetch pull push merge config credential
 - 認証情報はホストごとに Keychain へ入れる:
   `git credential set github.com <username> <token>`（`erase` / `show` もある）。
 - `merge` と `pull` は fast-forward のみ。分岐している場合ははっきり断る。
-- `rebase` `cherry-pick` `revert` `stash` `blame` `submodule` `worktree` は未実装。
+- `submodule` は status / add / init / update (`--init` `--recursive`) / sync /
+  set-url / set-branch に対応。`clone --recursive` も効く。`foreach` はシェルが
+  要るので未対応（`git -C <path> ...` を使う）。
+- `rebase` `cherry-pick` `revert` `stash` `blame` `worktree` は未実装。
   同じディスパッチャに足していける。
 - iOS では `exec_command` も git だけは組み込み実装へ回る。git 以外のコマンドは
   「シェルが無い」と返す。macOS / Windows / Linux の `exec_command` は今まで通り

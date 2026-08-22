@@ -68,6 +68,8 @@ components and workflows that are limited or missing in the original Projucer.
   iOS where no shell exists.
 - The AI agent gets a `git` tool wired straight to it; on iOS `exec_command` also
   routes git through the same code.
+- Submodules are supported (status/add/init/update/sync/set-url/set-branch and
+  `clone --recursive`); `foreach` is not, as it needs a shell.
 - HTTPS with a Keychain-stored token only; merges are fast-forward only.
 - Build the static libraries with `scripts/build_libgit2.sh`, check them with
   `scripts/run_git_selfcheck.sh`.

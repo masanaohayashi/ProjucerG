@@ -65,6 +65,7 @@ namespace
     using Config      = Owned<git_config, git_config_free>;
     using BranchIter  = Owned<git_branch_iterator, git_branch_iterator_free>;
     using Annotated   = Owned<git_annotated_commit, git_annotated_commit_free>;
+    using Submodule   = Owned<git_submodule, git_submodule_free>;
 
     struct Buffer
     {
@@ -431,6 +432,16 @@ namespace
         return 0;
     }
 
+    /*  clone --recursive から使うので先に宣言しておく。定義はサブモジュールの
+        まとまりの中にある。 */
+    bool updateSubmodules (git_repository* repo,
+                           const juce::StringArray& requested,
+                           bool initialise,
+                           bool recursive,
+                           NetworkPayload& payload,
+                           juce::String& out,
+                           juce::String& errorOut);
+
     //==============================================================================
     Result cmdVersion (Context& context, const juce::StringArray&)
     {
@@ -499,6 +510,16 @@ namespace
                                                                                  : juce::String ("could not clone"));
 
         context.out << "Cloning into '" << directoryName << "'...\ndone.";
+
+        if (args.hasAny ({ "--recursive", "--recurse-submodules" }))
+        {
+            context.out << "\n";
+            juce::String error;
+
+            if (! updateSubmodules (repo, {}, true, true, payload, context.out, error))
+                return context.fail (error);
+        }
+
         return context.ok();
     }
 
@@ -1728,6 +1749,270 @@ namespace
     }
 
     //==============================================================================
+    int collectSubmoduleName (git_submodule*, const char* name, void* payload)
+    {
+        static_cast<juce::StringArray*> (payload)->add (juce::String::fromUTF8 (name));
+        return 0;
+    }
+
+    juce::StringArray submoduleNames (git_repository* repo)
+    {
+        juce::StringArray names;
+        git_submodule_foreach (repo, collectSubmoduleName, &names);
+        return names;
+    }
+
+    /*  引数で絞られていればその名前だけ、無ければ全部を返す。git は path でも
+        name でも受け付けるので、lookup に通るかどうかで判断する。 */
+    juce::StringArray selectedSubmodules (git_repository* repo, const juce::StringArray& requested)
+    {
+        if (requested.isEmpty())
+            return submoduleNames (repo);
+
+        juce::StringArray names;
+
+        for (const auto& request : requested)
+        {
+            Submodule submodule;
+
+            if (git_submodule_lookup (&submodule, repo, request.toRawUTF8()) == 0)
+                names.add (juce::String::fromUTF8 (git_submodule_name (submodule)));
+        }
+
+        return names;
+    }
+
+    juce::String submoduleStatusLine (git_repository* repo, const juce::String& name)
+    {
+        Submodule submodule;
+
+        if (git_submodule_lookup (&submodule, repo, name.toRawUTF8()) != 0)
+            return {};
+
+        unsigned int status = 0;
+        git_submodule_status (&status, repo, name.toRawUTF8(), GIT_SUBMODULE_IGNORE_UNSPECIFIED);
+
+        const auto* id = git_submodule_wd_id (submodule) != nullptr ? git_submodule_wd_id (submodule)
+                                                                    : git_submodule_index_id (submodule);
+
+        juce::String prefix (" ");
+
+        if ((status & GIT_SUBMODULE_STATUS_WD_UNINITIALIZED) != 0)      prefix = "-";
+        else if ((status & GIT_SUBMODULE_STATUS_WD_MODIFIED) != 0)      prefix = "+";
+
+        juce::String line;
+        line << prefix << (id != nullptr ? fullId (*id) : juce::String ("0000000000000000000000000000000000000000"))
+             << " " << juce::String::fromUTF8 (git_submodule_path (submodule));
+
+        if (const auto* branch = git_submodule_branch (submodule); branch != nullptr)
+            line << " (" << juce::String::fromUTF8 (branch) << ")";
+
+        return line;
+    }
+
+    /*  update は入れ子になったサブモジュールへも降りられるようにする。
+        --recursive のときだけ、クローンした先で同じことを繰り返す。 */
+    bool updateSubmodules (git_repository* repo,
+                           const juce::StringArray& requested,
+                           bool initialise,
+                           bool recursive,
+                           NetworkPayload& payload,
+                           juce::String& out,
+                           juce::String& errorOut)
+    {
+        for (const auto& name : selectedSubmodules (repo, requested))
+        {
+            Submodule submodule;
+
+            if (git_submodule_lookup (&submodule, repo, name.toRawUTF8()) != 0)
+            {
+                errorOut = "could not look up submodule '" + name + "': " + lastError();
+                return false;
+            }
+
+            git_submodule_update_options options = GIT_SUBMODULE_UPDATE_OPTIONS_INIT;
+            installNetworkCallbacks (options.fetch_opts.callbacks, payload);
+            options.checkout_opts.checkout_strategy = GIT_CHECKOUT_SAFE;
+
+            if (git_submodule_update (submodule, initialise ? 1 : 0, &options) != 0)
+            {
+                errorOut = payload.credentialError.isNotEmpty()
+                             ? payload.credentialError
+                             : "could not update submodule '" + name + "': " + lastError();
+                return false;
+            }
+
+            out << "Submodule path '" << juce::String::fromUTF8 (git_submodule_path (submodule))
+                << "': checked out\n";
+
+            if (! recursive)
+                continue;
+
+            Repo nested;
+
+            if (git_submodule_open (&nested, submodule) != 0)
+                continue;
+
+            if (! updateSubmodules (nested, {}, initialise, true, payload, out, errorOut))
+                return false;
+        }
+
+        return true;
+    }
+
+    Result cmdSubmodule (Context& context, const juce::StringArray& argv)
+    {
+        const auto args = parseArgs (argv, {});
+        Repo repo;
+
+        if (! openRepo (context, repo))
+            return context.fail ("not a git repository");
+
+        auto positional = args.positional;
+        const auto subcommand = positional.isEmpty() ? juce::String ("status") : positional[0];
+
+        if (! positional.isEmpty())
+            positional.remove (0);
+
+        if (subcommand == "status")
+        {
+            for (const auto& name : selectedSubmodules (repo, positional))
+                context.out << submoduleStatusLine (repo, name) << "\n";
+
+            if (context.out.isEmpty())
+                context.out << "(no submodules)";
+
+            return context.ok();
+        }
+
+        if (subcommand == "add")
+        {
+            if (positional.isEmpty())
+                return context.fail ("usage: git submodule add <url> [path]");
+
+            const auto url = positional[0];
+            auto path = positional.size() > 1 ? positional[1]
+                                              : url.fromLastOccurrenceOf ("/", false, false)
+                                                   .upToLastOccurrenceOf (".git", false, false);
+
+            if (path.isEmpty())
+                return context.fail ("Could not work out the submodule path from the URL.");
+
+            juce::File target;
+
+            if (! resolveInsideWorkingDirectory (context, path, target))
+                return context.fail ("The submodule path must stay inside the working directory.");
+
+            Submodule submodule;
+
+            if (git_submodule_add_setup (&submodule, repo, url.toRawUTF8(), path.toRawUTF8(), 1) != 0)
+                return context.failFromLibrary ("could not add the submodule");
+
+            NetworkPayload payload { context.cancelFlag, {} };
+            git_submodule_update_options options = GIT_SUBMODULE_UPDATE_OPTIONS_INIT;
+            installNetworkCallbacks (options.fetch_opts.callbacks, payload);
+
+            Repo cloned;
+
+            if (git_submodule_clone (&cloned, submodule, &options) != 0)
+                return context.failFromLibrary (payload.credentialError.isNotEmpty() ? payload.credentialError
+                                                                                     : juce::String ("could not clone the submodule"));
+
+            if (git_submodule_add_finalize (submodule) != 0)
+                return context.failFromLibrary ("could not finish adding the submodule");
+
+            context.out << "Adding existing repo at '" << path << "' to the index";
+            return context.ok();
+        }
+
+        if (subcommand == "init")
+        {
+            for (const auto& name : selectedSubmodules (repo, positional))
+            {
+                Submodule submodule;
+
+                if (git_submodule_lookup (&submodule, repo, name.toRawUTF8()) != 0)
+                    continue;
+
+                if (git_submodule_init (submodule, 0) != 0)
+                    return context.failFromLibrary ("could not initialise submodule '" + name + "'");
+
+                context.out << "Submodule '" << name << "' ("
+                            << juce::String::fromUTF8 (git_submodule_url (submodule)) << ") registered for path '"
+                            << juce::String::fromUTF8 (git_submodule_path (submodule)) << "'\n";
+            }
+
+            if (context.out.isEmpty())
+                context.out << "(no submodules)";
+
+            return context.ok();
+        }
+
+        if (subcommand == "update")
+        {
+            NetworkPayload payload { context.cancelFlag, {} };
+            juce::String error;
+
+            if (! updateSubmodules (repo, positional,
+                                    args.has ("--init"), args.has ("--recursive"),
+                                    payload, context.out, error))
+                return context.fail (error);
+
+            if (context.out.isEmpty())
+                context.out << "(no submodules)";
+
+            return context.ok();
+        }
+
+        if (subcommand == "sync")
+        {
+            for (const auto& name : selectedSubmodules (repo, positional))
+            {
+                Submodule submodule;
+
+                if (git_submodule_lookup (&submodule, repo, name.toRawUTF8()) != 0)
+                    continue;
+
+                if (git_submodule_sync (submodule) != 0)
+                    return context.failFromLibrary ("could not sync submodule '" + name + "'");
+
+                context.out << "Synchronizing submodule url for '" << name << "'\n";
+            }
+
+            return context.ok();
+        }
+
+        if (subcommand == "set-url")
+        {
+            if (positional.size() < 2)
+                return context.fail ("usage: git submodule set-url <path> <url>");
+
+            if (git_submodule_set_url (repo, positional[0].toRawUTF8(), positional[1].toRawUTF8()) != 0)
+                return context.failFromLibrary ("could not set the submodule URL");
+
+            return context.ok();
+        }
+
+        if (subcommand == "set-branch")
+        {
+            if (positional.size() < 2)
+                return context.fail ("usage: git submodule set-branch <path> <branch>");
+
+            if (git_submodule_set_branch (repo, positional[0].toRawUTF8(), positional[1].toRawUTF8()) != 0)
+                return context.failFromLibrary ("could not set the submodule branch");
+
+            return context.ok();
+        }
+
+        if (subcommand == "foreach")
+            return context.fail ("git submodule foreach needs a shell, which iOS does not have. "
+                                 "Run the command in each submodule with git -C <path> ... instead.");
+
+        return context.fail ("git submodule " + subcommand + " is not supported yet.\n"
+                             "Supported: status, add, init, update, sync, set-url, set-branch");
+    }
+
+    //==============================================================================
     using Handler = Result (*) (Context&, const juce::StringArray&);
 
     struct Command
@@ -1762,6 +2047,7 @@ namespace
         { "push",       cmdPush },
         { "merge",      cmdMerge },
         { "config",     cmdConfig },
+        { "submodule",  cmdSubmodule },
         { "credential", cmdCredential }
     };
 }

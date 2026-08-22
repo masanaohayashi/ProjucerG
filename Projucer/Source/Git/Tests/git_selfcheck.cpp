@@ -101,6 +101,26 @@ int main()
     expectOk ("git remote add origin https://example.com/x.git");
     expectContains ("git remote -v", "https://example.com/x.git");
 
+    // サブモジュール。ネットワークを使わず、同じ一時領域のリポジトリを指す。
+    const auto upstream = root.getChildFile ("upstream-repo");
+    upstream.createDirectory();
+    expectOk ("git -C upstream-repo init");
+    expectOk ("git -C upstream-repo config user.name Tester");
+    expectOk ("git -C upstream-repo config user.email tester@example.com");
+    upstream.getChildFile ("lib.txt").replaceWithText ("lib\n");
+    expectOk ("git -C upstream-repo add .");
+    expectOk ("git -C upstream-repo commit -m \"library commit\"");
+
+    expectOk ("git submodule add " + upstream.getFullPathName().quoted() + " vendor/lib");
+    expectContains ("git submodule status", "vendor/lib");
+    expectContains ("git submodule", "vendor/lib");
+    expectOk ("git submodule init");
+    expectOk ("git submodule sync");
+    expectOk ("git submodule update --init --recursive");
+    assert (root.getChildFile ("vendor/lib/lib.txt").existsAsFile());
+    assert (root.getChildFile (".gitmodules").existsAsFile());
+    expectFailure ("git submodule foreach ls");
+
     // 資格情報が無いままの fetch は、保存方法を案内して失敗する。
     const auto fetched = git ("git fetch origin");
     assert (fetched.exitCode != 0);
