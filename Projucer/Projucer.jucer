@@ -6,14 +6,17 @@
               addUsingNamespaceToJuceHeader="1" jucerFormatVersion="1" companyWebsite="studio-r.tokyo">
   <EXPORTFORMATS>
     <XCODE_MAC targetFolder="Builds/MacOSX" documentExtensions=".jucer" bigIcon="Zrx1Gl"
+               extraFrameworks="Security"
                microphonePermissionNeeded="1" cameraPermissionNeeded="1" smallIcon="Zrx1Gl"
                applicationCategory="public.app-category.developer-tools" extraLinkerFlags="-Wl,-weak_reference_mismatches,weak"
                extraDefs="JUCE_SILENCE_XCODE_15_LINKER_WARNING=1" iconComposerIcon="NzgaRC">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" cppLibType="libc++"
+                       macOSDeploymentTarget="10.15"
                        recommendedWarnings="LLVM" headerPath="../../Source/Terminal/libvterm/include"/>
         <CONFIGURATION name="Release" isDebug="0" targetName="Projucer" cppLibType="libc++"
-                       linkTimeOptimisation="0" recommendedWarnings="LLVM" headerPath="../../Source/Terminal/libvterm/include"/>
+                       macOSDeploymentTarget="10.15" linkTimeOptimisation="0" recommendedWarnings="LLVM"
+                       headerPath="../../Source/Terminal/libvterm/include"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../OnDeviceBuild/dependencies/JUCE/modules"/>
@@ -137,7 +140,7 @@
                   iosContentSharing="1" iosDevelopmentTeamID="P5G28RMWUN" iCloudPermissions="1"
                   iCloudPublicDocuments="1" iCloudContainerIds="iCloud.tokyo.studio-r.juce.theprojucer"
                   supportsOpeningDocumentsInPlace="1" iCloudContainerName="Projucer" buildNumber="9.0.1"
-                  extraFrameworks="Network,Security"
+                  extraFrameworks="Network,Security,SafariServices"
                  
                   postbuildCommand="DEST=&quot;${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/clang-resource&quot;; mkdir -p &quot;$DEST/include&quot; &quot;$DEST/lib/darwin&quot;; CLANG_INCLUDE=&quot;${SRCROOT}/../../../OnDeviceBuild/dependencies/PocClangIOS/build-ios/lib/clang/22/include&quot;; if [ &quot;${EFFECTIVE_PLATFORM_NAME}&quot; = &quot;-iphonesimulator&quot; ]; then CLANG_INCLUDE=&quot;${SRCROOT}/../../../OnDeviceBuild/dependencies/PocClangIOS/build-ios-simulator/lib/clang/22/include&quot;; fi; rsync -a --delete &quot;$CLANG_INCLUDE/&quot; &quot;$DEST/include/&quot;; cp -f &quot;${SRCROOT}/../../../OnDeviceBuild/dependencies/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.ios.a&quot; &quot;$DEST/lib/darwin/libclang_rt.ios.a&quot;; if [ -f &quot;${SRCROOT}/../../../OnDeviceBuild/dependencies/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.iossim.a&quot; ]; then cp -f &quot;${SRCROOT}/../../../OnDeviceBuild/dependencies/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.iossim.a&quot; &quot;$DEST/lib/darwin/libclang_rt.iossim.a&quot;; fi; if [ &quot;${EFFECTIVE_PLATFORM_NAME}&quot; = &quot;-iphonesimulator&quot; ] &amp;&amp; ! /usr/sbin/lsof -nP -iTCP:38472 -sTCP:LISTEN &gt;/dev/null 2&gt;&amp;1; then /usr/bin/nohup /usr/bin/python3 &quot;${SRCROOT}/../../../scripts/simulator_install_bridge.py&quot; &gt;/tmp/projucer-simulator-install-bridge.log 2&gt;&amp;1 &amp; fi">
       <CONFIGURATIONS>
@@ -681,6 +684,66 @@
             file="Source/Settings/jucer_StoredSettings.cpp"/>
       <FILE id="NM0cs9" name="jucer_StoredSettings.h" compile="0" resource="0"
             file="Source/Settings/jucer_StoredSettings.h"/>
+    </GROUP>
+    <GROUP id="{A1B2C3D4-0000-4000-8000-000000000002}" name="AI">
+      <FILE id="aiSse1" name="jucer_SseParser.h" compile="0" resource="0"
+            file="Source/AI/jucer_SseParser.h"/>
+      <FILE id="aiSse2" name="jucer_SseParser.cpp" compile="1" resource="0"
+            file="Source/AI/jucer_SseParser.cpp"/>
+      <FILE id="aiMdl1" name="jucer_AiModels.h" compile="0" resource="0"
+            file="Source/AI/jucer_AiModels.h"/>
+      <FILE id="aiMdl2" name="jucer_AiModels.cpp" compile="1" resource="0"
+            file="Source/AI/jucer_AiModels.cpp"/>
+      <FILE id="aiPri1" name="jucer_ProjectInstructions.h" compile="0" resource="0"
+            file="Source/AI/jucer_ProjectInstructions.h"/>
+      <FILE id="aiPri2" name="jucer_ProjectInstructions.cpp" compile="1" resource="0"
+            file="Source/AI/jucer_ProjectInstructions.cpp"/>
+      <FILE id="aiPth1" name="jucer_AiPaths.h" compile="0" resource="0"
+            file="Source/AI/jucer_AiPaths.h"/>
+      <FILE id="aiPth2" name="jucer_AiPaths.cpp" compile="1" resource="0"
+            file="Source/AI/jucer_AiPaths.cpp"/>
+      <FILE id="aiKey1" name="jucer_Keychain.h" compile="0" resource="0"
+            file="Source/AI/jucer_Keychain.h"/>
+      <FILE id="aiKey2" name="jucer_Keychain.mm" compile="1" resource="0"
+            file="Source/AI/jucer_Keychain.mm"/>
+      <FILE id="aiKey3" name="jucer_Keychain.cpp" compile="1" resource="0"
+            file="Source/AI/jucer_Keychain.cpp"/>
+      <FILE id="aiPkc1" name="jucer_Pkce.h" compile="0" resource="0"
+            file="Source/AI/jucer_Pkce.h"/>
+      <FILE id="aiPkc2" name="jucer_Pkce.cpp" compile="1" resource="0"
+            file="Source/AI/jucer_Pkce.cpp"/>
+      <FILE id="aiCbs1" name="jucer_OAuthCallbackServer.h" compile="0" resource="0"
+            file="Source/AI/jucer_OAuthCallbackServer.h"/>
+      <FILE id="aiCbs2" name="jucer_OAuthCallbackServer.cpp" compile="1" resource="0"
+            file="Source/AI/jucer_OAuthCallbackServer.cpp"/>
+      <FILE id="aiBrw1" name="jucer_AuthBrowser.h" compile="0" resource="0"
+            file="Source/AI/jucer_AuthBrowser.h"/>
+      <FILE id="aiBrw2" name="jucer_AuthBrowser.mm" compile="1" resource="0"
+            file="Source/AI/jucer_AuthBrowser.mm"/>
+      <FILE id="aiAut1" name="jucer_CodexAuth.h" compile="0" resource="0"
+            file="Source/AI/jucer_CodexAuth.h"/>
+      <FILE id="aiAut2" name="jucer_CodexAuth.cpp" compile="1" resource="0"
+            file="Source/AI/jucer_CodexAuth.cpp"/>
+      <FILE id="aiCli1" name="jucer_CodexClient.h" compile="0" resource="0"
+            file="Source/AI/jucer_CodexClient.h"/>
+      <FILE id="aiCli2" name="jucer_CodexClient.cpp" compile="1" resource="0"
+            file="Source/AI/jucer_CodexClient.cpp"/>
+      <FILE id="aiTol1" name="jucer_AiTools.h" compile="0" resource="0"
+            file="Source/AI/jucer_AiTools.h"/>
+      <FILE id="aiTol2" name="jucer_AiTools.cpp" compile="1" resource="0"
+            file="Source/AI/jucer_AiTools.cpp"/>
+      <FILE id="aiSes1" name="jucer_AiSession.h" compile="0" resource="0"
+            file="Source/AI/jucer_AiSession.h"/>
+      <FILE id="aiSes2" name="jucer_AiSession.cpp" compile="1" resource="0"
+            file="Source/AI/jucer_AiSession.cpp"/>
+      <FILE id="aiLop1" name="jucer_AgentLoop.h" compile="0" resource="0"
+            file="Source/AI/jucer_AgentLoop.h"/>
+      <FILE id="aiLop2" name="jucer_AgentLoop.cpp" compile="1" resource="0"
+            file="Source/AI/jucer_AgentLoop.cpp"/>
+      <FILE id="aiVew1" name="jucer_AiChatView.h" compile="0" resource="0"
+            file="Source/AI/jucer_AiChatView.h"/>
+      <FILE id="aiVew2" name="jucer_AiChatView.cpp" compile="1" resource="0"
+            file="Source/AI/jucer_AiChatView.cpp"/>
     </GROUP>
     <GROUP id="{A1B2C3D4-0000-4000-8000-000000000001}" name="Terminal">
       <FILE id="tRmVt1" name="jucer_libvterm_unity.c" compile="1" resource="0"

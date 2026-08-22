@@ -37,6 +37,9 @@
 
 #include "Sidebar/jucer_Sidebar.h"
 #include "../../Terminal/jucer_TerminalPanel.h"
+#include "../../AI/jucer_AiChatView.h"
+#include "../../AI/jucer_AiSession.h"
+#include "../../AI/jucer_CodexAuth.h"
 
 struct WizardHolder
 {
@@ -77,6 +80,7 @@ ProjectContentComponent::~ProjectContentComponent()
     ProjucerApplication::getApp().openDocumentManager.removeListener (this);
 
     setProject (nullptr);
+    discardAiSession();
     removeChildComponent (&bubbleMessage);
 }
 
@@ -149,6 +153,7 @@ void ProjectContentComponent::setProject (Project* newProject)
         if (project != nullptr)
             project->removeChangeListener (this);
 
+        discardAiSession();
         hideEditor();
         terminalResizerBar = nullptr;
         terminalPanel = nullptr;
@@ -214,6 +219,9 @@ void ProjectContentComponent::reloadLastOpenDocuments()
 
 bool ProjectContentComponent::documentAboutToClose (OpenDocumentManager::Document* document)
 {
+    if (aiReturnDocument == document)
+        aiReturnDocument = nullptr;
+
     hideDocument (document);
     return true;
 }
@@ -243,6 +251,9 @@ bool ProjectContentComponent::showEditorForFile (const File& fileToShow, bool gr
     if (getCurrentFile() != fileToShow)
         return showDocument (ProjucerApplication::getApp().openDocumentManager.openFile (project, fileToShow), grabFocus);
 
+    if (aiViewShowing)
+        return showDocument (currentDocument, grabFocus);
+
     return true;
 }
 
@@ -260,12 +271,18 @@ File ProjectContentComponent::getCurrentFile() const
 bool ProjectContentComponent::showDocument (OpenDocumentManager::Document* doc, bool grabFocus)
 {
     if (doc == nullptr)
+    {
+        leaveAiView();
         return false;
+    }
+
+    const auto wasShowingAiView = aiViewShowing;
+    aiViewShowing = false;
 
     if (doc->hasFileBeenModifiedExternally())
         doc->reloadFromFile();
 
-    if (doc != getCurrentDocument())
+    if (doc != getCurrentDocument() || wasShowingAiView)
     {
         recentDocumentList.newDocumentOpened (doc);
         setEditorDocument (doc->createEditor(), doc);
@@ -279,6 +296,8 @@ bool ProjectContentComponent::showDocument (OpenDocumentManager::Document* doc, 
 
 void ProjectContentComponent::hideEditor()
 {
+    aiViewShowing = false;
+    aiReturnDocument = nullptr;
     currentDocument = nullptr;
     contentViewComponent.setContent ({}, {});
 
@@ -301,6 +320,10 @@ void ProjectContentComponent::setScrollableEditorComponent (std::unique_ptr<Comp
 {
     jassert (component.get() != nullptr);
 
+    if (aiViewShowing && currentDocument != nullptr)
+        aiReturnDocument = currentDocument;
+
+    aiViewShowing = false;
     class ContentViewport final : public Component
     {
     public:
@@ -327,12 +350,81 @@ void ProjectContentComponent::setScrollableEditorComponent (std::unique_ptr<Comp
 
 void ProjectContentComponent::setEditorDocument (std::unique_ptr<Component> component, OpenDocumentManager::Document* doc)
 {
+    aiViewShowing = false;
+    aiReturnDocument = nullptr;
     currentDocument = doc;
     contentViewComponent.setContent (std::move (component),
                                      currentDocument != nullptr ? currentDocument->getFile().getFileName()
                                                                 : String());
 
     ProjucerApplication::getCommandManager().commandStatusChanged();
+}
+
+void ProjectContentComponent::toggleAiView()
+{
+    if (project == nullptr)
+        return;
+
+    if (aiViewShowing)
+    {
+        leaveAiView();
+        return;
+    }
+
+    if (codexAuth == nullptr)
+        codexAuth = std::make_shared<CodexAuth>();
+
+    if (aiSession == nullptr)
+        aiSession = std::make_shared<AiSession> (codexAuth, project->getProjectFolder());
+
+    if (currentDocument != nullptr)
+        aiReturnDocument = currentDocument;
+
+    aiViewShowing = true;
+    contentViewComponent.setContent (std::make_unique<AiChatView> (aiSession, codexAuth),
+                                     "AI Assistant");
+}
+
+void ProjectContentComponent::leaveAiView()
+{
+    if (! aiViewShowing)
+        return;
+
+    aiViewShowing = false;
+
+    auto* document = currentDocument != nullptr ? currentDocument : aiReturnDocument;
+    aiReturnDocument = nullptr;
+
+    if (document != nullptr)
+    {
+        if (document->hasFileBeenModifiedExternally())
+            document->reloadFromFile();
+
+        setEditorDocument (document->createEditor(), document);
+    }
+    else
+    {
+        hideEditor();
+    }
+}
+
+void ProjectContentComponent::discardAiSession()
+{
+    if (aiSession != nullptr)
+        aiSession->stop();
+
+    // The view holds references to the session and auth objects, so clear the
+    // content before releasing either owner.
+    if (aiViewShowing)
+    {
+        aiViewShowing = false;
+        contentViewComponent.setContent ({}, {});
+    }
+
+    aiReturnDocument = nullptr;
+
+    aiSession.reset();
+    codexAuth.reset();
 }
 
 Component* ProjectContentComponent::getEditorComponent()
@@ -1003,6 +1095,8 @@ void ProjectContentComponent::toggleTerminal()
 //==============================================================================
 void ProjectContentComponent::showProjectPanel (const int index)
 {
+    leaveAiView();
+
     if (sidebar != nullptr)
         sidebar->showPanel (index);
 }

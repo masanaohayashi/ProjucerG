@@ -41,6 +41,8 @@
 
 class Sidebar;
 class TerminalPanel;
+class AiSession;
+class CodexAuth;
 struct WizardHolder;
 
 //==============================================================================
@@ -100,6 +102,9 @@ public:
     void toggleTerminal();
     bool isTerminalVisible() const;
 
+    void toggleAiView();
+    bool isAiViewShowing() const noexcept    { return aiViewShowing; }
+
     void deleteSelectedTreeItems();
 
     void refreshProjectTreeFileStatuses();
@@ -135,6 +140,8 @@ private:
     bool documentAboutToClose (OpenDocumentManager::Document*) override;
     void changeListenerCallback (ChangeBroadcaster*) override;
     void showTranslationTool();
+    void leaveAiView();
+    void discardAiSession();
 
     //==============================================================================
     void showProjectPanel (int index);
@@ -155,6 +162,10 @@ private:
     std::unique_ptr<TerminalPanel> terminalPanel;
     std::unique_ptr<ResizableEdgeComponent> terminalResizerBar;
     ComponentBoundsConstrainer terminalSizeConstrainer;
+    std::shared_ptr<CodexAuth> codexAuth;
+    std::shared_ptr<AiSession> aiSession;
+    OpenDocumentManager::Document* aiReturnDocument = nullptr;
+    bool aiViewShowing = false;
     std::unique_ptr<Component> translationTool;
     BubbleMessageComponent bubbleMessage;
 

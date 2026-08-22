@@ -77,6 +77,9 @@
     <Filter Include="Projucer\Settings">
       <UniqueIdentifier>{FAD9788E-4FE6-172B-0E32-913C0C8FC2FB}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Projucer\AI">
+      <UniqueIdentifier>{44DDBAFE-B994-DB5C-8390-1CE44A6B58FF}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Projucer\Terminal">
       <UniqueIdentifier>{43859776-9E6D-3374-CC84-2C0100D72CE4}</UniqueIdentifier>
     </Filter>
@@ -1110,6 +1113,51 @@
     </ClCompile>
     <ClCompile Include="..\..\Source\Settings\jucer_StoredSettings.cpp">
       <Filter>Projucer\Settings</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\AI\jucer_SseParser.cpp">
+      <Filter>Projucer\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\AI\jucer_AiModels.cpp">
+      <Filter>Projucer\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\AI\jucer_ProjectInstructions.cpp">
+      <Filter>Projucer\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\AI\jucer_AiPaths.cpp">
+      <Filter>Projucer\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\AI\jucer_Keychain.mm">
+      <Filter>Projucer\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\AI\jucer_Keychain.cpp">
+      <Filter>Projucer\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\AI\jucer_Pkce.cpp">
+      <Filter>Projucer\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\AI\jucer_OAuthCallbackServer.cpp">
+      <Filter>Projucer\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\AI\jucer_AuthBrowser.mm">
+      <Filter>Projucer\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\AI\jucer_CodexAuth.cpp">
+      <Filter>Projucer\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\AI\jucer_CodexClient.cpp">
+      <Filter>Projucer\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\AI\jucer_AiTools.cpp">
+      <Filter>Projucer\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\AI\jucer_AiSession.cpp">
+      <Filter>Projucer\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\AI\jucer_AgentLoop.cpp">
+      <Filter>Projucer\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\AI\jucer_AiChatView.cpp">
+      <Filter>Projucer\AI</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\Terminal\jucer_libvterm_unity.c">
       <Filter>Projucer\Terminal</Filter>
@@ -4784,6 +4832,48 @@
     </ClInclude>
     <ClInclude Include="..\..\Source\Settings\jucer_StoredSettings.h">
       <Filter>Projucer\Settings</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\AI\jucer_SseParser.h">
+      <Filter>Projucer\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\AI\jucer_AiModels.h">
+      <Filter>Projucer\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\AI\jucer_ProjectInstructions.h">
+      <Filter>Projucer\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\AI\jucer_AiPaths.h">
+      <Filter>Projucer\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\AI\jucer_Keychain.h">
+      <Filter>Projucer\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\AI\jucer_Pkce.h">
+      <Filter>Projucer\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\AI\jucer_OAuthCallbackServer.h">
+      <Filter>Projucer\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\AI\jucer_AuthBrowser.h">
+      <Filter>Projucer\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\AI\jucer_CodexAuth.h">
+      <Filter>Projucer\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\AI\jucer_CodexClient.h">
+      <Filter>Projucer\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\AI\jucer_AiTools.h">
+      <Filter>Projucer\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\AI\jucer_AiSession.h">
+      <Filter>Projucer\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\AI\jucer_AgentLoop.h">
+      <Filter>Projucer\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\AI\jucer_AiChatView.h">
+      <Filter>Projucer\AI</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\Terminal\jucer_PseudoTerminal.h">
       <Filter>Projucer\Terminal</Filter>

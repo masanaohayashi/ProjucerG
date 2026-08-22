@@ -96,6 +96,9 @@ void HeaderComponent::resized()
         exporterBox.setBounds (exporterBounds.removeFromBottom (roundToInt ((float) exporterBounds.getHeight() / 1.8f)));
         configLabel.setBounds (exporterBounds);
     }
+
+    aiButton.setBounds (getLocalBounds().removeFromRight (35)
+                                        .withSizeKeepingCentre (25, 25));
 }
 
 void HeaderComponent::paint (Graphics& g)
@@ -259,6 +262,14 @@ void HeaderComponent::initialiseButtons()
         if (project->isFileModificationCheckPending())
             setWarningVisible (ProjectMessages::Ids::jucerFileModified);
     };
+
+    aiButton.setTooltip ("Open AI Assistant");
+    aiButton.onClick = [this]
+    {
+        if (projectContentComponent != nullptr)
+            projectContentComponent->toggleAiView();
+    };
+    addAndMakeVisible (aiButton);
 
     updateExporterButton();
 }

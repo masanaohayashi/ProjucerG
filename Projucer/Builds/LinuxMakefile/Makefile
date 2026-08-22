@@ -111,6 +111,19 @@ OBJECTS_APP := \
   $(JUCE_OBJDIR)/jucer_ResourceFile_74b61849.o \
   $(JUCE_OBJDIR)/jucer_AppearanceSettings_fa5d736e.o \
   $(JUCE_OBJDIR)/jucer_StoredSettings_c7168d2d.o \
+  $(JUCE_OBJDIR)/jucer_SseParser_f9c8c9cc.o \
+  $(JUCE_OBJDIR)/jucer_AiModels_262c9574.o \
+  $(JUCE_OBJDIR)/jucer_ProjectInstructions_c921c9e6.o \
+  $(JUCE_OBJDIR)/jucer_AiPaths_216de0ae.o \
+  $(JUCE_OBJDIR)/jucer_Keychain_ef7b4484.o \
+  $(JUCE_OBJDIR)/jucer_Pkce_a02995f.o \
+  $(JUCE_OBJDIR)/jucer_OAuthCallbackServer_3208e087.o \
+  $(JUCE_OBJDIR)/jucer_CodexAuth_5ad8003b.o \
+  $(JUCE_OBJDIR)/jucer_CodexClient_fabcd5e.o \
+  $(JUCE_OBJDIR)/jucer_AiTools_1f244b1b.o \
+  $(JUCE_OBJDIR)/jucer_AiSession_4e1e5796.o \
+  $(JUCE_OBJDIR)/jucer_AgentLoop_4bdcc411.o \
+  $(JUCE_OBJDIR)/jucer_AiChatView_21cfee67.o \
   $(JUCE_OBJDIR)/jucer_libvterm_unity_c62052e1.o \
   $(JUCE_OBJDIR)/jucer_PseudoTerminal_b56fec68.o \
   $(JUCE_OBJDIR)/jucer_TerminalView_de1eac0f.o \
@@ -365,6 +378,71 @@ $(JUCE_OBJDIR)/jucer_AppearanceSettings_fa5d736e.o: ../../Source/Settings/jucer_
 $(JUCE_OBJDIR)/jucer_StoredSettings_c7168d2d.o: ../../Source/Settings/jucer_StoredSettings.cpp
 	-$(V_AT)mkdir -p $(@D)
 	@echo "Compiling jucer_StoredSettings.cpp"
+	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/jucer_SseParser_f9c8c9cc.o: ../../Source/AI/jucer_SseParser.cpp
+	-$(V_AT)mkdir -p $(@D)
+	@echo "Compiling jucer_SseParser.cpp"
+	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/jucer_AiModels_262c9574.o: ../../Source/AI/jucer_AiModels.cpp
+	-$(V_AT)mkdir -p $(@D)
+	@echo "Compiling jucer_AiModels.cpp"
+	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/jucer_ProjectInstructions_c921c9e6.o: ../../Source/AI/jucer_ProjectInstructions.cpp
+	-$(V_AT)mkdir -p $(@D)
+	@echo "Compiling jucer_ProjectInstructions.cpp"
+	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/jucer_AiPaths_216de0ae.o: ../../Source/AI/jucer_AiPaths.cpp
+	-$(V_AT)mkdir -p $(@D)
+	@echo "Compiling jucer_AiPaths.cpp"
+	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/jucer_Keychain_ef7b4484.o: ../../Source/AI/jucer_Keychain.cpp
+	-$(V_AT)mkdir -p $(@D)
+	@echo "Compiling jucer_Keychain.cpp"
+	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/jucer_Pkce_a02995f.o: ../../Source/AI/jucer_Pkce.cpp
+	-$(V_AT)mkdir -p $(@D)
+	@echo "Compiling jucer_Pkce.cpp"
+	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/jucer_OAuthCallbackServer_3208e087.o: ../../Source/AI/jucer_OAuthCallbackServer.cpp
+	-$(V_AT)mkdir -p $(@D)
+	@echo "Compiling jucer_OAuthCallbackServer.cpp"
+	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/jucer_CodexAuth_5ad8003b.o: ../../Source/AI/jucer_CodexAuth.cpp
+	-$(V_AT)mkdir -p $(@D)
+	@echo "Compiling jucer_CodexAuth.cpp"
+	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/jucer_CodexClient_fabcd5e.o: ../../Source/AI/jucer_CodexClient.cpp
+	-$(V_AT)mkdir -p $(@D)
+	@echo "Compiling jucer_CodexClient.cpp"
+	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/jucer_AiTools_1f244b1b.o: ../../Source/AI/jucer_AiTools.cpp
+	-$(V_AT)mkdir -p $(@D)
+	@echo "Compiling jucer_AiTools.cpp"
+	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/jucer_AiSession_4e1e5796.o: ../../Source/AI/jucer_AiSession.cpp
+	-$(V_AT)mkdir -p $(@D)
+	@echo "Compiling jucer_AiSession.cpp"
+	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/jucer_AgentLoop_4bdcc411.o: ../../Source/AI/jucer_AgentLoop.cpp
+	-$(V_AT)mkdir -p $(@D)
+	@echo "Compiling jucer_AgentLoop.cpp"
+	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/jucer_AiChatView_21cfee67.o: ../../Source/AI/jucer_AiChatView.cpp
+	-$(V_AT)mkdir -p $(@D)
+	@echo "Compiling jucer_AiChatView.cpp"
 	$(V_AT)$(CXX) $(JUCE_CXXFLAGS) $(JUCE_CPPFLAGS_APP) $(JUCE_CFLAGS_APP) -o "$@" -c "$<"
 
 $(JUCE_OBJDIR)/jucer_libvterm_unity_c62052e1.o: ../../Source/Terminal/jucer_libvterm_unity.c

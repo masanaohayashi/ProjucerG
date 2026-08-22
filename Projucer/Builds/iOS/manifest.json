@@ -203,6 +203,66 @@
       "language": "c++"
     },
     {
+      "file": "Source/AI/jucer_SseParser.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/AI/jucer_AiModels.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/AI/jucer_ProjectInstructions.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/AI/jucer_AiPaths.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/AI/jucer_Keychain.mm",
+      "language": "objective-c++"
+    },
+    {
+      "file": "Source/AI/jucer_Keychain.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/AI/jucer_Pkce.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/AI/jucer_OAuthCallbackServer.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/AI/jucer_AuthBrowser.mm",
+      "language": "objective-c++"
+    },
+    {
+      "file": "Source/AI/jucer_CodexAuth.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/AI/jucer_CodexClient.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/AI/jucer_AiTools.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/AI/jucer_AiSession.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/AI/jucer_AgentLoop.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/AI/jucer_AiChatView.cpp",
+      "language": "c++"
+    },
+    {
       "file": "Source/Terminal/jucer_libvterm_unity.c",
       "language": "c"
     },
@@ -408,6 +468,7 @@
     "WebKit",
     "Network",
     "Security",
+    "SafariServices",
     "Metal",
     "MetalKit",
     "UniformTypeIdentifiers",

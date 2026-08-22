@@ -100,7 +100,8 @@ private:
     ImageComponent juceIcon;
 
     IconButton projectSettingsButton { "Project Settings", getIcons().settings },
-               saveAndOpenInIDEButton { "Save and Open in IDE", Image() };
+               saveAndOpenInIDEButton { "Save and Open in IDE", Image() },
+               aiButton { "AI Assistant", getIcons().settings };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (HeaderComponent)
 };
