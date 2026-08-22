@@ -506,6 +506,45 @@ Projucer アプリを起動して `.jucer` を開き、iOS exporter を選んで
 - `Simulator install bridge unavailable` の場合は、Mac 上で Python ブリッジが起動して
   いるか、TCP ポート `38472` が別プロセスに占有されていないか確認する。
 
+## Built-in git (iOS)
+
+iOS にはシェルが無いので、git は libgit2 をアプリに組み込み、同じプロセスの中で
+実行する（オンデバイスの clang と同じ考え方）。AI からは `git` ツールとして直接
+呼べる。macOS でも同じ実装が動くので、挙動は Mac 上で確認できる。
+
+静的ライブラリのビルド:
+
+```sh
+scripts/build_libgit2.sh                 # macOS / iOS / Simulator
+scripts/build_libgit2.sh --target macos  # macOS だけ
+```
+
+`scripts/setup_ios.sh` のステップ 8 からも実行される（`--skip-libgit2` で省略可）。
+動作確認:
+
+```sh
+scripts/run_git_selfcheck.sh
+```
+
+対応しているサブコマンド:
+
+```text
+version init clone status add rm mv commit log diff show branch checkout switch
+reset rev-parse ls-files tag remote fetch pull push merge config credential
+```
+
+- リモートは HTTPS + トークンのみ。SSH は未対応。
+- TLS は SecureTransport（OS の信頼ストア）。OpenSSL バックエンドは iOS に CA
+  バンドルが無く証明書検証に失敗するため使わない。
+- 認証情報はホストごとに Keychain へ入れる:
+  `git credential set github.com <username> <token>`（`erase` / `show` もある）。
+- `merge` と `pull` は fast-forward のみ。分岐している場合ははっきり断る。
+- `rebase` `cherry-pick` `revert` `stash` `blame` `submodule` `worktree` は未実装。
+  同じディスパッチャに足していける。
+- iOS では `exec_command` も git だけは組み込み実装へ回る。git 以外のコマンドは
+  「シェルが無い」と返す。macOS / Windows / Linux の `exec_command` は今まで通り
+  シェルを使う。
+
 ## License
 
 ProjucerG contains code derived from the JUCE Framework and the JUCE Projucer.

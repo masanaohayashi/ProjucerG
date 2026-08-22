@@ -60,3 +60,14 @@ components and workflows that are limited or missing in the original Projucer.
 
 - Added and updated example projects used to verify GUI editor behaviour,
   LookAndFeel selection, scaling, and generated-code output.
+
+## Built-in git
+
+- `Projucer/Source/Git/jucer_GitCommand.cpp` translates a git command line into
+  libgit2 calls and runs it inside the editor process, so version control works on
+  iOS where no shell exists.
+- The AI agent gets a `git` tool wired straight to it; on iOS `exec_command` also
+  routes git through the same code.
+- HTTPS with a Keychain-stored token only; merges are fast-forward only.
+- Build the static libraries with `scripts/build_libgit2.sh`, check them with
+  `scripts/run_git_selfcheck.sh`.

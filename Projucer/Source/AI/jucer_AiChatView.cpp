@@ -1281,12 +1281,16 @@ void AiChatView::updateVisibility()
 
     if (approval != nullptr)
     {
-        const auto isCommand = approval->toolName == "exec_command";
+        /*  組み込み git もコマンドとして見せる。ただし下のターミナルへは
+            回せない（プロセスの中で動くので）。 */
+        const auto isShellCommand = approval->toolName == "exec_command";
+        const auto isCommand = isShellCommand || approval->toolName == "git";
         approvalTitle.setText (isCommand ? "Review command"
                                          : "Review " + approval->toolName + " change",
                                juce::dontSendNotification);
-        approveButton.setButtonText (isCommand ? "Run in background" : "Apply");
-        runInTerminalButton.setVisible (isCommand);
+        approveButton.setButtonText (isShellCommand ? "Run in background"
+                                                    : (isCommand ? "Run" : "Apply"));
+        runInTerminalButton.setVisible (isShellCommand);
         approvalDiffContent->setText (approval->diffPreview);
     }
     else

@@ -1,6 +1,8 @@
 #include "jucer_AiTools.h"
 #include "jucer_AiPaths.h"
 
+#include "../Git/jucer_GitCommand.h"
+
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -652,8 +654,28 @@ bool AiTools::revalidateForWrite (const juce::var& arguments,
     return true;
 }
 
-bool AiTools::requiresApproval (const juce::String& toolName)
+bool AiTools::requiresApproval (const juce::String& toolName, const juce::var& arguments)
 {
+    /*  git は読み取りだけのサブコマンドが多い。status や log のたびに
+        確認を出すと使いものにならないので、履歴やツリーを変えるものだけ
+        承認の対象にする。 */
+    if (toolName == "git")
+    {
+        static const juce::StringArray readOnly { "status", "log", "diff", "show", "rev-parse",
+                                                  "ls-files", "version", "blame" };
+
+        if (const auto* object = arguments.getDynamicObject(); object != nullptr)
+        {
+            const auto tokens = juce::StringArray::fromTokens (object->getProperty ("args").toString(), true);
+
+            for (const auto& token : tokens)
+                if (! token.startsWith ("-") && token != "git")
+                    return ! readOnly.contains (token);
+        }
+
+        return true;
+    }
+
     return toolName == "write_file" || toolName == "apply_patch" || toolName == "exec_command";
 }
 
@@ -708,6 +730,25 @@ juce::var AiTools::getToolSchemas (bool includeCodexWebSearchFlags)
                 parameters->setProperty ("additionalProperties", true);
 
         tools.add (tool);
+    }
+
+    /*  組み込みの git。iOS にはシェルが無いので、exec_command の代わりに
+        こちらを通す。実装は libgit2 で、同じプロセスの中で完結する。 */
+    {
+        auto* properties = new juce::DynamicObject();
+        properties->setProperty ("args", makeStringProperty (
+            "Git command line without the leading \"git\", for example \"status --porcelain\" or "
+            "\"commit -m \\\"fix the build\\\"\". Supported commands: "
+            + ProjucerGit::supportedCommands().joinIntoString (", ")
+            + ". Remote work is HTTPS only; store a token first with "
+              "\"credential set <host> <username> <token>\"."));
+        properties->setProperty ("workdir", makeStringProperty (
+            "Working directory relative to the project root. Defaults to the project root."));
+
+        tools.add (makeTool ("git",
+                             "Run git in the editor process. This works on iOS, where no shell is available. "
+                             "Prefer it over exec_command for version control.",
+                             properties, { "args" }));
     }
 
     /*  Web 検索はサーバー側が持つ組み込みツール。こちらで実装する必要はなく、
@@ -805,6 +846,21 @@ AiTools::Result AiTools::preview (const juce::String& toolName, const juce::var&
         return result;
     }
 
+    if (toolName == "git")
+    {
+        pendingPreview.reset();
+        PreviewState state;
+        const auto result = doGit (arguments, false, &state);
+
+        if (result.ok)
+        {
+            state.toolName = toolName;
+            state.argumentsKey = makeArgumentsKey (arguments);
+            pendingPreview = state;
+        }
+        return result;
+    }
+
     if (toolName == "exec_command")
     {
         pendingPreview.reset();
@@ -841,6 +897,13 @@ AiTools::Result AiTools::execute (const juce::String& toolName, const juce::var&
     if (toolName == "apply_patch")
     {
         const auto result = doApplyPatch (arguments, true);
+        pendingPreview.reset();
+        return result;
+    }
+
+    if (toolName == "git")
+    {
+        const auto result = doGit (arguments, true);
         pendingPreview.reset();
         return result;
     }
@@ -1256,6 +1319,71 @@ bool AiTools::resolveExecWorkdir (const juce::var& arguments, juce::File& direct
     return true;
 }
 
+/*  組み込み git。iOS でも同じコードが動くように、シェルを一切通さない。 */
+AiTools::Result AiTools::doGit (const juce::var& arguments,
+                                bool actuallyRun,
+                                PreviewState* previewStateOut)
+{
+    const auto* object = arguments.getDynamicObject();
+
+    if (object == nullptr)
+        return { false, "Tool arguments must be a JSON object.", {} };
+
+    if (! object->hasProperty ("args") || ! object->getProperty ("args").isString())
+        return { false, "The args argument is required and must be a string.", {} };
+
+    const auto commandLine = object->getProperty ("args").toString().trim();
+
+    if (commandLine.isEmpty())
+        return { false, "The args argument must not be empty.", {} };
+
+    juce::File cwd;
+    juce::String error;
+
+    if (! resolveExecWorkdir (arguments, cwd, error))
+        return { false, error, {} };
+
+    juce::String preview;
+    preview << "Command:\ngit " << commandLine << "\n\n"
+            << "Working directory:\n" << cwd.getFullPathName();
+
+    if (! actuallyRun)
+    {
+        if (previewStateOut != nullptr)
+        {
+            previewStateOut->file = cwd;
+            previewStateOut->existed = cwd.isDirectory();
+            previewStateOut->content = commandLine;
+        }
+
+        return { true, "Preview generated.", preview };
+    }
+
+    if (pendingPreview.has_value())
+    {
+        const auto& previewState = *pendingPreview;
+
+        if (previewState.toolName != "git"
+            || previewState.argumentsKey != makeArgumentsKey (arguments))
+            return { false, "The approval preview does not match this request.", preview };
+    }
+
+    cancelRequested.store (false, std::memory_order_release);
+
+    const auto result = ProjucerGit::runCommandLine ("git " + commandLine, cwd, &cancelRequested);
+
+    auto output = result.output;
+
+    if (output.length() > maxExecOutputChars)
+        output = output.substring (0, maxExecOutputChars) + "\n...[truncated]";
+
+    juce::String resultText;
+    resultText << "exit_code: " << result.exitCode << "\n"
+               << (output.isNotEmpty() ? output : juce::String ("(no output)"));
+
+    return { result.exitCode == 0, resultText, preview };
+}
+
 AiTools::Result AiTools::doExecCommand (const juce::var& arguments,
                                         bool actuallyRun,
                                         PreviewState* previewStateOut)
@@ -1307,6 +1435,26 @@ AiTools::Result AiTools::doExecCommand (const juce::var& arguments,
     }
 
     cancelRequested.store (false, std::memory_order_release);
+
+   #if JUCE_IOS
+    /*  iOS にはシェルも子プロセスも無い。git だけは組み込み実装へ回して、
+        それ以外は理由をはっきり返す。 */
+    if (ProjucerGit::isGitCommandLine (cmd))
+    {
+        const auto gitResult = ProjucerGit::runCommandLine (cmd, cwd, &cancelRequested);
+
+        juce::String text;
+        text << "exit_code: " << gitResult.exitCode << "\n"
+             << (gitResult.output.isNotEmpty() ? gitResult.output : juce::String ("(no output)"));
+
+        return { gitResult.exitCode == 0, text, preview };
+    }
+
+    return { false,
+             "There is no shell on iOS. Use the git tool for version control and the file tools "
+             "for everything else.",
+             preview };
+   #endif
 
     auto timeoutMs = defaultExecTimeoutMs;
 

@@ -58,6 +58,7 @@ target_sources(Projucer PRIVATE
     Source/CodeEditor/jucer_DocumentEditorComponent.cpp
     Source/CodeEditor/jucer_OpenDocumentManager.cpp
     Source/CodeEditor/jucer_SourceCodeEditor.cpp
+    Source/Git/jucer_GitCommand.cpp
     Source/Project/Modules/jucer_Modules.cpp
     Source/Project/UI/jucer_HeaderComponent.cpp
     Source/Project/jucer_Project.cpp
@@ -169,7 +170,33 @@ juce_add_binary_data(ProjucerData SOURCES
 target_include_directories(Projucer PRIVATE
     Source/Terminal/libvterm/include)
 
+# 組み込み git。iOS にはシェルが無いので libgit2 を同じプロセスに入れる。
+# アーカイブは scripts/build_libgit2.sh が作る。
+set(PROJUCER_LIBGIT2_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../OnDeviceBuild/third_party/libgit2")
+
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    if(CMAKE_OSX_SYSROOT MATCHES "iphonesimulator" OR CMAKE_OSX_SYSROOT MATCHES "iPhoneSimulator")
+        set(PROJUCER_LIBGIT2_ARCHIVE "${PROJUCER_LIBGIT2_ROOT}/build-ios-simulator/libgit2.a")
+    else()
+        set(PROJUCER_LIBGIT2_ARCHIVE "${PROJUCER_LIBGIT2_ROOT}/build-ios/libgit2.a")
+    endif()
+else()
+    set(PROJUCER_LIBGIT2_ARCHIVE "${PROJUCER_LIBGIT2_ROOT}/build-macos/libgit2.a")
+endif()
+
+if(NOT EXISTS "${PROJUCER_LIBGIT2_ARCHIVE}")
+    message(FATAL_ERROR "libgit2 archive not found: ${PROJUCER_LIBGIT2_ARCHIVE}\n"
+                        "Run scripts/build_libgit2.sh first.")
+endif()
+
+target_include_directories(Projucer PRIVATE "${PROJUCER_LIBGIT2_ROOT}/include")
+
 target_link_libraries(Projucer PRIVATE
+    "${PROJUCER_LIBGIT2_ARCHIVE}"
+    z
+    iconv
+    "-framework Security"
+    "-framework CoreFoundation"
     ProjucerData
     juce::juce_build_tools
     juce::juce_cryptography

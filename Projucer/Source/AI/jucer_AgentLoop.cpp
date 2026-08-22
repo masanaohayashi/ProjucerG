@@ -121,6 +121,12 @@ namespace
         "If the user chose the bottom terminal, the command is typed there and the\n"
         "captured output is returned to you. Use that output instead of asking them to\n"
         "paste it.\n"
+        "You have git. It runs inside the editor process, so it also works on iPad,\n"
+        "where there is no shell. Use it for all version control: status, add, commit,\n"
+        "branch, checkout, clone, fetch, pull, push and so on. On iOS exec_command only\n"
+        "accepts git; everything else there must go through the file tools.\n"
+        "Remote work is HTTPS only. If a fetch or push reports missing credentials, ask\n"
+        "the user for a token and store it with: credential set <host> <user> <token>.\n"
         "Prefer apply_patch for editing existing files; use exec_command when a command\n"
         "is the right tool. You have web_search. Use it whenever the answer depends on\n"
         "anything current, such as upstream repositories, releases or documentation.\n"
@@ -447,7 +453,7 @@ void AgentLoop::run()
                 後者は失うものが大きいので、自動では通さない。 */
             const auto mode = liveSession->getApprovalMode();
 
-            const auto needsApproval = AiTools::requiresApproval (call.name)
+            const auto needsApproval = AiTools::requiresApproval (call.name, arguments)
                                      && (mode == AiSession::ApprovalMode::ask
                                          || (mode == AiSession::ApprovalMode::onUnsafe
                                              && call.name != "apply_patch"));
@@ -512,7 +518,7 @@ void AgentLoop::run()
                               << "\n     args: " << call.argumentsJson
                               << "\n     out : " << result.output);
 
-            if (result.ok && AiTools::requiresApproval (call.name))
+            if (result.ok && AiTools::requiresApproval (call.name, arguments))
                 juce::MessageManager::callAsync ([]
                 {
                     ProjucerApplication::getApp().openDocumentManager.reloadModifiedFiles();

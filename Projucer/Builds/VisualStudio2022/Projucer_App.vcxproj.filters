@@ -77,6 +77,9 @@
     <Filter Include="Projucer\Settings">
       <UniqueIdentifier>{FAD9788E-4FE6-172B-0E32-913C0C8FC2FB}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Projucer\Git">
+      <UniqueIdentifier>{30C019E5-D1AA-32B7-2FF2-669251CB28F6}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Projucer\AI">
       <UniqueIdentifier>{44DDBAFE-B994-DB5C-8390-1CE44A6B58FF}</UniqueIdentifier>
     </Filter>
@@ -1113,6 +1116,9 @@
     </ClCompile>
     <ClCompile Include="..\..\Source\Settings\jucer_StoredSettings.cpp">
       <Filter>Projucer\Settings</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Git\jucer_GitCommand.cpp">
+      <Filter>Projucer\Git</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\AI\jucer_SseParser.cpp">
       <Filter>Projucer\AI</Filter>
@@ -4835,6 +4841,9 @@
     </ClInclude>
     <ClInclude Include="..\..\Source\Settings\jucer_StoredSettings.h">
       <Filter>Projucer\Settings</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Git\jucer_GitCommand.h">
+      <Filter>Projucer\Git</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\AI\jucer_SseParser.h">
       <Filter>Projucer\AI</Filter>

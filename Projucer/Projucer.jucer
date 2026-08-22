@@ -8,15 +8,15 @@
     <XCODE_MAC targetFolder="Builds/MacOSX" documentExtensions=".jucer" bigIcon="Zrx1Gl"
                extraFrameworks="Security"
                microphonePermissionNeeded="1" cameraPermissionNeeded="1" smallIcon="Zrx1Gl"
-               applicationCategory="public.app-category.developer-tools" extraLinkerFlags="-Wl,-weak_reference_mismatches,weak"
+               applicationCategory="public.app-category.developer-tools" extraLinkerFlags="-Wl,-weak_reference_mismatches,weak&#10;$(SRCROOT)/../../../OnDeviceBuild/third_party/libgit2/build-macos/libgit2.a&#10;-lz&#10;-liconv"
                extraDefs="JUCE_SILENCE_XCODE_15_LINKER_WARNING=1" iconComposerIcon="NzgaRC">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" cppLibType="libc++"
                        macOSDeploymentTarget="10.15"
-                       recommendedWarnings="LLVM" headerPath="../../Source/Terminal/libvterm/include"/>
+                       recommendedWarnings="LLVM" headerPath="../../Source/Terminal/libvterm/include&#10;../../../OnDeviceBuild/third_party/libgit2/include"/>
         <CONFIGURATION name="Release" isDebug="0" targetName="Projucer" cppLibType="libc++"
                        macOSDeploymentTarget="10.15" linkTimeOptimisation="0" recommendedWarnings="LLVM"
-                       headerPath="../../Source/Terminal/libvterm/include"/>
+                       headerPath="../../Source/Terminal/libvterm/include&#10;../../../OnDeviceBuild/third_party/libgit2/include"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../OnDeviceBuild/dependencies/JUCE/modules"/>
@@ -39,10 +39,10 @@
             smallIcon="Zrx1Gl">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" useRuntimeLibDLL="0"
-                       winArchitecture="ARM64,x64" headerPath="../../Source/Terminal/libvterm/include"/>
+                       winArchitecture="ARM64,x64" headerPath="../../Source/Terminal/libvterm/include&#10;../../../OnDeviceBuild/third_party/libgit2/include"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="Projucer"
                        useRuntimeLibDLL="0" linkTimeOptimisation="0" winArchitecture="ARM64,x64"
-                       headerPath="../../Source/Terminal/libvterm/include"/>
+                       headerPath="../../Source/Terminal/libvterm/include&#10;../../../OnDeviceBuild/third_party/libgit2/include"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../OnDeviceBuild/dependencies/JUCE/modules"/>
@@ -65,10 +65,10 @@
             smallIcon="Zrx1Gl">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" useRuntimeLibDLL="0"
-                       winArchitecture="ARM64,x64" headerPath="../../Source/Terminal/libvterm/include"/>
+                       winArchitecture="ARM64,x64" headerPath="../../Source/Terminal/libvterm/include&#10;../../../OnDeviceBuild/third_party/libgit2/include"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="Projucer"
                        useRuntimeLibDLL="0" linkTimeOptimisation="0" winArchitecture="ARM64,x64"
-                       headerPath="../../Source/Terminal/libvterm/include"/>
+                       headerPath="../../Source/Terminal/libvterm/include&#10;../../../OnDeviceBuild/third_party/libgit2/include"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../OnDeviceBuild/dependencies/JUCE/modules"/>
@@ -91,10 +91,10 @@
             smallIcon="Zrx1Gl">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" useRuntimeLibDLL="0"
-                       winArchitecture="ARM64,x64" headerPath="../../Source/Terminal/libvterm/include"/>
+                       winArchitecture="ARM64,x64" headerPath="../../Source/Terminal/libvterm/include&#10;../../../OnDeviceBuild/third_party/libgit2/include"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="Projucer"
                        useRuntimeLibDLL="0" linkTimeOptimisation="0" winArchitecture="ARM64,x64"
-                       headerPath="../../Source/Terminal/libvterm/include"/>
+                       headerPath="../../Source/Terminal/libvterm/include&#10;../../../OnDeviceBuild/third_party/libgit2/include"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../OnDeviceBuild/dependencies/JUCE/modules"/>
@@ -115,8 +115,8 @@
     </VS2026>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" bigIcon="Zrx1Gl" smallIcon="Zrx1Gl">
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" headerPath="../../Source/Terminal/libvterm/include"/>
-        <CONFIGURATION name="Release" isDebug="0" targetName="Projucer" headerPath="../../Source/Terminal/libvterm/include"/>
+        <CONFIGURATION name="Debug" isDebug="1" targetName="Projucer" headerPath="../../Source/Terminal/libvterm/include&#10;../../../OnDeviceBuild/third_party/libgit2/include"/>
+        <CONFIGURATION name="Release" isDebug="0" targetName="Projucer" headerPath="../../Source/Terminal/libvterm/include&#10;../../../OnDeviceBuild/third_party/libgit2/include"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../OnDeviceBuild/dependencies/JUCE/modules"/>
@@ -144,14 +144,14 @@
                  
                   postbuildCommand="DEST=&quot;${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/clang-resource&quot;; mkdir -p &quot;$DEST/include&quot; &quot;$DEST/lib/darwin&quot;; CLANG_INCLUDE=&quot;${SRCROOT}/../../../OnDeviceBuild/dependencies/PocClangIOS/build-ios/lib/clang/22/include&quot;; if [ &quot;${EFFECTIVE_PLATFORM_NAME}&quot; = &quot;-iphonesimulator&quot; ]; then CLANG_INCLUDE=&quot;${SRCROOT}/../../../OnDeviceBuild/dependencies/PocClangIOS/build-ios-simulator/lib/clang/22/include&quot;; fi; rsync -a --delete &quot;$CLANG_INCLUDE/&quot; &quot;$DEST/include/&quot;; cp -f &quot;${SRCROOT}/../../../OnDeviceBuild/dependencies/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.ios.a&quot; &quot;$DEST/lib/darwin/libclang_rt.ios.a&quot;; if [ -f &quot;${SRCROOT}/../../../OnDeviceBuild/dependencies/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.iossim.a&quot; ]; then cp -f &quot;${SRCROOT}/../../../OnDeviceBuild/dependencies/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.iossim.a&quot; &quot;$DEST/lib/darwin/libclang_rt.iossim.a&quot;; fi; if [ &quot;${EFFECTIVE_PLATFORM_NAME}&quot; = &quot;-iphonesimulator&quot; ] &amp;&amp; ! /usr/sbin/lsof -nP -iTCP:38472 -sTCP:LISTEN &gt;/dev/null 2&gt;&amp;1; then /usr/bin/nohup /usr/bin/python3 &quot;${SRCROOT}/../../../scripts/simulator_install_bridge.py&quot; &gt;/tmp/projucer-simulator-install-bridge.log 2&gt;&amp;1 &amp; fi">
       <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug" headerPath="../../Source/Terminal/libvterm/include&#10;../../../OnDeviceBuild/include"
+        <CONFIGURATION isDebug="1" name="Debug" headerPath="../../Source/Terminal/libvterm/include&#10;../../../OnDeviceBuild/include&#10;../../../OnDeviceBuild/third_party/libgit2/include"
                        libraryPath="../../../OnDeviceBuild/build-ios/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)"
                        iosDeploymentTarget="17.0"
-                       customXcodeFlags="OTHER_LDFLAGS[sdk=iphoneos*] = $(inherited) -lOnDeviceBuild -lzsign $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocClangIOS/build-ios/llvm-ios.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios/lib/libssl.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios/lib/libcrypto.a -lc++, ARCHS[sdk=iphonesimulator*] = arm64, LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*] = $(inherited) ../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME), OTHER_LDFLAGS[sdk=iphonesimulator*] = $(inherited) $(SRCROOT)/../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libOnDeviceBuild.a $(SRCROOT)/../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libzsign.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocClangIOS/build-ios-simulator/llvm-ios-simulator.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios-simulator/lib/libssl.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios-simulator/lib/libcrypto.a -lc++"/>
-        <CONFIGURATION isDebug="0" name="Release" headerPath="../../Source/Terminal/libvterm/include&#10;../../../OnDeviceBuild/include"
+                       customXcodeFlags="OTHER_LDFLAGS[sdk=iphoneos*] = $(inherited) -lOnDeviceBuild -lzsign $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocClangIOS/build-ios/llvm-ios.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios/lib/libssl.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios/lib/libcrypto.a $(SRCROOT)/../../../OnDeviceBuild/third_party/libgit2/build-ios/libgit2.a -lz -liconv -lc++, ARCHS[sdk=iphonesimulator*] = arm64, LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*] = $(inherited) ../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME), OTHER_LDFLAGS[sdk=iphonesimulator*] = $(inherited) $(SRCROOT)/../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libOnDeviceBuild.a $(SRCROOT)/../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libzsign.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocClangIOS/build-ios-simulator/llvm-ios-simulator.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios-simulator/lib/libssl.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios-simulator/lib/libcrypto.a $(SRCROOT)/../../../OnDeviceBuild/third_party/libgit2/build-ios-simulator/libgit2.a -lz -liconv -lc++"/>
+        <CONFIGURATION isDebug="0" name="Release" headerPath="../../Source/Terminal/libvterm/include&#10;../../../OnDeviceBuild/include&#10;../../../OnDeviceBuild/third_party/libgit2/include"
                        libraryPath="../../../OnDeviceBuild/build-ios/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)"
                        iosDeploymentTarget="17.0"
-                       customXcodeFlags="OTHER_LDFLAGS[sdk=iphoneos*] = $(inherited) -lOnDeviceBuild -lzsign $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocClangIOS/build-ios/llvm-ios.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios/lib/libssl.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios/lib/libcrypto.a -lc++, ARCHS[sdk=iphonesimulator*] = arm64, LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*] = $(inherited) ../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME), OTHER_LDFLAGS[sdk=iphonesimulator*] = $(inherited) $(SRCROOT)/../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libOnDeviceBuild.a $(SRCROOT)/../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libzsign.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocClangIOS/build-ios-simulator/llvm-ios-simulator.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios-simulator/lib/libssl.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios-simulator/lib/libcrypto.a -lc++"/>
+                       customXcodeFlags="OTHER_LDFLAGS[sdk=iphoneos*] = $(inherited) -lOnDeviceBuild -lzsign $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocClangIOS/build-ios/llvm-ios.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios/lib/libssl.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios/lib/libcrypto.a $(SRCROOT)/../../../OnDeviceBuild/third_party/libgit2/build-ios/libgit2.a -lz -liconv -lc++, ARCHS[sdk=iphonesimulator*] = arm64, LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*] = $(inherited) ../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME), OTHER_LDFLAGS[sdk=iphonesimulator*] = $(inherited) $(SRCROOT)/../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libOnDeviceBuild.a $(SRCROOT)/../../../OnDeviceBuild/build-ios-simulator/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libzsign.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocClangIOS/build-ios-simulator/llvm-ios-simulator.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios-simulator/lib/libssl.a $(SRCROOT)/../../../OnDeviceBuild/dependencies/PocSignIOS/openssl-ios-simulator/lib/libcrypto.a $(SRCROOT)/../../../OnDeviceBuild/third_party/libgit2/build-ios-simulator/libgit2.a -lz -liconv -lc++"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../OnDeviceBuild/dependencies/JUCE/modules"/>
@@ -684,6 +684,12 @@
             file="Source/Settings/jucer_StoredSettings.cpp"/>
       <FILE id="NM0cs9" name="jucer_StoredSettings.h" compile="0" resource="0"
             file="Source/Settings/jucer_StoredSettings.h"/>
+    </GROUP>
+    <GROUP id="{A1B2C3D4-0000-4000-8000-000000000003}" name="Git">
+      <FILE id="gitCmd1" name="jucer_GitCommand.h" compile="0" resource="0"
+            file="Source/Git/jucer_GitCommand.h"/>
+      <FILE id="gitCmd2" name="jucer_GitCommand.cpp" compile="1" resource="0"
+            file="Source/Git/jucer_GitCommand.cpp"/>
     </GROUP>
     <GROUP id="{A1B2C3D4-0000-4000-8000-000000000002}" name="AI">
       <FILE id="aiSse1" name="jucer_SseParser.h" compile="0" resource="0"

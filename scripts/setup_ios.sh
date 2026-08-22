@@ -14,6 +14,7 @@ skip_dependencies=0
 skip_llvm=0
 skip_runtime=0
 skip_openssl=0
+skip_libgit2=0
 skip_ondevice=0
 
 usage()
@@ -29,7 +30,8 @@ Setup stages:
   5. Build host LLVM/Clang and iOS static libraries
   6. Build iOS / Simulator compiler-rt static libraries
   7. Build iOS / Simulator OpenSSL static libraries
-  8. Build OnDeviceBuild and zsign for Debug / Release
+  8. Build macOS / iOS / Simulator libgit2 static libraries
+  9. Build OnDeviceBuild and zsign for Debug / Release
 
 Options:
   --target device|simulator|all  Target (default: all)
@@ -41,6 +43,7 @@ Options:
   --skip-llvm                    Skip LLVM/Clang builds
   --skip-runtime                 Skip compiler-rt builds
   --skip-openssl                 Skip OpenSSL builds
+  --skip-libgit2                 Skip libgit2 builds
   --skip-ondevice                Skip OnDeviceBuild builds
   --dry-run                      Print stages without running them
   -h, --help                     Show this help
@@ -87,6 +90,10 @@ while [ "$#" -gt 0 ]; do
             ;;
         --skip-runtime)
             skip_runtime=1
+            shift
+            ;;
+        --skip-libgit2)
+            skip_libgit2=1
             shift
             ;;
         --skip-openssl)
@@ -139,38 +146,38 @@ run_child()
 }
 
 if [ "$skip_dependencies" -eq 0 ]; then
-    run_child "[1/8] Prepare OnDeviceBuild source" \
+    run_child "[1/9] Prepare OnDeviceBuild source" \
         bash "$SCRIPT_DIR/prepare_ondevice_source.sh"
-    run_child "[2/8] Prepare dependency sources under OnDeviceBuild" \
+    run_child "[2/9] Prepare dependency sources under OnDeviceBuild" \
         bash "$SCRIPT_DIR/prepare_dependencies.sh"
 else
-    run_child "[1/8] Prepare OnDeviceBuild source" \
+    run_child "[1/9] Prepare OnDeviceBuild source" \
         bash "$SCRIPT_DIR/prepare_ondevice_source.sh"
-    ios_setup_log "[2/8] Skipping dependency preparation"
+    ios_setup_log "[2/9] Skipping dependency preparation"
 fi
 
-run_child "[3/8] Check prerequisites" \
+run_child "[3/9] Check prerequisites" \
     bash "$SCRIPT_DIR/check_ios_setup.sh" --target "$target"
 
 if [ "$skip_sdk" -eq 0 ]; then
     case "$target" in
         device)
-            run_child "[4/8] Create iPhoneOS SDK zip" \
+            run_child "[4/9] Create iPhoneOS SDK zip" \
                 bash "$SCRIPT_DIR/create_ios_device_sdk_zip.sh"
             ;;
         simulator)
-            run_child "[4/8] Create Simulator SDK zip" \
+            run_child "[4/9] Create Simulator SDK zip" \
                 bash "$SCRIPT_DIR/create_ios_simulator_sdk_zip.sh"
             ;;
         all)
-            run_child "[4/8] Create iPhoneOS SDK zip" \
+            run_child "[4/9] Create iPhoneOS SDK zip" \
                 bash "$SCRIPT_DIR/create_ios_device_sdk_zip.sh"
-            run_child "[4/8] Create Simulator SDK zip" \
+            run_child "[4/9] Create Simulator SDK zip" \
                 bash "$SCRIPT_DIR/create_ios_simulator_sdk_zip.sh"
             ;;
     esac
 else
-    ios_setup_log "[4/8] Skipping SDK zip creation"
+    ios_setup_log "[4/9] Skipping SDK zip creation"
 fi
 
 if [ "$skip_llvm" -eq 0 ]; then
@@ -178,31 +185,38 @@ if [ "$skip_llvm" -eq 0 ]; then
     if [ "$force_archive" -eq 1 ]; then
         llvm_args+=(--force-archive)
     fi
-    run_child "[5/8] Build LLVM/Clang static libraries" \
+    run_child "[5/9] Build LLVM/Clang static libraries" \
         bash "$SCRIPT_DIR/build_ios_llvm.sh" "${llvm_args[@]}"
 else
-    ios_setup_log "[5/8] Skipping LLVM/Clang builds"
+    ios_setup_log "[5/9] Skipping LLVM/Clang builds"
 fi
 
 if [ "$skip_runtime" -eq 0 ]; then
-    run_child "[6/8] Build compiler-rt static libraries" \
+    run_child "[6/9] Build compiler-rt static libraries" \
         bash "$SCRIPT_DIR/build_compiler_rt_ios.sh" --target "$target" --jobs "$IOS_SETUP_JOBS"
 else
-    ios_setup_log "[6/8] Skipping compiler-rt builds"
+    ios_setup_log "[6/9] Skipping compiler-rt builds"
 fi
 
 if [ "$skip_openssl" -eq 0 ]; then
-    run_child "[7/8] Build OpenSSL static libraries" \
+    run_child "[7/9] Build OpenSSL static libraries" \
         bash "$SCRIPT_DIR/build_openssl_ios.sh" --target "$target" --jobs "$IOS_SETUP_JOBS"
 else
-    ios_setup_log "[7/8] Skipping OpenSSL builds"
+    ios_setup_log "[7/9] Skipping OpenSSL builds"
+fi
+
+if [ "$skip_libgit2" -eq 0 ]; then
+    run_child "[8/9] Build libgit2 static libraries" \
+        bash "$SCRIPT_DIR/build_libgit2.sh" --target "$target"
+else
+    ios_setup_log "[8/9] Skipping libgit2 builds"
 fi
 
 if [ "$skip_ondevice" -eq 0 ]; then
-    run_child "[8/8] Build OnDeviceBuild / zsign static libraries" \
+    run_child "[9/9] Build OnDeviceBuild / zsign static libraries" \
         bash "$SCRIPT_DIR/build_ondevice_libraries.sh" --target "$target" --configuration all --jobs "$IOS_SETUP_JOBS"
 else
-    ios_setup_log "[8/8] Skipping OnDeviceBuild builds"
+    ios_setup_log "[9/9] Skipping OnDeviceBuild builds"
 fi
 
 if [ "$dry_run" -eq 0 ]; then

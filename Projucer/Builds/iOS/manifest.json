@@ -203,6 +203,10 @@
       "language": "c++"
     },
     {
+      "file": "Source/Git/jucer_GitCommand.cpp",
+      "language": "c++"
+    },
+    {
       "file": "Source/AI/jucer_SseParser.cpp",
       "language": "c++"
     },

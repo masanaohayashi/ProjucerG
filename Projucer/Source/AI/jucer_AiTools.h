@@ -26,7 +26,7 @@ public:
     /** @param includeCodexWebSearchFlags  Codex 専用の external_web_access を載せるか。
         Grok の Responses API はこれを拒否するので false にする。 */
     static juce::var getToolSchemas (bool includeCodexWebSearchFlags = true);
-    static bool requiresApproval (const juce::String& toolName);
+    static bool requiresApproval (const juce::String& toolName, const juce::var& arguments = {});
 
     Result preview (const juce::String& toolName, const juce::var& arguments);
     Result execute (const juce::String& toolName, const juce::var& arguments);
@@ -63,6 +63,7 @@ private:
     Result doWriteFile (const juce::var& arguments, bool actuallyWrite, PreviewState* previewStateOut = nullptr) const;
     Result doApplyPatch (const juce::var& arguments, bool actuallyWrite, PreviewState* previewStateOut = nullptr) const;
     Result doExecCommand (const juce::var& arguments, bool actuallyRun, PreviewState* previewStateOut = nullptr);
+    Result doGit (const juce::var& arguments, bool actuallyRun, PreviewState* previewStateOut = nullptr);
     bool resolveExecWorkdir (const juce::var& arguments, juce::File& directoryOut, juce::String& errorOut) const;
 
     static juce::String makeArgumentsKey (const juce::var& arguments);
