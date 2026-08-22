@@ -207,6 +207,18 @@
       "language": "c++"
     },
     {
+      "file": "Source/Shell/jucer_InProcessShell.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Shell/jucer_ShellApplets.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/Shell/jucer_InProcessTerminal.cpp",
+      "language": "c++"
+    },
+    {
       "file": "Source/AI/jucer_SseParser.cpp",
       "language": "c++"
     },
@@ -260,6 +272,10 @@
     },
     {
       "file": "Source/AI/jucer_AiSession.cpp",
+      "language": "c++"
+    },
+    {
+      "file": "Source/AI/jucer_AiSessionStore.cpp",
       "language": "c++"
     },
     {

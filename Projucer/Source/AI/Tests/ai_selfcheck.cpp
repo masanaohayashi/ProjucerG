@@ -5,6 +5,7 @@
 
 #include "jucer_SseParser.h"
 #include "jucer_AiPaths.h"
+#include "jucer_AiSessionStore.h"
 
 #include <cstdio>
 #include <filesystem>
@@ -207,10 +208,133 @@ static void testAiPaths()
 }
 
 //==============================================================================
+/*  会話を書いて読み戻す。壊れた行と知らない type が混ざっても、
+    読めた分だけ返って落ちないことまで見る。 */
+static void testAiSessionStore()
+{
+    std::printf ("AiSessionStore\n");
+
+    const juce::File root (juce::File::getSpecialLocation (juce::File::tempDirectory)
+                               .getChildFile ("projucer_ai_session_store_check"));
+    root.deleteRecursively();
+    root.createDirectory();
+
+    const auto file = AiSessionStore::createSessionFile (root, "gpt-5.6-luna");
+    check (file.existsAsFile(), "Creates the session file with its meta line");
+
+    const auto makeMessage = [] (const char* role, const char* type, const juce::String& text)
+    {
+        auto* part = new juce::DynamicObject();
+        part->setProperty ("type", type);
+        part->setProperty ("text", text);
+
+        auto* message = new juce::DynamicObject();
+        message->setProperty ("type", "message");
+        message->setProperty ("role", role);
+        message->setProperty ("content", juce::Array<juce::var> { juce::var (part) });
+        return juce::var (message);
+    };
+
+    auto* call = new juce::DynamicObject();
+    call->setProperty ("type", "function_call");
+    call->setProperty ("call_id", "c1");
+    call->setProperty ("name", "read_file");
+    call->setProperty ("arguments", "{\"path\":\"Source/Main.cpp\"}");
+
+    auto* output = new juce::DynamicObject();
+    output->setProperty ("type", "function_call_output");
+    output->setProperty ("call_id", "c1");
+    output->setProperty ("output", "int main() {}");
+
+    AiSessionStore::appendItem (file, 1, makeMessage ("user", "input_text", "Explain Main.cpp"));
+    AiSessionStore::appendItem (file, 2, juce::var (call));
+    AiSessionStore::appendItem (file, 3, juce::var (output));
+    AiSessionStore::appendItem (file, 4, makeMessage ("assistant", "output_text", "It starts the app."));
+
+    // 知らない type と、改行の前で切れた行。どちらも黙って飛ばされるはず。
+    file.appendText ("{\"ts\":\"now\",\"n\":5,\"type\":\"turn_context\",\"payload\":{\"cwd\":\"/x\"}}\n");
+    file.appendText ("{\"ts\":\"now\",\"n\":6,\"type\":\"ite");
+
+    const auto restored = AiSessionStore::restore (file);
+
+    check (restored.conversation.size() == 4, "Restores every item and nothing else");
+    check (restored.nextOrdinal == 6, "Continues the ordinals after the last readable record");
+
+    check (restored.conversation[0]["role"].toString() == "user", "Keeps the item order");
+    check (restored.conversation[1]["name"].toString() == "read_file", "Keeps the call payload verbatim");
+    check (restored.conversation[3]["content"][0]["text"].toString() == "It starts the app.",
+           "Keeps the assistant text verbatim");
+
+    check (restored.entries.size() == 3, "Rebuilds one entry per message and per tool call");
+    check (restored.entries.size() == 3
+            && restored.entries[0].kind == AiSession::Entry::Kind::user
+            && restored.entries[0].text == "Explain Main.cpp", "Rebuilds the user entry");
+    check (restored.entries.size() == 3
+            && restored.entries[1].kind == AiSession::Entry::Kind::tool
+            && restored.entries[1].text.startsWith ("read_file"), "Rebuilds the tool entry");
+    check (restored.entries.size() == 3
+            && restored.entries[2].kind == AiSession::Entry::Kind::assistant
+            && restored.entries[2].text == "It starts the app.", "Rebuilds the assistant entry");
+
+    /*  切れた行のあとに足したレコードが、その行に飲み込まれないこと。
+        繋がると 1 行として捨てられ、復元後の最初の発言が黙って消える。 */
+    check (AiSessionStore::appendItem (file, 6, makeMessage ("user", "input_text", "And Second.cpp")),
+           "Appends after a torn line");
+
+    const auto afterTorn = AiSessionStore::restore (file);
+    check (afterTorn.conversation.size() == 5, "Keeps what was appended after a torn line");
+    check (afterTorn.conversation.size() == 5
+            && afterTorn.conversation[4]["content"][0]["text"].toString() == "And Second.cpp",
+           "Reads the record that followed the torn line");
+
+    const auto listed = AiSessionStore::listRecent (root, 10);
+    check (listed.size() == 1, "Lists the saved conversation");
+    check (listed.size() == 1 && listed[0].title == "Explain Main.cpp", "Titles it with the first user message");
+
+    /*  /compact はまだ書き出さないが、読み側だけ先に用意してある。
+        要約が replaces_through までを置き換えることを見ておく。 */
+    file.appendText ("{\"ts\":\"now\",\"n\":7,\"type\":\"compact\","
+                     "\"payload\":{\"summary\":\"Earlier: Main.cpp\",\"replaces_through\":2}}\n");
+
+    const auto compacted = AiSessionStore::restore (file);
+    check (compacted.conversation.size() == 4, "Drops the items the summary replaces");
+    check (compacted.conversation.size() == 4
+            && compacted.conversation[0]["content"][0]["text"].toString() == "Earlier: Main.cpp",
+           "Puts the summary first");
+
+    /*  ターンの途中で終わったファイルは function_call で終わる。出力の無い呼び出しを
+        そのまま送ると Responses API が 400 を返すので、読むときに落とす。 */
+    {
+        const auto interrupted = AiSessionStore::createSessionFile (root, "gpt-5.6-luna");
+        AiSessionStore::appendItem (interrupted, 1, makeMessage ("user", "input_text", "Read it"));
+
+        auto* dangling = new juce::DynamicObject();
+        dangling->setProperty ("type", "function_call");
+        dangling->setProperty ("call_id", "c9");
+        dangling->setProperty ("name", "read_file");
+        dangling->setProperty ("arguments", "{}");
+        AiSessionStore::appendItem (interrupted, 2, juce::var (dangling));
+
+        const auto reopened = AiSessionStore::restore (interrupted);
+        check (reopened.conversation.size() == 1, "Drops a function_call with no output");
+        check (reopened.entries.size() == 1, "Drops the entry for that call too");
+    }
+
+    // 中身がまったく読めなくても落ちない。
+    const auto broken = root.getChildFile (".projucer").getChildFile ("ai-sessions").getChildFile ("broken.jsonl");
+    broken.replaceWithText ("not json at all\n{\n");
+    check (AiSessionStore::restore (broken).conversation.isEmpty(), "Returns nothing for an unreadable file");
+    check (AiSessionStore::listRecent (root, 10).size() == 3, "Still lists a file it cannot parse");
+
+    root.deleteRecursively();
+}
+
+//==============================================================================
 int main()
 {
     testSseParser();
     testAiPaths();
+    testAiSessionStore();
 
     if (failures > 0)
     {

@@ -225,6 +225,11 @@ CodexClient& AgentLoop::activeClient()
 
 juce::var AgentLoop::buildRequestBody() const
 {
+    const auto liveSession = session.lock();
+
+    if (liveSession == nullptr)
+        return {};
+
     auto* body = new juce::DynamicObject();
     body->setProperty ("model", AiModels::getSelectedModel());
 
@@ -264,12 +269,19 @@ juce::var AgentLoop::buildRequestBody() const
                      << projectInstructions;
 
     body->setProperty ("instructions", instructions);
-    body->setProperty ("input", conversation);
+    body->setProperty ("input", liveSession->getConversation());
     body->setProperty ("tools", AiTools::getToolSchemas (
                           AiModels::getSelectedProvider() == AiModels::Provider::chatgpt));
     body->setProperty ("stream", true);
     body->setProperty ("store", false);
     return juce::var (body);
+}
+
+/*  履歴はセッションが持つ。ここは読み書きの窓口を通すだけ。 */
+void AgentLoop::appendConversationItem (const juce::var& item)
+{
+    if (const auto liveSession = session.lock())
+        liveSession->appendConversationItem (item);
 }
 
 bool AgentLoop::waitForApproval()
@@ -285,7 +297,7 @@ bool AgentLoop::waitForApproval()
 
 void AgentLoop::run()
 {
-    conversation.add (makeUserMessage (pendingUserMessage, pendingAttachments));
+    appendConversationItem (makeUserMessage (pendingUserMessage, pendingAttachments));
 
     for (int iteration = 0; iteration < maxIterations && ! shouldStop.load(); ++iteration)
     {
@@ -418,7 +430,7 @@ void AgentLoop::run()
         }
 
         if (! assistantText.isEmpty())
-            conversation.add (makeAssistantMessage (assistantText));
+            appendConversationItem (makeAssistantMessage (assistantText));
 
         if (calls.isEmpty())
             break;
@@ -435,7 +447,7 @@ void AgentLoop::run()
             item->setProperty ("call_id", call.callId);
             item->setProperty ("name", call.name);
             item->setProperty ("arguments", call.argumentsJson);
-            conversation.add (juce::var (item));
+            appendConversationItem (juce::var (item));
 
             const auto arguments = juce::JSON::parse (call.argumentsJson);
             juce::String toolOutput;
@@ -443,7 +455,7 @@ void AgentLoop::run()
             if (arguments.isVoid() && ! call.argumentsJson.isEmpty())
             {
                 toolOutput = "The tool arguments are not valid JSON.";
-                conversation.add (makeFunctionCallOutput (call.callId, toolOutput));
+                appendConversationItem (makeFunctionCallOutput (call.callId, toolOutput));
                 onMessageThread (session, [toolOutput] (AiSession& liveSession)
                 {
                     liveSession.appendEntry (AiSession::Entry::Kind::error, toolOutput);
@@ -474,7 +486,7 @@ void AgentLoop::run()
                 if (! previewResult.ok)
                 {
                     toolOutput = previewResult.output;
-                    conversation.add (makeFunctionCallOutput (call.callId, toolOutput));
+                    appendConversationItem (makeFunctionCallOutput (call.callId, toolOutput));
                     onMessageThread (session, [toolOutput] (AiSession& liveSession)
                     {
                         liveSession.appendEntry (AiSession::Entry::Kind::error, toolOutput);
@@ -503,7 +515,7 @@ void AgentLoop::run()
                     toolOutput = shouldStop.load()
                                ? "The operation was stopped."
                                : "The user rejected this change.";
-                    conversation.add (makeFunctionCallOutput (call.callId, toolOutput));
+                    appendConversationItem (makeFunctionCallOutput (call.callId, toolOutput));
                     if (! shouldStop.load())
                         onMessageThread (session, [name = call.name] (AiSession& liveSession)
                         {
@@ -520,7 +532,7 @@ void AgentLoop::run()
 
             const auto result = tools.execute (call.name, arguments);
             toolOutput = result.output;
-            conversation.add (makeFunctionCallOutput (call.callId, toolOutput));
+            appendConversationItem (makeFunctionCallOutput (call.callId, toolOutput));
 
             // 引数と結果をそのまま残す。UI の折りたたみを開かなくても、
             // どの引数で何に失敗したかがログだけで追える。

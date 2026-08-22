@@ -80,6 +80,9 @@
     <Filter Include="Projucer\Git">
       <UniqueIdentifier>{30C019E5-D1AA-32B7-2FF2-669251CB28F6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Projucer\Shell">
+      <UniqueIdentifier>{45A060F2-BDD2-9B8C-19D2-4BD8B537D2F3}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Projucer\AI">
       <UniqueIdentifier>{44DDBAFE-B994-DB5C-8390-1CE44A6B58FF}</UniqueIdentifier>
     </Filter>
@@ -1120,6 +1123,15 @@
     <ClCompile Include="..\..\Source\Git\jucer_GitCommand.cpp">
       <Filter>Projucer\Git</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Source\Shell\jucer_InProcessShell.cpp">
+      <Filter>Projucer\Shell</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Shell\jucer_ShellApplets.cpp">
+      <Filter>Projucer\Shell</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Shell\jucer_InProcessTerminal.cpp">
+      <Filter>Projucer\Shell</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Source\AI\jucer_SseParser.cpp">
       <Filter>Projucer\AI</Filter>
     </ClCompile>
@@ -1160,6 +1172,9 @@
       <Filter>Projucer\AI</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\AI\jucer_AiSession.cpp">
+      <Filter>Projucer\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\AI\jucer_AiSessionStore.cpp">
       <Filter>Projucer\AI</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\AI\jucer_AgentLoop.cpp">
@@ -4845,6 +4860,15 @@
     <ClInclude Include="..\..\Source\Git\jucer_GitCommand.h">
       <Filter>Projucer\Git</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\Source\Shell\jucer_InProcessShell.h">
+      <Filter>Projucer\Shell</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Shell\jucer_ShellApplets.h">
+      <Filter>Projucer\Shell</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Shell\jucer_InProcessTerminal.h">
+      <Filter>Projucer\Shell</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\Source\AI\jucer_SseParser.h">
       <Filter>Projucer\AI</Filter>
     </ClInclude>
@@ -4882,6 +4906,9 @@
       <Filter>Projucer\AI</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\AI\jucer_AiSession.h">
+      <Filter>Projucer\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\AI\jucer_AiSessionStore.h">
       <Filter>Projucer\AI</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\AI\jucer_AgentLoop.h">

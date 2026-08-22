@@ -73,3 +73,10 @@ components and workflows that are limited or missing in the original Projucer.
 - HTTPS with a Keychain-stored token only; merges are fast-forward only.
 - Build the static libraries with `scripts/build_libgit2.sh`, check them with
   `scripts/run_git_selfcheck.sh`.
+
+## AI chat sessions
+
+- Each conversation is appended to `<project>/.projucer/ai-sessions/<time>-<uuid>.jsonl`,
+  one JSON record per line, so it survives closing the project.
+- `/resume` in the chat lists the recent conversations for the project and continues
+  the chosen one, appending to the same file.

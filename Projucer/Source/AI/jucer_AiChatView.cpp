@@ -3,6 +3,7 @@
 #include "jucer_AiChatView.h"
 
 #include "jucer_AiModels.h"
+#include "jucer_AiSessionStore.h"
 #include "jucer_AuthBrowser.h"
 
 #include <algorithm>
@@ -13,6 +14,19 @@
 namespace
 {
     constexpr int rowHeight = 34;
+
+    /*  /resume の一覧に出す「いつの会話か」。日時を並べても選べないので、
+        Codex と同じく経過時間で見せる。 */
+    juce::String describeAge (juce::Time when)
+    {
+        const auto age = juce::Time::getCurrentTime() - when;
+
+        if (age.inMinutes() < 1.0) return "just now";
+        if (age.inHours()   < 1.0) return juce::String ((int) age.inMinutes()) + "m ago";
+        if (age.inDays()    < 1.0) return juce::String ((int) age.inHours())   + "h ago";
+
+        return juce::String ((int) age.inDays()) + "d ago";
+    }
 
     /*  チャットの表示はターミナルと揃える。同じアプリの中で、同じ「機械の出力を
         読む場所」なので、フォントと配色が違うと落ち着かない。
@@ -1443,6 +1457,12 @@ bool AiChatView::handleSlashCommand (const juce::String& text)
         return true;
     }
 
+    if (command == "/resume")
+    {
+        showResumePicker();
+        return true;
+    }
+
     if (command == "/signin" || command == "/login" || command == "/logout")
     {
         restartSignIn();
@@ -1453,6 +1473,7 @@ bool AiChatView::handleSlashCommand (const juce::String& text)
     {
         session->addLocalNotice ("Commands:\n"
                                  "  /model   choose the model and reasoning effort\n"
+                                 "  /resume  continue a saved conversation\n"
                                  "  /signin  sign in again (also /login, /logout)\n"
                                  "  /help    show this list\n"
                                  "\nCurrent model: " + AiModels::describeSelection());
@@ -1587,6 +1608,39 @@ void AiChatView::showModelPicker()
 
         safeThis->updateModelButton();
         safeThis->updateVisibility();
+    });
+}
+
+/*  このプロジェクトに残っている会話から選んで読み戻す。/model と同じで
+    自由入力にしないのは、ファイル名を打たせても誰も覚えていないため。
+*/
+void AiChatView::showResumePicker()
+{
+    const auto sessions = AiSessionStore::listRecent (session->getProjectRoot(), 10);
+
+    if (sessions.isEmpty())
+    {
+        session->addLocalNotice ("There is no saved conversation for this project yet.");
+        return;
+    }
+
+    juce::PopupMenu menu;
+
+    for (int i = 0; i < sessions.size(); ++i)
+    {
+        const auto& item = sessions.getReference (i);
+        menu.addItem (resumeBaseId + i, describeAge (item.modified) + "   " + item.title);
+    }
+
+    juce::Component::SafePointer<AiChatView> safeThis (this);
+
+    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (static_cast<juce::Component*> (modelButton.get())),
+                        [safeThis, sessions] (int chosen)
+    {
+        if (safeThis == nullptr || chosen < resumeBaseId || chosen >= resumeBaseId + sessions.size())
+            return;
+
+        safeThis->session->resumeFrom (sessions.getReference (chosen - resumeBaseId).file);
     });
 }
 

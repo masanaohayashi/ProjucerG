@@ -55,6 +55,10 @@ public:
         会話の流れの中に見せるために使う。 */
     void addLocalNotice (const juce::String& text);
 
+    /*  保存済みの会話を読み戻す。以降はそのファイルへ追記を続ける。
+        実行中は拒否して、その旨をチャットへ出す。 */
+    void resumeFrom (const juce::File& sessionFile);
+
     /*  承認の扱い。ChatGPT の「ChatGPT のアクションの承認方法」と同じ 3 段階。
 
         ask       書き込みとコマンド実行は毎回確認する。既定
@@ -90,6 +94,15 @@ public:
 private:
     friend class AgentLoop;
 
+    /*  会話そのもの。API へ送る input item をそのまま並べたもので、
+        AgentLoop ではなくここが持つ。走行中の AgentLoop の中にあると、
+        あとで /btw のように「履歴の途中から枝を作る」操作が触れないため。 */
+    const juce::Array<juce::var>& getConversation() const { return conversation; }
+
+    /*  履歴に 1 件足し、同じものをファイルへ 1 行書く。
+        「何を残すか」の判断はここだけに置く。 */
+    void appendConversationItem (const juce::var& item);
+
     void appendEntry (Entry::Kind kind, const juce::String& text);
     void appendToLastAssistantEntry (const juce::String& delta);
     void setPendingApproval (const PendingApproval& approval);
@@ -100,6 +113,18 @@ private:
     std::shared_ptr<GrokAuth> grokAuth;
     juce::File projectRoot;
     juce::Array<Entry> entries;
+
+    /*  conversation はワーカースレッド (AgentLoop) だけが触る。ロックを置かないのは、
+        ループは同時に 1 本しか走らず、メッセージスレッドからの resumeFrom() は
+        isBusy() が偽のときしか通さないため。 */
+    juce::Array<juce::var> conversation;
+    juce::File sessionFile;
+    int nextOrdinal = 0;
+
+    /*  保存を諦めた印。sessionFile が空なだけだと「まだ作っていない」と区別できず、
+        書けない場所で item ごとにファイルを作り直しにいってしまう。 */
+    bool persistenceGaveUp = false;
+
     std::unique_ptr<PendingApproval> pendingApproval;
     std::unique_ptr<AgentLoop> loop;
     std::atomic<ApprovalMode> approvalMode { ApprovalMode::ask };

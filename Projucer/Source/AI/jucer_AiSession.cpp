@@ -1,5 +1,7 @@
 #include "jucer_AiSession.h"
 #include "jucer_AgentLoop.h"
+#include "jucer_AiModels.h"
+#include "jucer_AiSessionStore.h"
 
 #include <utility>
 
@@ -64,6 +66,72 @@ void AiSession::resolveApproval (bool approved)
 void AiSession::addLocalNotice (const juce::String& text)
 {
     appendEntry (Entry::Kind::tool, text);
+}
+
+void AiSession::resumeFrom (const juce::File& file)
+{
+    jassert (juce::MessageManager::getInstance()->isThisTheMessageThread());
+
+    if (isBusy())
+    {
+        addLocalNotice ("Stop the current turn before resuming another conversation.");
+        return;
+    }
+
+    auto restored = AiSessionStore::restore (file);
+
+    if (restored.conversation.isEmpty())
+    {
+        addLocalNotice ("That conversation could not be read.");
+        return;
+    }
+
+    /*  走っていないので作り直してよい。読み戻したファイルへそのまま
+        追記を続けるので、resume のたびにファイルが増えることはない。 */
+    loop.reset();
+    conversation = std::move (restored.conversation);
+    entries = std::move (restored.entries);
+    sessionFile = file;
+    nextOrdinal = restored.nextOrdinal;
+    persistenceGaveUp = false;
+    pendingApproval.reset();
+    sendChangeMessage();
+}
+
+void AiSession::appendConversationItem (const juce::var& item)
+{
+    conversation.add (item);
+
+    if (persistenceGaveUp)
+        return;
+
+    // 最初の item で初めてファイルを作る。空の会話でファイルを増やさない。
+    if (sessionFile == juce::File())
+    {
+        sessionFile = AiSessionStore::createSessionFile (projectRoot, AiModels::getSelectedModel());
+        nextOrdinal = 1;
+    }
+
+    if (AiSessionStore::appendItem (sessionFile, nextOrdinal, item))
+    {
+        ++nextOrdinal;
+        return;
+    }
+
+    /*  書けない場所では作り直しても結果は同じで、そのたび連番が 1 に戻って
+        会話の尻尾だけのファイルが増える。一度だけ伝えて保存を諦める。 */
+    persistenceGaveUp = true;
+
+    const auto notice = "This conversation is not being saved: cannot write to "
+                      + projectRoot.getChildFile (".projucer").getFullPathName()
+                      + ". It will not appear in /resume.";
+
+    // 追記はワーカースレッドから来る。チャットへの表示はメッセージスレッドで。
+    juce::MessageManager::callAsync ([weakSelf = weak_from_this(), notice]
+    {
+        if (const auto liveSession = weakSelf.lock())
+            liveSession->addLocalNotice (notice);
+    });
 }
 
 void AiSession::setApprovalMode (ApprovalMode mode)

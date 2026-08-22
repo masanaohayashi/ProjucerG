@@ -58,6 +58,7 @@ private:
     void sendCurrentInput();
     bool handleSlashCommand (const juce::String& text);
     void showModelPicker();
+    void showResumePicker();
     void updateModelButton();
     void updatePermissionButton();
     void showPermissionMenu();
@@ -74,6 +75,7 @@ private:
     static constexpr int modelBaseId     = 100;
     static constexpr int effortBaseId = 200;
     static constexpr int speedBaseId  = 300;
+    static constexpr int resumeBaseId = 400;
 
     std::shared_ptr<AiSession> session;
     std::shared_ptr<CodexAuth> chatgptAuth;

@@ -30,6 +30,7 @@ public:
 
 private:
     juce::var buildRequestBody() const;
+    void appendConversationItem (const juce::var& item);
     CodexClient& activeClient();
     bool waitForApproval();
 
@@ -40,7 +41,6 @@ private:
 
     /*  指示ファイルの収集に使う。ツールの作業範囲と同じディレクトリ。 */
     juce::File workingDirectory;
-    juce::Array<juce::var> conversation;
     juce::String pendingUserMessage;
     juce::Array<juce::File> pendingAttachments;
     std::atomic<bool> shouldStop { false };

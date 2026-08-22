@@ -376,6 +376,9 @@
     <ClCompile Include="..\..\Source\Settings\jucer_AppearanceSettings.cpp"/>
     <ClCompile Include="..\..\Source\Settings\jucer_StoredSettings.cpp"/>
     <ClCompile Include="..\..\Source\Git\jucer_GitCommand.cpp"/>
+    <ClCompile Include="..\..\Source\Shell\jucer_InProcessShell.cpp"/>
+    <ClCompile Include="..\..\Source\Shell\jucer_ShellApplets.cpp"/>
+    <ClCompile Include="..\..\Source\Shell\jucer_InProcessTerminal.cpp"/>
     <ClCompile Include="..\..\Source\AI\jucer_SseParser.cpp"/>
     <ClCompile Include="..\..\Source\AI\jucer_AiModels.cpp"/>
     <ClCompile Include="..\..\Source\AI\jucer_ProjectInstructions.cpp"/>
@@ -388,6 +391,7 @@
     <ClCompile Include="..\..\Source\AI\jucer_CodexClient.cpp"/>
     <ClCompile Include="..\..\Source\AI\jucer_AiTools.cpp"/>
     <ClCompile Include="..\..\Source\AI\jucer_AiSession.cpp"/>
+    <ClCompile Include="..\..\Source\AI\jucer_AiSessionStore.cpp"/>
     <ClCompile Include="..\..\Source\AI\jucer_AgentLoop.cpp"/>
     <ClCompile Include="..\..\Source\AI\jucer_AiChatView.cpp"/>
     <ClCompile Include="..\..\Source\Terminal\jucer_libvterm_unity.c"/>
@@ -3542,6 +3546,9 @@
     <ClInclude Include="..\..\Source\Settings\jucer_AppearanceSettings.h"/>
     <ClInclude Include="..\..\Source\Settings\jucer_StoredSettings.h"/>
     <ClInclude Include="..\..\Source\Git\jucer_GitCommand.h"/>
+    <ClInclude Include="..\..\Source\Shell\jucer_InProcessShell.h"/>
+    <ClInclude Include="..\..\Source\Shell\jucer_ShellApplets.h"/>
+    <ClInclude Include="..\..\Source\Shell\jucer_InProcessTerminal.h"/>
     <ClInclude Include="..\..\Source\AI\jucer_SseParser.h"/>
     <ClInclude Include="..\..\Source\AI\jucer_AiModels.h"/>
     <ClInclude Include="..\..\Source\AI\jucer_ProjectInstructions.h"/>
@@ -3555,6 +3562,7 @@
     <ClInclude Include="..\..\Source\AI\jucer_CodexClient.h"/>
     <ClInclude Include="..\..\Source\AI\jucer_AiTools.h"/>
     <ClInclude Include="..\..\Source\AI\jucer_AiSession.h"/>
+    <ClInclude Include="..\..\Source\AI\jucer_AiSessionStore.h"/>
     <ClInclude Include="..\..\Source\AI\jucer_AgentLoop.h"/>
     <ClInclude Include="..\..\Source\AI\jucer_AiChatView.h"/>
     <ClInclude Include="..\..\Source\Terminal\jucer_PseudoTerminal.h"/>

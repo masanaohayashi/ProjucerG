@@ -760,6 +760,10 @@
             file="Source/AI/jucer_AiSession.h"/>
       <FILE id="aiSes2" name="jucer_AiSession.cpp" compile="1" resource="0"
             file="Source/AI/jucer_AiSession.cpp"/>
+      <FILE id="aiSto1" name="jucer_AiSessionStore.h" compile="0" resource="0"
+            file="Source/AI/jucer_AiSessionStore.h"/>
+      <FILE id="aiSto2" name="jucer_AiSessionStore.cpp" compile="1" resource="0"
+            file="Source/AI/jucer_AiSessionStore.cpp"/>
       <FILE id="aiLop1" name="jucer_AgentLoop.h" compile="0" resource="0"
             file="Source/AI/jucer_AgentLoop.h"/>
       <FILE id="aiLop2" name="jucer_AgentLoop.cpp" compile="1" resource="0"
