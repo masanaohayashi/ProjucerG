@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <memory>
 
 //==============================================================================
 /**
@@ -13,9 +14,10 @@
     Reads and writes never block, so the message thread can drive this directly.
     A read that returns 0 means "nothing right now", not "finished".
 
-    Only the macOS implementation exists today; the interface is deliberately
-    free of anything platform-specific so a ConPTY body can be added later
-    without disturbing anything above it.
+    macOS uses forkpty() and a real login shell. iOS cannot spawn processes,
+    so the same byte interface is backed by the in-process shell (line-oriented,
+    no vim). The interface stays free of platform types so a ConPTY body can
+    be added later without disturbing anything above it.
 
     @section threading
 
@@ -64,7 +66,7 @@ public:
     juce::String getLastError() const                 { return lastError; }
 
     /** Valid once isRunning() returns false. -1 if the child never ran. */
-    int getExitCode() const noexcept                  { return exitCode.load (std::memory_order_relaxed); }
+    int getExitCode() const noexcept;
 
     /** Returns the number of bytes read, 0 if none are waiting, or -1 if the
         child has gone away. */
@@ -93,6 +95,9 @@ private:
     std::atomic<bool> childHasExited { true };
 
     juce::String lastError;
+
+    class InProcessPtyHost;
+    std::unique_ptr<InProcessPtyHost> inProcessPty;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PseudoTerminal)
 };

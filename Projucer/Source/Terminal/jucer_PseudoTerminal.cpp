@@ -18,6 +18,8 @@
 
 extern char** environ;
 
+class PseudoTerminal::InProcessPtyHost {};
+
 PseudoTerminal::PseudoTerminal() = default;
 
 PseudoTerminal::~PseudoTerminal()
@@ -271,22 +273,190 @@ void PseudoTerminal::setSize (int numColumns, int numRows)
     ioctl (masterFd, TIOCSWINSZ, &ws);
 }
 
+int PseudoTerminal::getExitCode() const noexcept
+{
+    return exitCode.load (std::memory_order_relaxed);
+}
+
+#elif JUCE_IOS
+
+#include "../Shell/jucer_InProcessTerminal.h"
+
+#include <condition_variable>
+#include <mutex>
+#include <thread>
+#include <string>
+
+class PseudoTerminal::InProcessPtyHost
+{
+public:
+    InProcessTerminal session;
+    std::mutex mutex;
+    std::condition_variable cv;
+    std::string incoming;
+    std::atomic<bool> stopWorker { false };
+    std::thread worker;
+
+    void run()
+    {
+        while (! stopWorker.load (std::memory_order_acquire))
+        {
+            std::string chunk;
+
+            {
+                std::unique_lock<std::mutex> lock (mutex);
+                cv.wait (lock, [this]
+                {
+                    return stopWorker.load (std::memory_order_acquire) || ! incoming.empty();
+                });
+
+                if (stopWorker.load (std::memory_order_acquire) && incoming.empty())
+                    break;
+
+                chunk.swap (incoming);
+            }
+
+            if (! chunk.empty())
+                session.feed (chunk.data(), (int) chunk.size());
+        }
+    }
+};
+
+PseudoTerminal::PseudoTerminal() = default;
+
+PseudoTerminal::~PseudoTerminal()
+{
+    stop();
+}
+
+bool PseudoTerminal::start (const juce::File& workingDirectory, int, int)
+{
+    stop();
+
+    inProcessPty = std::make_unique<InProcessPtyHost>();
+    const auto root = workingDirectory.isDirectory() ? workingDirectory
+                                                     : juce::File::getSpecialLocation (juce::File::userDocumentsDirectory);
+    inProcessPty->session.start (root, root);
+    inProcessPty->worker = std::thread ([host = inProcessPty.get()] { host->run(); });
+
+    childHasExited.store (false, std::memory_order_relaxed);
+    exitCode.store (-1, std::memory_order_relaxed);
+    lastError = {};
+    return true;
+}
+
+void PseudoTerminal::stop()
+{
+    if (inProcessPty == nullptr)
+        return;
+
+    inProcessPty->session.requestCancel();
+    inProcessPty->stopWorker.store (true, std::memory_order_release);
+    inProcessPty->cv.notify_one();
+
+    if (inProcessPty->worker.joinable())
+        inProcessPty->worker.join();
+
+    inProcessPty->session.stop();
+    exitCode.store (inProcessPty->session.getExitCode(), std::memory_order_relaxed);
+    childHasExited.store (true, std::memory_order_release);
+    inProcessPty.reset();
+}
+
+void PseudoTerminal::reapChildIfNeeded() {}
+
+bool PseudoTerminal::isRunning() const noexcept
+{
+    return inProcessPty != nullptr && inProcessPty->session.isRunning();
+}
+
+int PseudoTerminal::getExitCode() const noexcept
+{
+    if (inProcessPty != nullptr)
+        return inProcessPty->session.getExitCode();
+
+    return exitCode.load (std::memory_order_relaxed);
+}
+
+int PseudoTerminal::readBytes (char* destination, int maxBytes)
+{
+    if (inProcessPty == nullptr)
+        return -1;
+
+    const int n = inProcessPty->session.read (destination, maxBytes);
+
+    if (n < 0)
+    {
+        exitCode.store (inProcessPty->session.getExitCode(), std::memory_order_relaxed);
+        childHasExited.store (true, std::memory_order_release);
+    }
+
+    return n;
+}
+
+int PseudoTerminal::writeBytes (const char* source, int numBytes)
+{
+    if (inProcessPty == nullptr || source == nullptr || numBytes <= 0)
+        return 0;
+
+    std::string chunk;
+
+    if (inProcessPty->session.isExecuting())
+    {
+        chunk.reserve ((size_t) numBytes);
+
+        for (int i = 0; i < numBytes; ++i)
+        {
+            if (source[i] == 3)
+            {
+                inProcessPty->session.requestCancel();
+                continue;
+            }
+
+            chunk.push_back (source[i]);
+        }
+    }
+    else
+    {
+        chunk.assign (source, (size_t) numBytes);
+    }
+
+    if (! chunk.empty())
+    {
+        const std::lock_guard<std::mutex> lock (inProcessPty->mutex);
+        inProcessPty->incoming.append (chunk);
+        inProcessPty->cv.notify_one();
+    }
+    else
+    {
+        inProcessPty->cv.notify_one();
+    }
+
+    return numBytes;
+}
+
+void PseudoTerminal::setSize (int, int) {}
+
 #else
 
 // Windows and Linux bodies go here. Until then the panel is never created on
 // those platforms, so these do nothing rather than pretending to work.
+
+class PseudoTerminal::InProcessPtyHost {};
 
 PseudoTerminal::PseudoTerminal() = default;
 PseudoTerminal::~PseudoTerminal() = default;
 
 bool PseudoTerminal::start (const juce::File&, int, int)
 {
-    lastError = "The integrated terminal is only available on macOS.";
+    lastError = "The integrated terminal is only available on macOS and iOS.";
     return false;
 }
 
 void PseudoTerminal::stop()                             {}
+void PseudoTerminal::reapChildIfNeeded()                {}
 bool PseudoTerminal::isRunning() const noexcept         { return false; }
+int  PseudoTerminal::getExitCode() const noexcept       { return exitCode.load (std::memory_order_relaxed); }
 int  PseudoTerminal::readBytes (char*, int)             { return -1; }
 int  PseudoTerminal::writeBytes (const char*, int)      { return 0; }
 void PseudoTerminal::setSize (int, int)                 {}

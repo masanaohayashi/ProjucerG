@@ -87,6 +87,7 @@
 		936DD457EE436C3F94BC0AE2 /* jucer_GitCommand.cpp */ = {isa = PBXBuildFile; fileRef = 2A576DCB2791056555E1C19B; };
 		7C3E91A2B4D506F8192E3A41 /* jucer_InProcessShell.cpp */ = {isa = PBXBuildFile; fileRef = 8D4F02B3C5E617092A3F4B52; };
 		9E5A13C4D6F7281A3B405C63 /* jucer_ShellApplets.cpp */ = {isa = PBXBuildFile; fileRef = AF6B24D5E708392B4C516D74; };
+		E11C0DE10000000000000003 /* jucer_InProcessTerminal.cpp */ = {isa = PBXBuildFile; fileRef = E11C0DE10000000000000001; };
 		940CE4E081E9E685243C07AA /* jucer_SourceCodeEditor.cpp */ = {isa = PBXBuildFile; fileRef = 332AF94C3275FEA8B878D603; };
 		94FE9B55D935CD68AD35A5A3 /* jucer_AgentLoop.cpp */ = {isa = PBXBuildFile; fileRef = 15373BE991357DE863264BB3; };
 		954A036F5DDB375DB23FFB3E /* jucer_CommandLine.cpp */ = {isa = PBXBuildFile; fileRef = 0400CB0E056A1D840304D2DE; };
@@ -212,6 +213,8 @@
 		AF6B24D5E708392B4C516D74 /* jucer_ShellApplets.cpp */ /* jucer_ShellApplets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = jucer_ShellApplets.cpp; path = ../../Source/Shell/jucer_ShellApplets.cpp; sourceTree = SOURCE_ROOT; };
 		B07C35E6F8194A3C5D627E85 /* jucer_InProcessShell.h */ /* jucer_InProcessShell.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = jucer_InProcessShell.h; path = ../../Source/Shell/jucer_InProcessShell.h; sourceTree = SOURCE_ROOT; };
 		C18D46F7092A5B4D6E738F96 /* jucer_ShellApplets.h */ /* jucer_ShellApplets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = jucer_ShellApplets.h; path = ../../Source/Shell/jucer_ShellApplets.h; sourceTree = SOURCE_ROOT; };
+		E11C0DE10000000000000001 /* jucer_InProcessTerminal.cpp */ /* jucer_InProcessTerminal.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = jucer_InProcessTerminal.cpp; path = ../../Source/Shell/jucer_InProcessTerminal.cpp; sourceTree = SOURCE_ROOT; };
+		E11C0DE10000000000000002 /* jucer_InProcessTerminal.h */ /* jucer_InProcessTerminal.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = jucer_InProcessTerminal.h; path = ../../Source/Shell/jucer_InProcessTerminal.h; sourceTree = SOURCE_ROOT; };
 		2BD9B4556479A8A41740BCAE /* jucer_ComponentTemplate.h */ /* jucer_ComponentTemplate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = jucer_ComponentTemplate.h; path = ../../Source/BinaryData/Templates/jucer_ComponentTemplate.h; sourceTree = SOURCE_ROOT; };
 		2CA2F8C96D452631A1D22E73 /* jucer_AiModels.cpp */ /* jucer_AiModels.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = jucer_AiModels.cpp; path = ../../Source/AI/jucer_AiModels.cpp; sourceTree = SOURCE_ROOT; };
 		2CD34A70B4032C0426F7AA10 /* jucer_MainWindow.h */ /* jucer_MainWindow.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = jucer_MainWindow.h; path = ../../Source/Application/jucer_MainWindow.h; sourceTree = SOURCE_ROOT; };
@@ -1277,6 +1280,8 @@
 				C18D46F7092A5B4D6E738F96,
 				8D4F02B3C5E617092A3F4B52,
 				AF6B24D5E708392B4C516D74,
+				E11C0DE10000000000000002,
+				E11C0DE10000000000000001,
 			);
 			name = Shell;
 			sourceTree = "<group>";
@@ -1434,6 +1439,7 @@
 				936DD457EE436C3F94BC0AE2,
 				7C3E91A2B4D506F8192E3A41,
 				9E5A13C4D6F7281A3B405C63,
+				E11C0DE10000000000000003,
 				C6656579942D17B963AA9566,
 				43B8B90AD50727FC1DC83C0C,
 				DE557E2AFC6767A68BCD72D9,

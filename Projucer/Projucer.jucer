@@ -700,6 +700,10 @@
             file="Source/Shell/jucer_ShellApplets.h"/>
       <FILE id="shApC1" name="jucer_ShellApplets.cpp" compile="1" resource="0"
             file="Source/Shell/jucer_ShellApplets.cpp"/>
+      <FILE id="shTmH1" name="jucer_InProcessTerminal.h" compile="0" resource="0"
+            file="Source/Shell/jucer_InProcessTerminal.h"/>
+      <FILE id="shTmC1" name="jucer_InProcessTerminal.cpp" compile="1" resource="0"
+            file="Source/Shell/jucer_InProcessTerminal.cpp"/>
     </GROUP>
     <GROUP id="{A1B2C3D4-0000-4000-8000-000000000002}" name="AI">
       <FILE id="aiSse1" name="jucer_SseParser.h" compile="0" resource="0"

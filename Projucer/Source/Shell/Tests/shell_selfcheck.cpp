@@ -2,6 +2,7 @@
     echo / true / false と未知コマンドを叩く。 */
 
 #include "../jucer_InProcessShell.h"
+#include "../jucer_InProcessTerminal.h"
 #include <atomic>
 #include <cassert>
 #include <iostream>
@@ -206,6 +207,93 @@ int main()
         request.timeoutMs = 1;
         const auto result = ProjucerShell::run (request);
         assert (result.exitCode == 124);
+    }
+
+    expectOutput ("false; echo $?", "1\n");
+    expectOutput ("true; echo $?", "0\n");
+    expectExit ("exit 3", 3);
+    expectExit ("exit", 0);
+
+    {
+        InProcessTerminal term;
+        term.start (root, root);
+        assert (term.isRunning());
+
+        auto drain = [&term]()
+        {
+            juce::String all;
+            char buf[1024];
+
+            for (;;)
+            {
+                const int n = term.read (buf, (int) sizeof (buf));
+
+                if (n <= 0)
+                    break;
+
+                all += juce::String::fromUTF8 (buf, n);
+            }
+
+            return all;
+        };
+
+        const auto banner = drain();
+        assert (banner.contains ("in-process"));
+        assert (banner.contains ("$"));
+
+        const char line1[] = "echo hi\r";
+        term.feed (line1, (int) sizeof (line1) - 1);
+        const auto out1 = drain();
+        assert (out1.contains ("hi"));
+
+        const char line2[] = "mkdir -p termdir && cd termdir && pwd\r";
+        term.feed (line2, (int) sizeof (line2) - 1);
+        const auto out2 = drain();
+        assert (out2.contains ("termdir"));
+
+        const char line3[] = "pwd\r";
+        term.feed (line3, (int) sizeof (line3) - 1);
+        assert (drain().contains ("termdir"));
+
+        const char line4[] = "export FOO=bar\r";
+        term.feed (line4, (int) sizeof (line4) - 1);
+        drain();
+        const char line5[] = "echo $FOO\r";
+        term.feed (line5, (int) sizeof (line5) - 1);
+        assert (drain().contains ("bar"));
+
+        const char line6[] = "false\r";
+        term.feed (line6, (int) sizeof (line6) - 1);
+        drain();
+        const char line7[] = "echo $?\r";
+        term.feed (line7, (int) sizeof (line7) - 1);
+        assert (drain().contains ("1"));
+
+        const char typed[] = "abc";
+        term.feed (typed, (int) sizeof (typed) - 1);
+        const char ctrlC[] = "\x03";
+        term.feed (ctrlC, 1);
+        const auto afterIntr = drain();
+        assert (afterIntr.contains ("^C") || afterIntr.contains ("$"));
+        const char line8[] = "echo afterintr\r";
+        term.feed (line8, (int) sizeof (line8) - 1);
+        assert (drain().contains ("afterintr"));
+
+        const char typed2[] = "abcd";
+        term.feed (typed2, (int) sizeof (typed2) - 1);
+        const char bs[] = "\x7f\x7f";
+        term.feed (bs, 2);
+        const char rest[] = "\r";
+        term.feed (rest, 1);
+        const auto afterBs = drain();
+        assert (afterBs.contains ("command not found: ab"));
+        assert (! afterBs.contains ("command not found: abcd"));
+
+        const char line9[] = "exit 7\r";
+        term.feed (line9, (int) sizeof (line9) - 1);
+        drain();
+        assert (! term.isRunning());
+        assert (term.getExitCode() == 7);
     }
 
     std::cout << "all in-process shell checks passed\n";

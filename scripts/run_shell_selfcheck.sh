@@ -27,6 +27,7 @@ clang++ -std=c++17 -g -Wall -Wextra -Wno-missing-field-initializers -DDEBUG=1 \
     -x objective-c++ "$JUCE/modules/juce_core/juce_core.mm" \
     -x c++ \
     "$ROOT/Projucer/Source/Shell/jucer_InProcessShell.cpp" \
+    "$ROOT/Projucer/Source/Shell/jucer_InProcessTerminal.cpp" \
     "$ROOT/Projucer/Source/Shell/jucer_ShellApplets.cpp" \
     "$ROOT/Projucer/Source/Git/jucer_GitCommand.cpp" \
     "$ROOT/Projucer/Source/Shell/Tests/shell_selfcheck.cpp" \

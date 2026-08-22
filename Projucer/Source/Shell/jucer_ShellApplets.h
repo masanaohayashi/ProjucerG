@@ -22,6 +22,8 @@ struct ShellState
     juce::int64 deadlineMs = 0;
     int timeoutMs = 0;
     int maxOutputChars = 64 * 1024;
+    int lastStatus = 0;
+    bool exitRequested = false;
 };
 
 using AppletFn = int (*) (const juce::StringArray& argv, ShellIo& io, ShellState& state);

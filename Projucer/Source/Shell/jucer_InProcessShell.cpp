@@ -809,6 +809,13 @@ namespace
                     }
                 }
 
+                if (text[i + 1] == '?')
+                {
+                    out += juce::String (state.lastStatus);
+                    i += 2;
+                    continue;
+                }
+
                 if (isNameStart (text[i + 1]))
                 {
                     int j = i + 1;
@@ -1302,7 +1309,10 @@ namespace
             }
 
             if (runThis)
+            {
                 status = executePipeline (pipeline, io, state);
+                state.lastStatus = status;
+            }
 
             if (pipeline.join == TokenKind::AndIf)
                 runThis = (status == 0);

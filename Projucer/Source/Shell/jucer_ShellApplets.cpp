@@ -391,6 +391,16 @@ namespace
         return 0;
     }
 
+    int appletExit (const juce::StringArray& argv, ShellIo&, ShellState& state)
+    {
+        state.exitRequested = true;
+
+        if (argv.size() <= 1)
+            return state.lastStatus;
+
+        return argv[1].getIntValue();
+    }
+
     int appletExport (const juce::StringArray& argv, ShellIo&, ShellState& state)
     {
         for (int i = 1; i < argv.size(); ++i)
@@ -3123,6 +3133,7 @@ void registerBuiltinApplets()
     registerApplet ("cd", appletCd);
     registerApplet ("which", appletWhich);
     registerApplet ("help", appletHelp);
+    registerApplet ("exit", appletExit);
     registerApplet ("export", appletExport);
     registerApplet ("unset", appletUnset);
     registerApplet ("env", appletEnv);
