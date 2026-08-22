@@ -124,6 +124,11 @@ void ProjectContentComponent::resized()
     if (resizerBar != nullptr)
         resizerBar->setBounds (r.withWidth (4));
 
+    /*  AI チャットは右端の余白と同じ幅を、サイドバーとの間にも空ける。
+        他の編集画面は従来どおりサイドバーに密着させる。 */
+    if (aiViewShowing)
+        r.removeFromLeft (10);
+
     contentViewComponent.setBounds (r);
 
     headerComponent.sidebarTabsWidthChanged (sidebarArea.getWidth());
@@ -383,6 +388,7 @@ void ProjectContentComponent::toggleAiView()
     aiViewShowing = true;
     contentViewComponent.setContent (std::make_unique<AiChatView> (aiSession, codexAuth),
                                      "AI Assistant");
+    resized();
 }
 
 void ProjectContentComponent::leaveAiView()
@@ -406,6 +412,8 @@ void ProjectContentComponent::leaveAiView()
     {
         hideEditor();
     }
+
+    resized();
 }
 
 void ProjectContentComponent::discardAiSession()
@@ -419,6 +427,7 @@ void ProjectContentComponent::discardAiSession()
     {
         aiViewShowing = false;
         contentViewComponent.setContent ({}, {});
+        resized();
     }
 
     aiReturnDocument = nullptr;

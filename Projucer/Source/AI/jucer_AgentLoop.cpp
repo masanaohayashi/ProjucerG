@@ -116,9 +116,12 @@ namespace
         "Reading is not restricted to the project root: list_files and read_file accept\n"
         "absolute paths and paths above it, so look there before saying a file is missing.\n"
         "Writing is limited to the project root and always needs the user's approval.\n"
-        "You have web_search. Use it whenever the answer depends on anything current,\n"
-        "such as upstream repositories, releases or documentation. Do not claim you\n"
-        "cannot reach the internet.";
+        "You have exec_command. Use it to run shell commands in the project directory,\n"
+        "including git clone, builds and tests. Do not say you lack a terminal or git.\n"
+        "Prefer apply_patch for editing existing files; use exec_command when a command\n"
+        "is the right tool. You have web_search. Use it whenever the answer depends on\n"
+        "anything current, such as upstream repositories, releases or documentation.\n"
+        "Do not claim you cannot reach the internet.";
 }
 
 AgentLoop::AgentLoop (std::shared_ptr<AiSession> sessionToUse,
@@ -154,6 +157,7 @@ void AgentLoop::requestStop()
 {
     shouldStop.store (true);
     client.cancelActiveRequest();
+    tools.cancel();
     approvalArrived.signal();
 }
 
@@ -419,7 +423,7 @@ void AgentLoop::run()
             const auto needsApproval = AiTools::requiresApproval (call.name)
                                      && (mode == AiSession::ApprovalMode::ask
                                          || (mode == AiSession::ApprovalMode::onUnsafe
-                                             && call.name == "write_file"));
+                                             && call.name != "apply_patch"));
 
             if (needsApproval)
             {

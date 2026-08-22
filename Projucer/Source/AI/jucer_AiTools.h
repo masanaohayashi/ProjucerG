@@ -2,6 +2,7 @@
 
 #include <juce_core/juce_core.h>
 
+#include <atomic>
 #include <optional>
 
 /* File tools exposed to the AI agent. */
@@ -9,6 +10,10 @@ class AiTools
 {
 public:
     explicit AiTools (const juce::File& projectRootToUse);
+    ~AiTools();
+
+    /*  実行中のシェルを止める。AgentLoop の停止から呼ぶ。 */
+    void cancel();
 
     struct Result
     {
@@ -45,6 +50,8 @@ private:
     Result doReadFile  (const juce::var& arguments) const;
     Result doWriteFile (const juce::var& arguments, bool actuallyWrite, PreviewState* previewStateOut = nullptr) const;
     Result doApplyPatch (const juce::var& arguments, bool actuallyWrite, PreviewState* previewStateOut = nullptr) const;
+    Result doExecCommand (const juce::var& arguments, bool actuallyRun, PreviewState* previewStateOut = nullptr);
+    bool resolveExecWorkdir (const juce::var& arguments, juce::File& directoryOut, juce::String& errorOut) const;
 
     static juce::String makeArgumentsKey (const juce::var& arguments);
     bool isPreviewStateCurrent (const PreviewState& previewState, juce::String& errorOut) const;
@@ -56,6 +63,12 @@ private:
     juce::File projectRoot;
     mutable juce::CriticalSection ioLock;
     mutable std::optional<PreviewState> pendingPreview;
+    juce::ChildProcess runningProcess;
+    std::atomic<bool> cancelRequested { false };
 
     static constexpr int maxReadBytes = 1024 * 1024;
+    static constexpr int defaultExecTimeoutMs = 300000;
+    static constexpr int minExecTimeoutMs = 10000;
+    static constexpr int maxExecTimeoutMs = 300000;
+    static constexpr int maxExecOutputChars = 64 * 1024;
 };

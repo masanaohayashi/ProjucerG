@@ -33,19 +33,6 @@ namespace
     constexpr int padding = 10;
     constexpr int maximumErrorLength = 512;
 
-    juce::String prefixFor (AiSession::Entry::Kind kind)
-    {
-        switch (kind)
-        {
-            case AiSession::Entry::Kind::user:      return "You: ";
-            case AiSession::Entry::Kind::assistant: return "AI: ";
-            case AiSession::Entry::Kind::tool:      return "Tool: ";
-            case AiSession::Entry::Kind::error:     return "Error: ";
-        }
-
-        return {};
-    }
-
     juce::String safeErrorMessage (juce::String message, const juce::String& fallback)
     {
         message = message.trim();
@@ -309,19 +296,15 @@ public:
 
     int getContentHeight() const
     {
+        return getContentHeightForWidth (contentWidth());
+    }
+
+    int getContentHeightForWidth (int width) const
+    {
         auto height = 8;
 
         for (int i = 0; i < entries.size(); ++i)
-        {
-            const auto& entry = entries.getReference (i);
-            height += entry.kind == AiSession::Entry::Kind::tool ? toolHeaderHeight
-                                                                  : textHeight (entry.text);
-
-            if (entry.kind == AiSession::Entry::Kind::tool && expanded[i])
-                height += textHeight (entry.text) + 4;
-
-            height += 6;
-        }
+            height += measureEntry (entries.getReference (i), expanded[i], width);
 
         return height + 8;
     }
@@ -329,10 +312,9 @@ public:
     void paint (juce::Graphics& g) override
     {
         g.fillAll (chatBackground);
-        g.setFont (getChatFont());
 
         auto y = 8;
-        const auto width = juce::jmax (1, getWidth() - 16);
+        const auto width = contentWidth();
 
         for (int i = 0; i < entries.size(); ++i)
         {
@@ -354,41 +336,36 @@ public:
 
                 if (expanded[i])
                 {
-                    g.setColour (chatForeground);
-                    g.drawFittedText (entry.text,
-                                      juce::Rectangle<int> (16, y + 2, width - 16,
-                                                            textHeight (entry.text)),
-                                      juce::Justification::topLeft, 40);
-                    y += textHeight (entry.text) + 4;
+                    const auto bodyWidth = juce::jmax (1, width - 16);
+                    const auto bodyHeight = textHeight (entry.text, bodyWidth);
+                    layoutFor (entry.text, (float) bodyWidth, chatForeground)
+                        .draw (g, juce::Rectangle<float> (16.0f, (float) y + 2.0f,
+                                                          (float) bodyWidth, (float) bodyHeight));
+                    y += bodyHeight + 4;
                 }
             }
             else if (entry.kind == AiSession::Entry::Kind::user)
             {
-                /*  自分の発言は右寄せのバブル。ChatGPT と同じ作りで、
-                    ひと目で自分が書いた行だと分かるようにする。 */
-                const auto height = textHeight (entry.text);
-                const auto bubbleWidth = juce::jmin (width - 40,
-                                                     juce::jmax (80, width * 3 / 4));
-                const juce::Rectangle<int> bubble (8 + width - bubbleWidth, y, bubbleWidth, height);
+                /*  自分の発言は右寄せのバブル。幅は本文に合わせ、短い行が
+                    画面中央に浮かないようにする。 */
+                const auto bubble = userBubbleBounds (entry.text, width, y);
 
                 g.setColour (userBubble);
                 g.fillRoundedRectangle (bubble.toFloat(), 10.0f);
 
-                g.setColour (userText);
-                g.drawFittedText (entry.text, bubble.reduced (10, 4),
-                                  juce::Justification::topLeft, 40);
-                y += height;
+                layoutFor (entry.text, (float) juce::jmax (1, bubble.getWidth() - bubblePadX * 2), userText)
+                    .draw (g, bubble.reduced (bubblePadX, bubblePadY).toFloat());
+                y += bubble.getHeight();
             }
             else
             {
                 const auto colour = entry.kind == AiSession::Entry::Kind::error
                                          ? juce::Colours::indianred
                                          : chatForeground;
-                g.setColour (colour);
-                g.drawFittedText (entry.text,
-                                  juce::Rectangle<int> (8, y, width, textHeight (entry.text)),
-                                  juce::Justification::topLeft, 40);
-                y += textHeight (entry.text);
+                const auto height = textHeight (entry.text, width);
+                layoutFor (entry.text, (float) width, colour)
+                    .draw (g, juce::Rectangle<float> (8.0f, (float) y, (float) width, (float) height));
+                y += height;
             }
 
             y += 6;
@@ -398,6 +375,7 @@ public:
     void mouseUp (const juce::MouseEvent& event) override
     {
         auto y = 8;
+        const auto width = contentWidth();
 
         for (int i = 0; i < entries.size(); ++i)
         {
@@ -405,8 +383,7 @@ public:
 
             if (entry.kind == AiSession::Entry::Kind::tool)
             {
-                if (juce::Rectangle<int> (8, y, juce::jmax (1, getWidth() - 16),
-                                          toolHeaderHeight).contains (event.getPosition()))
+                if (juce::Rectangle<int> (8, y, width, toolHeaderHeight).contains (event.getPosition()))
                 {
                     expanded.set (i, ! expanded[i]);
                     if (heightChanged != nullptr)
@@ -414,31 +391,75 @@ public:
                     repaint();
                     return;
                 }
-
-                y += toolHeaderHeight;
-                if (expanded[i])
-                    y += textHeight (entry.text) + 4;
-            }
-            else
-            {
-                y += textHeight (entry.text);
             }
 
-            y += 6;
+            y += measureEntry (entry, expanded[i], width);
         }
     }
 
 private:
     static constexpr int toolHeaderHeight = 30;
+    static constexpr int bubblePadX = 12;
+    static constexpr int bubblePadY = 6;
 
-    static int textHeight (const juce::String& text)
+    int contentWidth() const
     {
-        auto lines = 1;
-        for (auto position = text.indexOfChar ('\n'); position >= 0;
-             position = text.indexOfChar (position + 1, '\n'))
-            ++lines;
-        const auto wrappedLines = juce::jmax (0, text.length() / 84);
-        return juce::jlimit (24, 360, (lines + wrappedLines) * 18 + 6);
+        return juce::jmax (1, getWidth() - 16);
+    }
+
+    static int maxUserBubbleWidth (int availableWidth)
+    {
+        return juce::jmin (availableWidth - 24, juce::jmax (48, availableWidth * 3 / 4));
+    }
+
+    static juce::Rectangle<int> userBubbleBounds (const juce::String& text, int availableWidth, int y)
+    {
+        const auto maxWidth = maxUserBubbleWidth (availableWidth);
+        const auto maxInner = juce::jmax (1, maxWidth - bubblePadX * 2);
+        const auto layout = layoutFor (text, (float) maxInner, userText);
+        const auto innerW = juce::jlimit (1, maxInner,
+                                          (int) std::ceil ((double) layout.getWidth()));
+        const auto innerH = juce::jmax (16, (int) std::ceil ((double) layout.getHeight()));
+        const auto bubbleW = juce::jmax (innerW + bubblePadX * 2, 36);
+        const auto bubbleH = juce::jmax (innerH + bubblePadY * 2, 28);
+
+        return { 8 + availableWidth - bubbleW, y, bubbleW, bubbleH };
+    }
+
+    static juce::TextLayout layoutFor (const juce::String& text, float width, juce::Colour colour)
+    {
+        juce::AttributedString as;
+        as.setJustification (juce::Justification::topLeft);
+        as.append (text.isNotEmpty() ? text : " ", getChatFont(), colour);
+        as.setLineSpacing (2.0f);
+
+        juce::TextLayout layout;
+        layout.createLayout (as, juce::jmax (1.0f, width));
+        return layout;
+    }
+
+    static int textHeight (const juce::String& text, int width)
+    {
+        const auto layout = layoutFor (text, (float) juce::jmax (1, width), chatForeground);
+        return juce::jmax (24, (int) std::ceil ((double) layout.getHeight()) + 8);
+    }
+
+    int measureEntry (const AiSession::Entry& entry, bool isExpanded, int width) const
+    {
+        if (entry.kind == AiSession::Entry::Kind::tool)
+        {
+            auto height = toolHeaderHeight;
+
+            if (isExpanded)
+                height += textHeight (entry.text, juce::jmax (1, width - 16)) + 4;
+
+            return height + 6;
+        }
+
+        if (entry.kind == AiSession::Entry::Kind::user)
+            return userBubbleBounds (entry.text, width, 0).getHeight() + 6;
+
+        return textHeight (entry.text, width) + 6;
     }
 
     juce::Array<AiSession::Entry> entries;
@@ -451,26 +472,30 @@ class AiChatView::DiffPreviewView final : public juce::Component
 public:
     void setText (const juce::String& textToUse)
     {
-        lines.clear();
-        lines.addLines (textToUse.replace ("\r", {}));
-        setSize (getWidth(), getContentHeight());
+        sourceLines.clear();
+        sourceLines.addLines (textToUse.replace ("\r", {}));
+        setSize (juce::jmax (1, getWidth()), getContentHeight());
         repaint();
     }
 
     int getContentHeight() const noexcept
     {
-        return juce::jmax (lineHeight + 8, lines.size() * lineHeight + 8);
+        return juce::jmax (lineHeight + 8, wrappedLineCount() * lineHeight + 8);
     }
 
     void paint (juce::Graphics& g) override
     {
         g.fillAll (chatBackground);
-        g.setFont (getChatFont());
+        const auto font = previewFont();
+        g.setFont (font);
 
-        for (int i = 0; i < lines.size(); ++i)
+        const auto display = wrappedLines();
+        const auto textWidth = juce::jmax (1, getWidth() - 16);
+
+        for (int i = 0; i < display.size(); ++i)
         {
-            const auto& line = lines[i];
-            auto colour = findColour (juce::Label::textColourId);
+            const auto& line = display[i];
+            auto colour = chatForeground;
 
             if (line.startsWith ("+") && ! line.startsWith ("+++"))
             {
@@ -490,15 +515,69 @@ public:
             }
 
             g.setColour (colour);
-            g.setFont (juce::FontOptions { juce::Font::getDefaultMonospacedFontName(), 13.0f, 0 });
-            g.drawText (line, 8, i * lineHeight, juce::jmax (1, getWidth() - 16), lineHeight,
+            g.drawText (line, 8, i * lineHeight, textWidth, lineHeight,
                         juce::Justification::centredLeft, false);
         }
     }
 
 private:
     static constexpr int lineHeight = 20;
-    juce::StringArray lines;
+
+    static juce::Font previewFont()
+    {
+        return juce::Font { juce::FontOptions { juce::Font::getDefaultMonospacedFontName(), 13.0f, 0 } };
+    }
+
+    int wrappedLineCount() const noexcept
+    {
+        return wrappedLines().size();
+    }
+
+    juce::StringArray wrappedLines() const
+    {
+        juce::StringArray wrapped;
+        const auto font = previewFont();
+        const auto maxWidth = (float) juce::jmax (8, getWidth() - 16);
+
+        for (const auto& line : sourceLines)
+        {
+            if (line.isEmpty()
+                || juce::GlyphArrangement::getStringWidth (font, line) <= maxWidth)
+            {
+                wrapped.add (line);
+                continue;
+            }
+
+            auto remaining = line;
+
+            while (remaining.isNotEmpty())
+            {
+                int low = 1, high = remaining.length(), fit = 1;
+
+                while (low <= high)
+                {
+                    const auto mid = (low + high) / 2;
+
+                    if (juce::GlyphArrangement::getStringWidth (font, remaining.substring (0, mid)) <= maxWidth)
+                    {
+                        fit = mid;
+                        low = mid + 1;
+                    }
+                    else
+                    {
+                        high = mid - 1;
+                    }
+                }
+
+                wrapped.add (remaining.substring (0, fit));
+                remaining = remaining.substring (fit);
+            }
+        }
+
+        return wrapped.isEmpty() ? juce::StringArray { juce::String() } : wrapped;
+    }
+
+    juce::StringArray sourceLines;
 };
 
 class AiChatView::SignInWorker final : public juce::Thread
@@ -798,13 +877,10 @@ AiChatView::AiChatView (std::shared_ptr<AiSession> sessionToUse,
 
     historyContent = std::make_unique<ChatHistoryView> ([this]
     {
-        if (historyContent != nullptr)
-            historyContent->setSize (juce::jmax (1, historyViewport.getWidth()),
-                                     historyContent->getContentHeight());
-        historyViewport.setViewPosition (historyViewport.getViewPosition());
+        updateHistoryLayout (false);
     });
     historyViewport.setViewedComponent (historyContent.get(), false);
-    historyViewport.setScrollBarsShown (true, false);
+    historyViewport.setScrollBarsShown (false, false, true, false);
     addAndMakeVisible (historyViewport);
 
     approvalTitle.setJustificationType (juce::Justification::centredLeft);
@@ -839,7 +915,8 @@ AiChatView::AiChatView (std::shared_ptr<AiSession> sessionToUse,
     input.setFont (getChatFont());
     input.setColour (juce::TextEditor::backgroundColourId, chatBackground);
     input.setColour (juce::TextEditor::textColourId, chatForeground);
-    input.setColour (juce::TextEditor::outlineColourId, chatForeground.withAlpha (0.25f));
+    input.setColour (juce::TextEditor::outlineColourId, juce::Colours::transparentBlack);
+    input.setColour (juce::TextEditor::focusedOutlineColourId, juce::Colours::transparentBlack);
     input.setColour (juce::CaretComponent::caretColourId, chatForeground);
 
     /*  Enter で送信、Shift+Enter と Ctrl+J で改行、Escape で停止。
@@ -974,15 +1051,44 @@ void AiChatView::changeListenerCallback (juce::ChangeBroadcaster*)
 
 void AiChatView::rebuildHistory()
 {
-    juce::String text;
-
-    for (const auto& entry : session->getEntries())
-        text << prefixFor (entry.kind) << entry.text << "\n\n";
-
-    juce::ignoreUnused (text);
     historyContent->setEntries (session->getEntries());
-    historyContent->setSize (juce::jmax (1, historyViewport.getWidth()),
-                             historyContent->getContentHeight());
+    updateHistoryLayout (session->isBusy());
+}
+
+void AiChatView::updateHistoryLayout (bool forceFollow)
+{
+    if (historyContent == nullptr)
+        return;
+
+    const auto shouldFollow = forceFollow || isHistoryNearBottom();
+    const auto width = juce::jmax (1, historyViewport.getMaximumVisibleWidth());
+    historyContent->setSize (width, historyContent->getContentHeightForWidth (juce::jmax (1, width - 16)));
+
+    if (shouldFollow)
+        scrollHistoryToBottom();
+}
+
+void AiChatView::scrollHistoryToBottom()
+{
+    if (historyContent == nullptr)
+        return;
+
+    historyViewport.setViewPosition (0, juce::jmax (0, historyContent->getHeight()
+                                                         - historyViewport.getMaximumVisibleHeight()));
+}
+
+bool AiChatView::isHistoryNearBottom() const
+{
+    if (historyContent == nullptr)
+        return true;
+
+    const auto viewH = historyViewport.getMaximumVisibleHeight();
+    const auto contentH = historyContent->getHeight();
+
+    if (viewH <= 0 || contentH <= viewH + 2)
+        return true;
+
+    return historyViewport.getViewPositionY() + viewH >= contentH - 48;
 }
 
 void AiChatView::updateVisibility()
@@ -1008,8 +1114,12 @@ void AiChatView::updateVisibility()
 
     if (approval != nullptr)
     {
-        approvalTitle.setText ("Review " + approval->toolName + " change",
-                               juce::dontSendNotification);
+        if (approval->toolName == "exec_command")
+            approvalTitle.setText ("Review command", juce::dontSendNotification);
+        else
+            approvalTitle.setText ("Review " + approval->toolName + " change",
+                                   juce::dontSendNotification);
+
         approvalDiffContent->setText (approval->diffPreview);
     }
 
@@ -1056,6 +1166,7 @@ void AiChatView::sendCurrentInput()
 
     input.clear();
     session->sendMessage (text, attachments);
+    updateHistoryLayout (true);
 }
 
 /*  ローカルで処理するコマンド。モデルへは送らない。
@@ -1225,7 +1336,62 @@ void AiChatView::updatePermissionButton()
 
 void AiChatView::showPermissionMenu()
 {
-    /*  ChatGPT の「ChatGPT のアクションの承認方法」と同じ 3 段階。 */
+    /*  ChatGPT の「ChatGPT のアクションの承認方法」と同じ 3 段階。
+        既定の PopupMenu は 1 行描画なので、タイトルと説明を重ねないよう
+        項目ごとに高さを持たせる。 */
+    class PermissionChoiceItem final : public juce::PopupMenu::CustomComponent
+    {
+    public:
+        PermissionChoiceItem (juce::String titleToUse, juce::String detailToUse)
+            : title (std::move (titleToUse)), detail (std::move (detailToUse))
+        {
+        }
+
+        void getIdealSize (int& idealWidth, int& idealHeight) override
+        {
+            idealWidth = 460;
+            idealHeight = 58;
+        }
+
+        void paint (juce::Graphics& g) override
+        {
+            auto bounds = getLocalBounds().toFloat().reduced (4.0f, 2.0f);
+            const auto highlighted = isItemHighlighted();
+            const auto ticked = getItem() != nullptr && getItem()->isTicked;
+            auto textColour = findColour (highlighted ? juce::PopupMenu::highlightedTextColourId
+                                                      : juce::PopupMenu::textColourId);
+
+            if (highlighted)
+            {
+                g.setColour (findColour (juce::PopupMenu::highlightedBackgroundColourId));
+                g.fillRoundedRectangle (bounds, 4.0f);
+            }
+
+            auto inner = bounds.reduced (8.0f, 6.0f);
+            auto tickArea = inner.removeFromLeft (18.0f);
+
+            if (ticked)
+            {
+                g.setColour (textColour);
+                auto tick = getLookAndFeel().getTickShape (1.0f);
+                g.fillPath (tick, tick.getTransformToScaleToFit (tickArea.reduced (2.0f), true));
+            }
+
+            auto font = getLookAndFeel().getPopupMenuFont();
+            g.setColour (textColour);
+            g.setFont (font.boldened());
+            g.drawText (title, inner.removeFromTop (18.0f).toNearestInt(),
+                        juce::Justification::centredLeft, false);
+
+            g.setColour (textColour.withMultipliedAlpha (0.72f));
+            g.setFont (font.withHeight (font.getHeight() * 0.92f));
+            g.drawFittedText (detail, inner.toNearestInt(), juce::Justification::topLeft, 2);
+        }
+
+    private:
+        juce::String title, detail;
+    };
+
     const auto mode = session->getApprovalMode();
 
     juce::PopupMenu menu;
@@ -1234,36 +1400,41 @@ void AiChatView::showPermissionMenu()
     const auto addChoice = [&menu, mode] (int id, AiSession::ApprovalMode value,
                                           const juce::String& title, const juce::String& detail)
     {
-        juce::PopupMenu::Item item;
-        item.itemID = id;
-        item.text = title + "\n" + detail;
-        item.isTicked = mode == value;
-        menu.addItem (item);
+        juce::ReferenceCountedObjectPtr<juce::PopupMenu::CustomComponent> component (
+            new PermissionChoiceItem (title, detail));
+
+        menu.addItem (juce::PopupMenu::Item { title }
+                          .setID (id)
+                          .setTicked (mode == value)
+                          .setCustomComponent (component));
     };
 
     addChoice (1, AiSession::ApprovalMode::ask,
                "Ask for approval",
-               "Always confirm before any file is written");
+               "Always confirm before files are written or commands run");
     addChoice (2, AiSession::ApprovalMode::onUnsafe,
                "Approve on my behalf",
-               "Only confirm changes that could lose work, such as creating or replacing a file");
+               "Only confirm changes that could lose work, such as creating a file or running a command");
     addChoice (3, AiSession::ApprovalMode::full,
                "Full access",
-               "Never confirm, and allow writes outside the project");
+               "Never confirm, and allow writes and commands without asking");
 
     juce::Component::SafePointer<AiChatView> safeThis (this);
 
-    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (static_cast<juce::Component*> (permissionButton.get())),
+    menu.showMenuAsync (juce::PopupMenu::Options()
+                            .withTargetComponent (static_cast<juce::Component*> (permissionButton.get()))
+                            .withMinimumWidth (460)
+                            .withPreferredPopupDirection (juce::PopupMenu::Options::PopupDirection::upwards),
                         [safeThis] (int chosen)
     {
         if (safeThis == nullptr || chosen <= 0)
             return;
 
-        const auto mode = chosen == 1 ? AiSession::ApprovalMode::ask
-                        : chosen == 2 ? AiSession::ApprovalMode::onUnsafe
-                                      : AiSession::ApprovalMode::full;
+        const auto chosenMode = chosen == 1 ? AiSession::ApprovalMode::ask
+                              : chosen == 2 ? AiSession::ApprovalMode::onUnsafe
+                                            : AiSession::ApprovalMode::full;
 
-        safeThis->session->setApprovalMode (mode);
+        safeThis->session->setApprovalMode (chosenMode);
         safeThis->updatePermissionButton();
     });
 }
@@ -1391,8 +1562,10 @@ void AiChatView::resized()
     input.setBounds (bounds.removeFromBottom (inputHeight - controlRowHeight + rowHeight).reduced (0, 2));
 
     /*  入力欄と履歴が地続きだと、どこまでが AI の出力か分かりにくい。
-        Projucer の地色で帯を挟んで切り分ける。 */
+        Projucer の地色で帯を挟んで切り分ける。左右はチャット端まで伸ばす。 */
     separatorArea = bounds.removeFromBottom (padding);
+    separatorArea.setX (0);
+    separatorArea.setWidth (getWidth());
 
     bounds.removeFromBottom (padding / 2);
 
@@ -1411,12 +1584,14 @@ void AiChatView::resized()
         rejectButton.setBounds (actionArea.removeFromLeft (90).reduced (2));
         autoApproveToggle.setBounds (actionArea.reduced (2));
         approvalDiffViewport.setBounds (card.reduced (0, 4));
+
+        if (approvalDiffContent != nullptr)
+            approvalDiffContent->setSize (juce::jmax (1, approvalDiffViewport.getMaximumVisibleWidth()),
+                                          approvalDiffContent->getContentHeight());
+
         bounds.removeFromBottom (padding / 2);
     }
 
     historyViewport.setBounds (bounds);
-
-    if (historyContent != nullptr)
-        historyContent->setSize (juce::jmax (1, historyViewport.getWidth()),
-                                 historyContent->getContentHeight());
+    updateHistoryLayout (false);
 }

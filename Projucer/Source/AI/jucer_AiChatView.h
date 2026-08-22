@@ -43,6 +43,9 @@ private:
     void cancelSignIn();
     void stopSignInWorker();
     void rebuildHistory();
+    void updateHistoryLayout (bool forceFollow);
+    void scrollHistoryToBottom();
+    bool isHistoryNearBottom() const;
     void updateVisibility();
     void sendCurrentInput();
     bool handleSlashCommand (const juce::String& text);

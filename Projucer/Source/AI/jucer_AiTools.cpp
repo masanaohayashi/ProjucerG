@@ -2,6 +2,7 @@
 #include "jucer_AiPaths.h"
 
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <limits>
 #include <string>
@@ -573,6 +574,17 @@ AiTools::AiTools (const juce::File& projectRootToUse)
 {
 }
 
+AiTools::~AiTools()
+{
+    cancel();
+}
+
+void AiTools::cancel()
+{
+    cancelRequested.store (true, std::memory_order_release);
+    runningProcess.kill();
+}
+
 juce::String AiTools::makeArgumentsKey (const juce::var& arguments)
 {
     return juce::JSON::toString (arguments, true);
@@ -624,7 +636,7 @@ bool AiTools::revalidateForWrite (const juce::var& arguments,
 
 bool AiTools::requiresApproval (const juce::String& toolName)
 {
-    return toolName == "write_file" || toolName == "apply_patch";
+    return toolName == "write_file" || toolName == "apply_patch" || toolName == "exec_command";
 }
 
 juce::var AiTools::getToolSchemas()
@@ -658,6 +670,26 @@ juce::var AiTools::getToolSchemas()
         properties->setProperty ("old_text", makeStringProperty ("Unique text to replace."));
         properties->setProperty ("new_text", makeStringProperty ("Replacement text."));
         tools.add (makeTool ("apply_patch", "Apply one unique old_text/new_text replacement to a project file.", properties, { "path", "old_text", "new_text" }));
+    }
+
+    /*  Codex の exec_command と同じ役割。git clone やビルドなど、ファイル
+        ツールではできない作業をシェルで行う。追加のキーは Codex 側の形に
+        合わせて受け取り、知らないものは無視する。 */
+    {
+        auto* properties = new juce::DynamicObject();
+        properties->setProperty ("cmd", makeStringProperty ("Shell command to execute. Runs in a login shell so git and compilers from the user PATH are available."));
+        properties->setProperty ("workdir", makeStringProperty ("Working directory relative to the project root. Defaults to the project root. Must stay inside the project."));
+        properties->setProperty ("yield_time_ms", makeIntegerProperty ("Maximum time to wait in milliseconds. Defaults to 300000 (5 minutes). Range 10000-300000."));
+
+        auto tool = makeTool ("exec_command",
+                              "Run a shell command in the project working directory. Use this for git clone, builds, tests, and other command-line work. Commands that write files or use the network need the user's approval unless they chose Full access.",
+                              properties, { "cmd" });
+
+        if (auto* object = tool.getDynamicObject())
+            if (auto* parameters = object->getProperty ("parameters").getDynamicObject())
+                parameters->setProperty ("additionalProperties", true);
+
+        tools.add (tool);
     }
 
     /*  Web 検索はサーバー側が持つ組み込みツール。こちらで実装する必要はなく、
@@ -752,6 +784,20 @@ AiTools::Result AiTools::preview (const juce::String& toolName, const juce::var&
         return result;
     }
 
+    if (toolName == "exec_command")
+    {
+        pendingPreview.reset();
+        PreviewState state;
+        const auto result = doExecCommand (arguments, false, &state);
+        if (result.ok)
+        {
+            state.toolName = toolName;
+            state.argumentsKey = makeArgumentsKey (arguments);
+            pendingPreview = state;
+        }
+        return result;
+    }
+
     return { false, "The tool does not require approval.", {} };
 }
 
@@ -774,6 +820,13 @@ AiTools::Result AiTools::execute (const juce::String& toolName, const juce::var&
     if (toolName == "apply_patch")
     {
         const auto result = doApplyPatch (arguments, true);
+        pendingPreview.reset();
+        return result;
+    }
+
+    if (toolName == "exec_command")
+    {
+        const auto result = doExecCommand (arguments, true);
         pendingPreview.reset();
         return result;
     }
@@ -1107,4 +1160,193 @@ AiTools::Result AiTools::doApplyPatch (const juce::var& arguments,
 #endif
 
     return { true, "File patched successfully.", diff };
+}
+
+bool AiTools::resolveExecWorkdir (const juce::var& arguments, juce::File& directoryOut, juce::String& errorOut) const
+{
+    const auto* object = arguments.getDynamicObject();
+
+    if (object == nullptr)
+    {
+        errorOut = "Tool arguments must be a JSON object.";
+        return false;
+    }
+
+    juce::String requested;
+
+    if (object->hasProperty ("workdir"))
+    {
+        const auto workdirValue = object->getProperty ("workdir");
+
+        if (! workdirValue.isString())
+        {
+            errorOut = "The workdir argument must be a string.";
+            return false;
+        }
+
+        requested = workdirValue.toString().trim();
+    }
+
+    /*  File のコンストラクタは絶対パス専用。相対の "." や "JUCE" を渡すと
+        Debug で jassertfalse になるので、必ず getChildFile か resolveInsideRoot
+        経由にする。 */
+    if (requested.isEmpty() || requested == "." || requested == "./")
+    {
+        directoryOut = projectRoot;
+        return true;
+    }
+
+    if (juce::File::isAbsolutePath (requested))
+    {
+        const juce::File asFile (requested);
+
+        if (asFile != projectRoot && ! asFile.isAChildOf (projectRoot))
+        {
+            errorOut = "The working directory must stay inside the project root.";
+            return false;
+        }
+
+        requested = asFile.getRelativePathFrom (projectRoot);
+
+        if (requested.isEmpty() || requested == ".")
+        {
+            directoryOut = projectRoot;
+            return true;
+        }
+    }
+
+    const auto resolved = resolveInsideRoot (std::filesystem::path (projectRoot.getFullPathName().toStdString()),
+                                             requested.toStdString());
+
+    if (! resolved.has_value())
+    {
+        errorOut = "The working directory is outside the project root or cannot be resolved.";
+        return false;
+    }
+
+    directoryOut = projectRoot.getChildFile (juce::String::fromUTF8 (resolved->string().c_str()));
+
+    if (! directoryOut.isDirectory())
+    {
+        errorOut = "The working directory does not exist.";
+        return false;
+    }
+
+    return true;
+}
+
+AiTools::Result AiTools::doExecCommand (const juce::var& arguments,
+                                        bool actuallyRun,
+                                        PreviewState* previewStateOut)
+{
+    const auto* object = arguments.getDynamicObject();
+
+    if (object == nullptr)
+        return { false, "Tool arguments must be a JSON object.", {} };
+
+    if (! object->hasProperty ("cmd") || ! object->getProperty ("cmd").isString())
+        return { false, "The cmd argument is required and must be a string.", {} };
+
+    const auto cmd = object->getProperty ("cmd").toString();
+
+    if (cmd.trim().isEmpty())
+        return { false, "The cmd argument must not be empty.", {} };
+
+    juce::File cwd;
+    juce::String error;
+
+    if (! resolveExecWorkdir (arguments, cwd, error))
+        return { false, error, {} };
+
+    juce::String preview;
+    preview << "Command:\n"
+            << cmd << "\n\n"
+            << "Working directory:\n"
+            << cwd.getFullPathName();
+
+    if (! actuallyRun)
+    {
+        if (previewStateOut != nullptr)
+        {
+            previewStateOut->file = cwd;
+            previewStateOut->existed = cwd.isDirectory();
+            previewStateOut->content = cmd;
+        }
+
+        return { true, "Preview generated.", preview };
+    }
+
+    if (pendingPreview.has_value())
+    {
+        const auto& previewState = *pendingPreview;
+
+        if (previewState.toolName != "exec_command"
+            || previewState.argumentsKey != makeArgumentsKey (arguments))
+            return { false, "The approval preview does not match this request.", preview };
+    }
+
+    cancelRequested.store (false, std::memory_order_release);
+
+    auto timeoutMs = defaultExecTimeoutMs;
+
+    if (object->hasProperty ("yield_time_ms"))
+    {
+        const auto value = object->getProperty ("yield_time_ms");
+
+        if (value.isInt() || value.isInt64() || value.isDouble())
+            timeoutMs = juce::jlimit (minExecTimeoutMs, maxExecTimeoutMs,
+                                      (int) static_cast<std::int64_t> (value));
+    }
+
+   #if JUCE_WINDOWS
+    juce::StringArray args { "cmd.exe", "/c",
+                             "cd /d \"" + cwd.getFullPathName() + "\" && " + cmd };
+   #else
+    juce::String shell ("/bin/sh");
+
+    if (const auto* fromEnv = std::getenv ("SHELL"); fromEnv != nullptr && fromEnv[0] != '\0')
+        shell = fromEnv;
+
+    juce::StringArray args { shell, "-lc", "cd -- \"$1\" && eval \"$2\"",
+                             "exec_command", cwd.getFullPathName(), cmd };
+   #endif
+
+    if (! runningProcess.start (args, juce::ChildProcess::wantStdOut | juce::ChildProcess::wantStdErr))
+        return { false, "Could not start a shell to run the command.", preview };
+
+    const auto startedAt = juce::Time::getMillisecondCounter();
+
+    while (runningProcess.isRunning())
+    {
+        if (cancelRequested.load (std::memory_order_acquire))
+        {
+            runningProcess.kill();
+            return { false, "The command was stopped.", preview };
+        }
+
+        if ((int) (juce::Time::getMillisecondCounter() - startedAt) >= timeoutMs)
+        {
+            runningProcess.kill();
+            return { false, "The command timed out after " + juce::String (timeoutMs / 1000) + " seconds.",
+                     preview };
+        }
+
+        runningProcess.waitForProcessToFinish (200);
+    }
+
+    auto output = runningProcess.readAllProcessOutput();
+    const auto exitCode = (int) runningProcess.getExitCode();
+
+    if (output.length() > maxExecOutputChars)
+        output = output.substring (0, maxExecOutputChars) + "\n...[truncated]";
+
+    juce::String resultText;
+    resultText << "exit_code: " << exitCode << "\n";
+
+    if (output.isNotEmpty())
+        resultText << output;
+    else
+        resultText << "(no output)";
+
+    return { exitCode == 0, resultText, preview };
 }
