@@ -59,7 +59,9 @@ private:
     bool handleSlashCommand (const juce::String& text);
     void showModelPicker();
     void showResumePicker();
+    void showContextMenu();
     void updateModelButton();
+    void updateContextButton();
     void updatePermissionButton();
     void showPermissionMenu();
     void updateExecTargetButton();
@@ -72,6 +74,8 @@ private:
 
     static constexpr int resetId         = 1;
     static constexpr int signInAgainId   = 2;
+    static constexpr int compactId       = 3;
+    static constexpr int resumeFromMenuId = 4;
     static constexpr int modelBaseId     = 100;
     static constexpr int effortBaseId = 200;
     static constexpr int speedBaseId  = 300;
@@ -90,6 +94,9 @@ private:
     /*  入力欄の下の操作列。ChatGPT の作りに合わせる。
         左から「ファイル追加(+)」「承認の扱い」、右へ寄せて「モデル設定」「送信/停止」。 */
     std::unique_ptr<FlatButton> modelButton;
+
+    /*  今のコンテキストの重さ。押すと圧縮と /resume を出す。 */
+    std::unique_ptr<FlatButton> contextButton;
     std::unique_ptr<FlatButton> permissionButton;
     std::unique_ptr<FlatButton> execTargetButton;
     std::unique_ptr<RoundIconButton> addFileButton;

@@ -165,6 +165,149 @@ bool AiSessionStore::appendItem (const juce::File& sessionFile, int ordinal, con
     return appendRecord (sessionFile, ordinal, "item", item);
 }
 
+bool AiSessionStore::appendCompaction (const juce::File& sessionFile,
+                                       int ordinal,
+                                       const juce::String& summaryText,
+                                       int replacesThrough)
+{
+    auto* payload = new juce::DynamicObject();
+    payload->setProperty ("summary", summaryText);
+    payload->setProperty ("replaces_through", replacesThrough);
+
+    return appendRecord (sessionFile, ordinal, "compact", juce::var (payload));
+}
+
+juce::var AiSessionStore::makeSummaryMessage (const juce::String& summaryText)
+{
+    return makeUserMessage (summaryPreamble + summaryText);
+}
+
+/*  ponytail: 要約かどうかは前置きで見分ける。item に独自のプロパティを足す方が
+    素直だが、それは会話がそのまま Responses API の input として送られる先で
+    未知のフィールドになる。前置きは同じファイルの定数なので、印としては十分。 */
+bool AiSessionStore::isSummaryMessage (const juce::var& item)
+{
+    return item["type"].toString() == "message"
+        && item["role"].toString() == "user"
+        && textOfMessage (item).startsWith (summaryPreamble);
+}
+
+juce::Array<juce::var> AiSessionStore::selectRecentUserMessages (const juce::Array<juce::var>& conversation,
+                                                                 int characterBudget)
+{
+    juce::Array<juce::var> kept;
+    int used = 0;
+
+    for (int i = conversation.size(); --i >= 0;)
+    {
+        const auto& item = conversation.getReference (i);
+
+        if (item["type"].toString() != "message" || item["role"].toString() != "user")
+            continue;
+
+        // 前の圧縮が置いた要約は本物の発言ではない。拾うと圧縮のたびに積み上がる。
+        if (isSummaryMessage (item))
+            continue;
+
+        const auto text = textOfMessage (item);
+
+        if (text.isEmpty())
+            continue;
+
+        const auto room = characterBudget - used;
+
+        if (room <= 0)
+            break;
+
+        /*  予算は本文の長さではなく、実際に送っている JSON の量で測る。添付の
+            base64 は content の text には出てこないので、本文で測ると画像だらけの
+            メッセージが 0 文字扱いになり、そのまま丸ごと残ってしまう。
+            予算を跨ぐ 1 件は本文だけに落とす。 */
+        const auto cost = countCharacters (item);
+
+        kept.insert (0, cost <= room ? item : makeUserMessage (text.substring (0, room)));
+        used += juce::jmin (cost, room);
+    }
+
+    return kept;
+}
+
+int AiSessionStore::countCharacters (const juce::var& item)
+{
+    return juce::JSON::toString (item, true).length();
+}
+
+int AiSessionStore::countCharacters (const juce::Array<juce::var>& conversation)
+{
+    int total = 0;
+
+    for (const auto& item : conversation)
+        total += countCharacters (item);
+
+    return total;
+}
+
+juce::String AiSessionStore::formatTokenCount (int tokens)
+{
+    // Grok CLI の formatTokenCount と同じ刻み。K は整数、M だけ小数第 1 位まで。
+    if (tokens >= 1000000)
+    {
+        auto millions = juce::String (tokens / 1000000.0, 1);
+
+        if (millions.endsWith (".0"))
+            millions = millions.dropLastCharacters (2);
+
+        return millions + "M";
+    }
+
+    if (tokens >= 1000)
+        return juce::String ((tokens + 500) / 1000) + "K";
+
+    return juce::String (tokens);
+}
+
+juce::Array<AiSession::Entry> AiSessionStore::rebuildEntries (const juce::Array<juce::var>& conversation)
+{
+    /*  ponytail: 表示は conversation から作り直すだけにする。error と /model 等の
+        ローカル通知は API へ送っていないので復元されない。第 2 のログを持つ方が高い。
+        function_call_output も本文には要るが、見出しは function_call の 1 行で足りる。 */
+    juce::Array<AiSession::Entry> entries;
+
+    for (const auto& item : conversation)
+    {
+        const auto type = item["type"].toString();
+
+        if (type == "message")
+        {
+            const auto text = textOfMessage (item);
+
+            if (text.isEmpty())
+                continue;
+
+            /*  要約は role が user だが、ユーザーが書いたものではない。吹き出しで
+                出すと 300 字の前置きが自分の発言として並ぶので、畳める 1 行にする。 */
+            if (isSummaryMessage (item))
+            {
+                entries.add ({ AiSession::Entry::Kind::tool,
+                               "Conversation summary  " + text.fromFirstOccurrenceOf (summaryPreamble, false, false) });
+                continue;
+            }
+
+            entries.add ({ item["role"].toString() == "user"
+                               ? AiSession::Entry::Kind::user
+                               : AiSession::Entry::Kind::assistant,
+                           text });
+        }
+        else if (type == "function_call")
+        {
+            entries.add ({ AiSession::Entry::Kind::tool,
+                           item["name"].toString() + "  " + item["arguments"].toString() });
+        }
+    }
+
+    return entries;
+}
+
 juce::Array<AiSessionStore::Listing> AiSessionStore::listRecent (const juce::File& projectRoot, int limit)
 {
     const auto folder = sessionsFolderFor (projectRoot);
@@ -208,7 +351,8 @@ AiSessionStore::Restored AiSessionStore::restore (const juce::File& sessionFile)
     }
 
     /*  compact 行があれば、その要約が replaces_through までの item を置き換える。
-        書き出す側 (/compact) はまだ無いが、後から読み側を直す方が高くつく。 */
+        複数あれば最後の 1 件だけが効く。2 回目以降の replaces_through は
+        1 回目が積み直した item まで含む、より大きい値になる。 */
     int replacesThrough = -1;
     juce::String summary;
 
@@ -222,7 +366,7 @@ AiSessionStore::Restored AiSessionStore::restore (const juce::File& sessionFile)
     Restored restored;
 
     if (summary.isNotEmpty())
-        restored.conversation.add (makeUserMessage (summary));
+        restored.conversation.add (makeSummaryMessage (summary));
 
     for (const auto& record : records)
     {
@@ -251,31 +395,23 @@ AiSessionStore::Restored AiSessionStore::restore (const juce::File& sessionFile)
             restored.conversation.remove (i);
     }
 
-    /*  ponytail: 表示は conversation から作り直すだけにする。error と /model 等の
-        ローカル通知は API へ送っていないので復元されない。第 2 のログを持つ方が高い。
-        function_call_output も本文には要るが、見出しは function_call の 1 行で足りる。 */
+    /*  逆向きも同じ理由で落とす。compact の境目が呼び出しと出力の間に落ちると、
+        出力だけが残って親の無い function_call_output になり、これも 400 になる。 */
+    juce::StringArray issuedCalls;
+
     for (const auto& item : restored.conversation)
+        if (item["type"].toString() == "function_call")
+            issuedCalls.add (item["call_id"].toString());
+
+    for (int i = restored.conversation.size(); --i >= 0;)
     {
-        const auto type = item["type"].toString();
+        const auto& item = restored.conversation.getReference (i);
 
-        if (type == "message")
-        {
-            const auto text = textOfMessage (item);
-
-            if (text.isEmpty())
-                continue;
-
-            restored.entries.add ({ item["role"].toString() == "user"
-                                        ? AiSession::Entry::Kind::user
-                                        : AiSession::Entry::Kind::assistant,
-                                    text });
-        }
-        else if (type == "function_call")
-        {
-            restored.entries.add ({ AiSession::Entry::Kind::tool,
-                                    item["name"].toString() + "  " + item["arguments"].toString() });
-        }
+        if (item["type"].toString() == "function_call_output"
+             && ! issuedCalls.contains (item["call_id"].toString()))
+            restored.conversation.remove (i);
     }
 
+    restored.entries = rebuildEntries (restored.conversation);
     return restored;
 }

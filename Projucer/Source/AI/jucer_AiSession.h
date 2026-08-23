@@ -48,6 +48,10 @@ public:
     juce::File getProjectRoot() const    { return projectRoot; }
 
     const juce::Array<Entry>& getEntries() const { return entries; }
+
+    /*  今の会話の概算トークン数。conversation そのものはワーカースレッドの持ち物なので、
+        UI から数えに行かず、書いた側が更新したこの値だけを読む。 */
+    int getApproximateTokens() const    { return conversationCharacters.load() / 4; }
     const PendingApproval* getPendingApproval() const;
     void resolveApproval (bool approved);
 
@@ -58,6 +62,10 @@ public:
     /*  保存済みの会話を読み戻す。以降はそのファイルへ追記を続ける。
         実行中は拒否して、その旨をチャットへ出す。 */
     void resumeFrom (const juce::File& sessionFile);
+
+    /*  会話を要約 1 件と直近のユーザー発言だけに縮める。要約はモデルに作らせるので
+        1 往復かかる。実行中は拒否して、その旨をチャットへ出す。 */
+    void compact();
 
     /*  承認の扱い。ChatGPT の「ChatGPT のアクションの承認方法」と同じ 3 段階。
 
@@ -103,6 +111,10 @@ private:
         「何を残すか」の判断はここだけに置く。 */
     void appendConversationItem (const juce::var& item);
 
+    /*  出来上がった要約で会話を差し替え、ファイルにも同じ形を残す。
+        AgentLoop のワーカースレッドから呼ぶ。 */
+    void applyCompaction (const juce::String& summaryText);
+
     void appendEntry (Entry::Kind kind, const juce::String& text);
     void appendToLastAssistantEntry (const juce::String& delta);
     void setPendingApproval (const PendingApproval& approval);
@@ -118,6 +130,9 @@ private:
         ループは同時に 1 本しか走らず、メッセージスレッドからの resumeFrom() は
         isBusy() が偽のときしか通さないため。 */
     juce::Array<juce::var> conversation;
+
+    /*  conversation の JSON の文字数。書いた側が必ず更新する。UI が読むので atomic。 */
+    std::atomic<int> conversationCharacters { 0 };
     juce::File sessionFile;
     int nextOrdinal = 0;
 

@@ -1069,6 +1069,12 @@ AiChatView::AiChatView (std::shared_ptr<AiSession> sessionToUse,
     };
     addAndMakeVisible (*execTargetButton);
 
+    contextButton = std::make_unique<FlatButton> ("~0");
+    contextButton->setShowsChevron (true);
+    contextButton->setTooltip ("Approximate size of the conversation being sent");
+    contextButton->onClick = [this] { showContextMenu(); };
+    addAndMakeVisible (*contextButton);
+
     modelButton = std::make_unique<FlatButton> ("model");
     modelButton->setShowsChevron (true);
     modelButton->setTooltip ("Choose the model, or sign in again");
@@ -1333,7 +1339,9 @@ void AiChatView::updateVisibility()
     permissionButton->setVisible (signedIn && ! reviewing);
     execTargetButton->setVisible (signedIn && ! reviewing);
     modelButton->setVisible (! reviewing);
+    contextButton->setVisible (signedIn && ! reviewing);
     updateModelButton();
+    updateContextButton();
     updateExecTargetButton();
     approvalCard.setVisible (reviewing);
 
@@ -1463,6 +1471,12 @@ bool AiChatView::handleSlashCommand (const juce::String& text)
         return true;
     }
 
+    if (command == "/compact")
+    {
+        session->compact();
+        return true;
+    }
+
     if (command == "/signin" || command == "/login" || command == "/logout")
     {
         restartSignIn();
@@ -1474,6 +1488,7 @@ bool AiChatView::handleSlashCommand (const juce::String& text)
         session->addLocalNotice ("Commands:\n"
                                  "  /model   choose the model and reasoning effort\n"
                                  "  /resume  continue a saved conversation\n"
+                                 "  /compact summarise the conversation to free up context\n"
                                  "  /signin  sign in again (also /login, /logout)\n"
                                  "  /help    show this list\n"
                                  "\nCurrent model: " + AiModels::describeSelection());
@@ -1644,6 +1659,31 @@ void AiChatView::showResumePicker()
     });
 }
 
+/*  コンテキストの表示を押したときのメニュー。/compact と /resume への 2 つ目の導線で、
+    処理そのものはスラッシュコマンドとまったく同じ経路を通す。
+*/
+void AiChatView::showContextMenu()
+{
+    juce::PopupMenu menu;
+    menu.addSectionHeader (contextButton->getTooltip());
+    menu.addItem (compactId, "Compact the conversation", ! session->isBusy());
+    menu.addItem (resumeFromMenuId, "Resume a conversation...", ! session->isBusy());
+
+    juce::Component::SafePointer<AiChatView> safeThis (this);
+
+    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (static_cast<juce::Component*> (contextButton.get())),
+                        [safeThis] (int chosen)
+    {
+        if (safeThis == nullptr)
+            return;
+
+        if (chosen == compactId)
+            safeThis->session->compact();
+        else if (chosen == resumeFromMenuId)
+            safeThis->showResumePicker();
+    });
+}
+
 juce::File AiChatView::projectRootForChooser() const
 {
     return session->getProjectRoot();
@@ -1665,6 +1705,35 @@ void AiChatView::updateModelButton()
     }
 
     modelButton->setDetailText (detail);
+    resized();
+}
+
+/*  送っている JSON の文字数を 4 で割った概算。Responses API の usage は
+    ストリームに載ってこないので、実測ではないことが分かるよう "~" を付ける。
+
+    上限の分かっているモデルでは「残り 72% ~180K」のように残りを出す。上限は
+    プランで変わりうる目安なので (AiModels::Model を見よ)、割合も概算でしかない。
+*/
+void AiChatView::updateContextButton()
+{
+    const auto used = session->getApproximateTokens();
+    const auto window = AiModels::contextWindowFor (AiModels::getSelectedModel());
+
+    const auto remaining = juce::jmax (0, window - used);
+
+    const auto text = window > 0
+        ? juce::String (remaining * 100 / window) + "% ~" + AiSessionStore::formatTokenCount (remaining)
+        : "~" + AiSessionStore::formatTokenCount (used);
+
+    contextButton->setTooltip (window > 0
+        ? "About " + AiSessionStore::formatTokenCount (remaining) + " tokens of context left of "
+              + AiSessionStore::formatTokenCount (window)
+        : "About " + AiSessionStore::formatTokenCount (used) + " tokens of context in use");
+
+    if (contextButton->getButtonText() == text)
+        return;
+
+    contextButton->setButtonText (text);
     resized();
 }
 
@@ -1938,6 +2007,10 @@ void AiChatView::resized()
         controlRow.removeFromRight (6);
         const auto modelWidth = juce::jmin (modelButton->getPreferredWidth(), controlRow.getWidth() / 2);
         modelButton->setBounds (controlRow.removeFromRight (modelWidth).reduced (0, 3));
+
+        const auto contextWidth = juce::jmin (contextButton->getPreferredWidth(),
+                                              controlRow.getWidth() / 2);
+        contextButton->setBounds (controlRow.removeFromRight (contextWidth).reduced (0, 3));
 
         addFileButton->setBounds (controlRow.removeFromLeft (roundButtonSize + 4)
                                             .withSizeKeepingCentre (roundButtonSize, roundButtonSize));

@@ -80,3 +80,10 @@ components and workflows that are limited or missing in the original Projucer.
   one JSON record per line, so it survives closing the project.
 - `/resume` in the chat lists the recent conversations for the project and continues
   the chosen one, appending to the same file.
+- `/compact` replaces the conversation with a model-written handoff summary plus the
+  most recent user messages, writing a `compact` record so the file restores to the
+  same state that is held in memory.
+- The control row under the input shows how much context is left (`72% ~180K`, or just
+  the amount in use for models whose window is unknown); clicking it offers compaction
+  and `/resume`. The window is a per-model estimate and varies by plan, so treat the
+  percentage as approximate.

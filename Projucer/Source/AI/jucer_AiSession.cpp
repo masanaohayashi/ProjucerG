@@ -5,6 +5,18 @@
 
 #include <utility>
 
+namespace
+{
+    /*  保存を諦めたときの断り。追記の失敗はどこで起きても同じ意味なので、
+        文言も 1 か所に置く。 */
+    juce::String notSavedNotice (const juce::File& projectRoot)
+    {
+        return "This conversation is not being saved: cannot write to "
+             + projectRoot.getChildFile (".projucer").getFullPathName()
+             + ". It will not appear in /resume.";
+    }
+}
+
 AiSession::AiSession (std::shared_ptr<CodexAuth> chatgptAuthToUse,
                      std::shared_ptr<GrokAuth> grokAuthToUse,
                      const juce::File& projectRootToUse)
@@ -90,6 +102,7 @@ void AiSession::resumeFrom (const juce::File& file)
         追記を続けるので、resume のたびにファイルが増えることはない。 */
     loop.reset();
     conversation = std::move (restored.conversation);
+    conversationCharacters.store (AiSessionStore::countCharacters (conversation));
     entries = std::move (restored.entries);
     sessionFile = file;
     nextOrdinal = restored.nextOrdinal;
@@ -98,9 +111,109 @@ void AiSession::resumeFrom (const juce::File& file)
     sendChangeMessage();
 }
 
+void AiSession::compact()
+{
+    jassert (juce::MessageManager::getInstance()->isThisTheMessageThread());
+
+    if (isBusy())
+    {
+        addLocalNotice ("Stop the current turn before compacting.");
+        return;
+    }
+
+    // 走っていないので conversation を読んでよい。resumeFrom() と同じ約束。
+    if (conversation.isEmpty())
+    {
+        addLocalNotice ("There is nothing to compact yet.");
+        return;
+    }
+
+    if (loop == nullptr)
+    {
+        AgentLoop::reapRetainedLoops();
+        loop = std::make_unique<AgentLoop> (shared_from_this(), chatgptAuth, grokAuth, projectRoot);
+    }
+
+    addLocalNotice ("Compacting the conversation...");
+    loop->startCompaction();
+}
+
+void AiSession::applyCompaction (const juce::String& summaryText)
+{
+    /*  ワーカースレッドから呼ぶ。conversation はワーカーだけが触るという既存の
+        約束をそのまま守れる場所がここしかないため。表示用の entries は
+        メッセージスレッドの持ち物なので、作るだけ作って向こうで差し替える。 */
+    const auto kept = AiSessionStore::selectRecentUserMessages (conversation);
+    const auto itemsBefore = conversation.size();
+
+    juce::Array<juce::var> compacted;
+    compacted.add (AiSessionStore::makeSummaryMessage (summaryText));
+    compacted.addArray (kept);
+
+    /*  ファイルにも同じ形を残す。compact 行のあとに残す発言を item として積み直せば、
+        読み側の「n > replaces_through の item だけ残す」がこの状態を再現する。 */
+    juce::String warning;
+
+    if (! persistenceGaveUp && sessionFile != juce::File())
+    {
+        auto written = AiSessionStore::appendCompaction (sessionFile, nextOrdinal, summaryText,
+                                                         nextOrdinal - 1);
+        if (written)
+            ++nextOrdinal;
+
+        for (const auto& item : kept)
+        {
+            if (! written)
+                break;
+
+            written = AiSessionStore::appendItem (sessionFile, nextOrdinal, item);
+
+            if (written)
+                ++nextOrdinal;
+        }
+
+        /*  途中で書けなくなったら、ファイルには圧縮前の履歴と書きかけの compact が
+            残る。連番を使い回すと、次に書けた item が消えた発言の番号を名乗って
+            その発言を永久に隠す。appendConversationItem と同じく保存を諦める。 */
+        if (! written)
+        {
+            persistenceGaveUp = true;
+            warning = notSavedNotice (projectRoot);
+        }
+    }
+
+    conversation = compacted;
+    conversationCharacters.store (AiSessionStore::countCharacters (conversation));
+
+    const auto notice = "Compacted the conversation: " + juce::String (itemsBefore) + " items to "
+                      + juce::String (compacted.size()) + ".";
+
+    /*  差し替えとターンの終了は 1 つのコールバックで済ませる。二つに分けると、
+        その間にメッセージスレッドが足したエントリが差し替えで消える。 */
+    juce::MessageManager::callAsync ([weakSelf = weak_from_this(),
+                                      newEntries = AiSessionStore::rebuildEntries (compacted),
+                                      notice,
+                                      warning]
+    {
+        const auto liveSession = weakSelf.lock();
+
+        if (liveSession == nullptr)
+            return;
+
+        liveSession->entries = newEntries;
+        liveSession->appendEntry (Entry::Kind::tool, notice);
+
+        if (warning.isNotEmpty())
+            liveSession->appendEntry (Entry::Kind::error, warning);
+
+        liveSession->finishTurn();
+    });
+}
+
 void AiSession::appendConversationItem (const juce::var& item)
 {
     conversation.add (item);
+    conversationCharacters += AiSessionStore::countCharacters (item);
 
     if (persistenceGaveUp)
         return;
@@ -122,9 +235,7 @@ void AiSession::appendConversationItem (const juce::var& item)
         会話の尻尾だけのファイルが増える。一度だけ伝えて保存を諦める。 */
     persistenceGaveUp = true;
 
-    const auto notice = "This conversation is not being saved: cannot write to "
-                      + projectRoot.getChildFile (".projucer").getFullPathName()
-                      + ". It will not appear in /resume.";
+    const auto notice = notSavedNotice (projectRoot);
 
     // 追記はワーカースレッドから来る。チャットへの表示はメッセージスレッドで。
     juce::MessageManager::callAsync ([weakSelf = weak_from_this(), notice]

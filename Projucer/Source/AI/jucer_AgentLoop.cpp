@@ -137,6 +137,19 @@ namespace
         "is the right tool. You have web_search. Use it whenever the answer depends on\n"
         "anything current, such as upstream repositories, releases or documentation.\n"
         "Do not claim you cannot reach the internet.";
+
+    /*  Codex CLI の compact と同じ頼み方。会話へ戻すときにかぶせる前置きは
+        AiSessionStore が持つ。要約かどうかの印を兼ねているため。 */
+    constexpr const char* compactionRequest =
+        "You are performing a CONTEXT CHECKPOINT COMPACTION. Create a handoff summary for another LLM that will resume the task.\n"
+        "\n"
+        "Include:\n"
+        "- Current progress and key decisions made\n"
+        "- Important context, constraints, or user preferences\n"
+        "- What remains to be done (clear next steps)\n"
+        "- Any critical data, examples, or references needed to continue\n"
+        "\n"
+        "Be concise, structured, and focused on helping the next LLM seamlessly continue the work.";
 }
 
 AgentLoop::AgentLoop (std::shared_ptr<AiSession> sessionToUse,
@@ -173,9 +186,22 @@ void AgentLoop::start (const juce::String& userMessage,
         return;
 
     shouldStop.store (false);
+    compacting = false;
     pendingUserMessage = userMessage;
     pendingAttachments = attachments;
     approvalGranted.store (false);
+    startThread();
+}
+
+void AgentLoop::startCompaction()
+{
+    if (isThreadRunning())
+        return;
+
+    shouldStop.store (false);
+    compacting = true;
+    pendingUserMessage = {};
+    pendingAttachments.clear();
     startThread();
 }
 
@@ -223,7 +249,7 @@ CodexClient& AgentLoop::activeClient()
     return AiModels::getSelectedProvider() == AiModels::Provider::grok ? grokClient : chatgptClient;
 }
 
-juce::var AgentLoop::buildRequestBody() const
+juce::var AgentLoop::buildRequestBody (bool forCompaction) const
 {
     const auto liveSession = session.lock();
 
@@ -269,9 +295,18 @@ juce::var AgentLoop::buildRequestBody() const
                      << projectInstructions;
 
     body->setProperty ("instructions", instructions);
-    body->setProperty ("input", liveSession->getConversation());
-    body->setProperty ("tools", AiTools::getToolSchemas (
-                          AiModels::getSelectedProvider() == AiModels::Provider::chatgpt));
+
+    auto input = liveSession->getConversation();
+
+    /*  要約は今の会話に頼み事を 1 件足して 1 往復するだけ。ツールを付けないので
+        モデルが道具を呼び出しにいかず、ループも回らない。 */
+    if (forCompaction)
+        input.add (makeUserMessage (compactionRequest, {}));
+    else
+        body->setProperty ("tools", AiTools::getToolSchemas (
+                              AiModels::getSelectedProvider() == AiModels::Provider::chatgpt));
+
+    body->setProperty ("input", input);
     body->setProperty ("stream", true);
     body->setProperty ("store", false);
     return juce::var (body);
@@ -295,8 +330,53 @@ bool AgentLoop::waitForApproval()
     return false;
 }
 
+/*  要約の往復そのものは会話にもファイルにも残さない。置き換えられる側なので
+    残しても次のターンに送られないし、失敗したときに残ると邪魔になる。 */
+void AgentLoop::runCompaction()
+{
+    juce::String summary;
+    juce::String error;
+
+    const auto ok = activeClient().streamResponse (buildRequestBody (true), shouldStop,
+        [&] (const juce::var& event)
+        {
+            if (event.getProperty ("type", {}).toString() == "response.output_text.delta")
+                summary << event.getProperty ("delta", {}).toString();
+        }, error);
+
+    if (shouldStop.load())
+        return;
+
+    if (! ok || summary.trim().isEmpty())
+    {
+        // 元の会話には一切触れずに終わる。もう一度 /compact すればやり直せる。
+        const auto message = ok ? juce::String ("The model returned an empty summary.") : error;
+
+        onMessageThread (session, [message] (AiSession& liveSession)
+        {
+            liveSession.appendEntry (AiSession::Entry::Kind::error, message);
+        });
+        return;
+    }
+
+    // 前置きは付けずに渡す。ファイルにはモデルが書いた要約そのものだけを残す。
+    if (const auto liveSession = session.lock())
+        liveSession->applyCompaction (summary.trim());
+}
+
 void AgentLoop::run()
 {
+    if (compacting)
+    {
+        runCompaction();
+
+        onMessageThread (session, [] (AiSession& liveSession)
+        {
+            liveSession.finishTurn();
+        });
+        return;
+    }
+
     appendConversationItem (makeUserMessage (pendingUserMessage, pendingAttachments));
 
     for (int iteration = 0; iteration < maxIterations && ! shouldStop.load(); ++iteration)
@@ -313,7 +393,7 @@ void AgentLoop::run()
         juce::String assistantText;
         juce::String error;
 
-        const auto ok = activeClient().streamResponse (buildRequestBody(), shouldStop,
+        const auto ok = activeClient().streamResponse (buildRequestBody (false), shouldStop,
             [&] (const juce::var& event)
             {
                 const auto type = event.getProperty ("type", {}).toString();

@@ -17,12 +17,14 @@ namespace AiModels
             defaultEffort も同じ応答の defaultReasoningEffort に合わせてある。 */
         juce::Array<Model> models;
 
-        models.add ({ "gpt-5.6-sol",   "GPT-5.6-Sol",   "Latest frontier agentic coding model.",                            "low",    Provider::chatgpt });
-        models.add ({ "gpt-5.6-terra", "GPT-5.6-Terra", "Balanced agentic coding model for everyday work.",                 "medium", Provider::chatgpt });
-        models.add ({ "gpt-5.6-luna",  "GPT-5.6-Luna",  "Fast and affordable agentic coding model.",                        "medium", Provider::chatgpt });
-        models.add ({ "gpt-5.5",       "GPT-5.5",       "Frontier model for complex coding, research, and real-world work.", "medium", Provider::chatgpt });
-        models.add ({ "gpt-5.4",       "GPT-5.4",       "Strong model for everyday coding.",                                "medium", Provider::chatgpt });
-        models.add ({ "gpt-5.4-mini",  "GPT-5.4-Mini",  "Small, fast, and cost-efficient model for simpler coding tasks.",  "medium", Provider::chatgpt });
+        /*  contextWindow は手元の Codex の rollout ファイルから拾った実測値。
+            Grok 側は実測が無いので 0 のままにして、割合を出さない。 */
+        models.add ({ "gpt-5.6-sol",   "GPT-5.6-Sol",   "Latest frontier agentic coding model.",                            "low",    Provider::chatgpt, 258400 });
+        models.add ({ "gpt-5.6-terra", "GPT-5.6-Terra", "Balanced agentic coding model for everyday work.",                 "medium", Provider::chatgpt, 258400 });
+        models.add ({ "gpt-5.6-luna",  "GPT-5.6-Luna",  "Fast and affordable agentic coding model.",                        "medium", Provider::chatgpt, 258400 });
+        models.add ({ "gpt-5.5",       "GPT-5.5",       "Frontier model for complex coding, research, and real-world work.", "medium", Provider::chatgpt, 258400 });
+        models.add ({ "gpt-5.4",       "GPT-5.4",       "Strong model for everyday coding.",                                "medium", Provider::chatgpt, 258400 });
+        models.add ({ "gpt-5.4-mini",  "GPT-5.4-Mini",  "Small, fast, and cost-efficient model for simpler coding tasks.",  "medium", Provider::chatgpt, 258400 });
         models.add ({ "grok-4.6",      "Grok 4.6",      "xAI frontier model for coding and agentic work.",                  "high",   Provider::grok });
         models.add ({ "grok-4.5",      "Grok 4.5",      "Previous Grok generation.",                                        "high",   Provider::grok });
 
@@ -36,6 +38,15 @@ namespace AiModels
                 return model.provider;
 
         return Provider::chatgpt;
+    }
+
+    int contextWindowFor (const juce::String& modelId)
+    {
+        for (const auto& model : getKnownModels())
+            if (modelId == model.id)
+                return model.contextWindow;
+
+        return 0;
     }
 
     Provider getSelectedProvider()

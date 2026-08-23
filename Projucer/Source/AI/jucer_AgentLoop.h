@@ -21,6 +21,9 @@ public:
 
     void start (const juce::String& userMessage,
                 const juce::Array<juce::File>& attachments = {});
+
+    /*  会話を要約させる 1 往復だけを回す。ツールは付けないのでループしない。 */
+    void startCompaction();
     void requestStop();
     void provideApproval (bool approved);
     void run() override;
@@ -29,7 +32,8 @@ public:
     static void reapRetainedLoops();
 
 private:
-    juce::var buildRequestBody() const;
+    juce::var buildRequestBody (bool forCompaction) const;
+    void runCompaction();
     void appendConversationItem (const juce::var& item);
     CodexClient& activeClient();
     bool waitForApproval();
@@ -43,6 +47,9 @@ private:
     juce::File workingDirectory;
     juce::String pendingUserMessage;
     juce::Array<juce::File> pendingAttachments;
+
+    // スレッドが動いていないときだけ書き換える。startThread() が同期点になる。
+    bool compacting = false;
     std::atomic<bool> shouldStop { false };
     juce::WaitableEvent approvalArrived;
     std::atomic<bool> approvalGranted { false };

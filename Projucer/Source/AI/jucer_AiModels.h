@@ -28,12 +28,24 @@ namespace AiModels
         const char* description;
         const char* defaultEffort;
         Provider provider = Provider::chatgpt;
+
+        /*  入力に載せられるトークン数。分からないモデルは 0。
+
+            同じモデル ID でも実測で 258400 と 353400 の 2 値が出ており、上限は
+            アカウントのプランやティアで変わる。Codex は表に持たず、毎ターン
+            サーバから model_context_window を受け取っている。ここの値は最大 27%
+            ずれうる目安で、正確を期すならレスポンスから上限を拾う経路が要る。
+            余らせるより足りない方が害が少ないので、小さい方を採ってある。 */
+        int contextWindow = 0;
     };
 
     /** 既知のモデル。先頭がサービス側の既定。 */
     juce::Array<Model> getKnownModels();
 
     Provider providerFor (const juce::String& modelId);
+
+    /** そのモデルの入力上限。未知なら 0。 */
+    int contextWindowFor (const juce::String& modelId);
     Provider getSelectedProvider();
 
     /** そのモデルで選べる effort。 */

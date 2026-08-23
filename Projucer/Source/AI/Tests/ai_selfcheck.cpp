@@ -291,16 +291,22 @@ static void testAiSessionStore()
     check (listed.size() == 1, "Lists the saved conversation");
     check (listed.size() == 1 && listed[0].title == "Explain Main.cpp", "Titles it with the first user message");
 
-    /*  /compact はまだ書き出さないが、読み側だけ先に用意してある。
-        要約が replaces_through までを置き換えることを見ておく。 */
+    /*  要約が replaces_through までを置き換える。ここでは n=2 の function_call が
+        消えるので、n=3 に残った出力も親を失って一緒に落ちる。 */
     file.appendText ("{\"ts\":\"now\",\"n\":7,\"type\":\"compact\","
                      "\"payload\":{\"summary\":\"Earlier: Main.cpp\",\"replaces_through\":2}}\n");
 
     const auto compacted = AiSessionStore::restore (file);
-    check (compacted.conversation.size() == 4, "Drops the items the summary replaces");
-    check (compacted.conversation.size() == 4
-            && compacted.conversation[0]["content"][0]["text"].toString() == "Earlier: Main.cpp",
+    check (compacted.conversation.size() == 3, "Drops the items the summary replaces");
+    check (compacted.conversation.size() == 3
+            && compacted.conversation[0]["content"][0]["text"].toString().endsWith ("Earlier: Main.cpp"),
            "Puts the summary first");
+    check (compacted.conversation.size() == 3
+            && AiSessionStore::isSummaryMessage (compacted.conversation[0]),
+           "Marks the restored summary as a summary");
+    check (! compacted.entries.isEmpty()
+            && compacted.entries[0].kind == AiSession::Entry::Kind::tool,
+           "Shows the summary as a collapsible line, not as the user speaking");
 
     /*  ターンの途中で終わったファイルは function_call で終わる。出力の無い呼び出しを
         そのまま送ると Responses API が 400 を返すので、読むときに落とす。 */
@@ -330,11 +336,289 @@ static void testAiSessionStore()
 }
 
 //==============================================================================
+/*  /compact が守るべき不変条件: 圧縮したあとのメモリ上の会話と、ファイルから
+    読み戻した会話が一致すること。ここではセッションと同じ順で store を叩く。 */
+static void testCompaction()
+{
+    std::printf ("\nCompaction\n");
+
+    const juce::File root (juce::File::getSpecialLocation (juce::File::tempDirectory)
+                               .getChildFile ("projucer_ai_compaction_check"));
+    root.deleteRecursively();
+    root.createDirectory();
+
+    const auto userMessage = [] (const juce::String& text)
+    {
+        auto* part = new juce::DynamicObject();
+        part->setProperty ("type", "input_text");
+        part->setProperty ("text", text);
+
+        auto* message = new juce::DynamicObject();
+        message->setProperty ("type", "message");
+        message->setProperty ("role", "user");
+        message->setProperty ("content", juce::Array<juce::var> { juce::var (part) });
+        return juce::var (message);
+    };
+
+    /*  添付つきの発言。本文は短いが、画像は base64 の data URL として本体に載る。 */
+    const auto userMessageWithImage = [] (const juce::String& text, int imageCharacters)
+    {
+        auto* textPart = new juce::DynamicObject();
+        textPart->setProperty ("type", "input_text");
+        textPart->setProperty ("text", text);
+
+        auto* imagePart = new juce::DynamicObject();
+        imagePart->setProperty ("type", "input_image");
+        imagePart->setProperty ("image_url", "data:image/png;base64,"
+                                                 + juce::String::repeatedString ("A", imageCharacters));
+
+        auto* message = new juce::DynamicObject();
+        message->setProperty ("type", "message");
+        message->setProperty ("role", "user");
+        message->setProperty ("content", juce::Array<juce::var> { juce::var (textPart), juce::var (imagePart) });
+        return juce::var (message);
+    };
+
+    const auto assistantMessage = [] (const juce::String& text)
+    {
+        auto* part = new juce::DynamicObject();
+        part->setProperty ("type", "output_text");
+        part->setProperty ("text", text);
+
+        auto* message = new juce::DynamicObject();
+        message->setProperty ("type", "message");
+        message->setProperty ("role", "assistant");
+        message->setProperty ("content", juce::Array<juce::var> { juce::var (part) });
+        return juce::var (message);
+    };
+
+    const auto asJson = [] (const juce::Array<juce::var>& items)
+    {
+        juce::Array<juce::var> copy (items);
+        return juce::JSON::toString (juce::var (copy), true);
+    };
+
+    const auto describe = [] (const juce::Array<AiSession::Entry>& entries)
+    {
+        juce::String text;
+
+        for (const auto& entry : entries)
+            text << static_cast<int> (entry.kind) << ":" << entry.text << "\n";
+
+        return text;
+    };
+
+    //--------------------------------------------------------------------------
+    // 桁の切り替え。境目を間違えると "100.0K" のような表記が 1 度だけ出る。
+    {
+        check (AiSessionStore::formatTokenCount (0) == "0", "Shows zero as a plain number");
+        check (AiSessionStore::formatTokenCount (840) == "840", "Shows small counts as plain numbers");
+        check (AiSessionStore::formatTokenCount (999) == "999", "Keeps the last plain number plain");
+        check (AiSessionStore::formatTokenCount (1000) == "1K", "Switches to K at a thousand");
+        check (AiSessionStore::formatTokenCount (1499) == "1K", "Rounds K down when it should");
+        check (AiSessionStore::formatTokenCount (1500) == "2K", "Rounds K up when it should");
+        check (AiSessionStore::formatTokenCount (12345) == "12K", "Shows no decimals for K");
+        check (AiSessionStore::formatTokenCount (258400) == "258K", "Shows a full context window in K");
+        check (AiSessionStore::formatTokenCount (1000000) == "1M", "Drops the trailing .0 at a million");
+        check (AiSessionStore::formatTokenCount (1200000) == "1.2M", "Shows one decimal for M");
+        check (AiSessionStore::formatTokenCount (12000000) == "12M", "Keeps large M counts whole");
+    }
+
+    //--------------------------------------------------------------------------
+    // 選択そのもの。予算、切り詰め、時系列の復元。
+    {
+        juce::Array<juce::var> conversation;
+        conversation.add (userMessage ("first"));
+        conversation.add (assistantMessage ("ignored"));
+        conversation.add (userMessage ("second"));
+        conversation.add (userMessage ("third"));
+
+        const auto all = AiSessionStore::selectRecentUserMessages (conversation, 1000);
+        check (all.size() == 3, "Keeps every user message that fits");
+        check (all.size() == 3
+                && all[0]["content"][0]["text"].toString() == "first"
+                && all[2]["content"][0]["text"].toString() == "third",
+               "Puts the kept messages back in time order");
+
+        /*  予算は送っている JSON の量で測る。ちょうど 2 件分だけ与えて、
+            3 件目に手が届かないことを見る。 */
+        const auto roomForTwo = AiSessionStore::countCharacters (conversation[2])
+                              + AiSessionStore::countCharacters (conversation[3]);
+
+        const auto budgeted = AiSessionStore::selectRecentUserMessages (conversation, roomForTwo);
+        check (budgeted.size() == 2, "Stops once the budget is used up");
+        check (budgeted.size() == 2 && budgeted[0]["content"][0]["text"].toString() == "second",
+               "Keeps the most recent messages, not the oldest");
+
+        const auto truncated = AiSessionStore::selectRecentUserMessages (conversation, 3);
+        check (truncated.size() == 1 && truncated[0]["content"][0]["text"].toString() == "thi",
+               "Truncates the one message that straddles the budget");
+
+        check (AiSessionStore::selectRecentUserMessages (conversation, 0).isEmpty(),
+               "Keeps nothing when there is no budget");
+    }
+
+    //--------------------------------------------------------------------------
+    /*  添付だらけの会話。base64 は content の text には出てこないので、本文の長さで
+        予算を測ると 0 文字扱いになり、画像ごと丸ごと残って会話がむしろ増える。
+        /compact が要るのはまさにこの状況なので、必ず縮むことを見る。 */
+    {
+        juce::Array<juce::var> conversation;
+
+        for (int i = 0; i < 5; ++i)
+            conversation.add (userMessageWithImage ("Look at this screenshot", 200000));
+
+        const auto before = AiSessionStore::countCharacters (conversation);
+
+        juce::Array<juce::var> compacted;
+        compacted.add (AiSessionStore::makeSummaryMessage ("The user shared screenshots."));
+        compacted.addArray (AiSessionStore::selectRecentUserMessages (conversation));
+
+        const auto after = AiSessionStore::countCharacters (compacted);
+        check (after < before, "Compacting a conversation full of images makes it smaller");
+        check (after < 100000, "Drops the base64 attachments the budget cannot afford");
+    }
+
+    //--------------------------------------------------------------------------
+    /*  前の要約は本物のユーザー発言ではない。拾ってしまうと圧縮のたびに
+        前置きごと積み上がって、要約が要約を要約する。 */
+    {
+        juce::Array<juce::var> conversation;
+        conversation.add (AiSessionStore::makeSummaryMessage ("The earlier summary."));
+        conversation.add (userMessage ("Now rename it"));
+
+        const auto keptAfterSummary = AiSessionStore::selectRecentUserMessages (conversation);
+        check (keptAfterSummary.size() == 1, "Does not carry the previous summary forward");
+        check (keptAfterSummary.size() == 1
+                && keptAfterSummary[0]["content"][0]["text"].toString() == "Now rename it",
+               "Keeps the real user message instead");
+    }
+
+    //--------------------------------------------------------------------------
+    /*  圧縮の往復。AiSession::applyCompaction と同じ順でファイルへ書き、
+        読み戻したものがメモリ上のものと一致することを見る。 */
+    const auto file = AiSessionStore::createSessionFile (root, "gpt-5.6-luna");
+
+    auto* call = new juce::DynamicObject();
+    call->setProperty ("type", "function_call");
+    call->setProperty ("call_id", "c1");
+    call->setProperty ("name", "read_file");
+    call->setProperty ("arguments", "{}");
+
+    auto* output = new juce::DynamicObject();
+    output->setProperty ("type", "function_call_output");
+    output->setProperty ("call_id", "c1");
+    output->setProperty ("output", "int main() {}");
+
+    juce::Array<juce::var> conversation;
+    conversation.add (userMessage ("Explain Main.cpp"));
+    conversation.add (juce::var (call));
+    conversation.add (juce::var (output));
+    conversation.add (assistantMessage ("It starts the app."));
+    conversation.add (userMessage ("Now rename it"));
+
+    int nextOrdinal = 1;
+
+    for (const auto& item : conversation)
+        check (AiSessionStore::appendItem (file, nextOrdinal++, item), "Appends the conversation");
+
+    const juce::String summaryText ("Preamble\nThe user asked about Main.cpp.");
+    const auto kept = AiSessionStore::selectRecentUserMessages (conversation);
+
+    juce::Array<juce::var> compacted;
+    compacted.add (AiSessionStore::makeSummaryMessage (summaryText));
+    compacted.addArray (kept);
+
+    check (AiSessionStore::appendCompaction (file, nextOrdinal, summaryText, nextOrdinal - 1),
+           "Writes the compact record");
+    ++nextOrdinal;
+
+    for (const auto& item : kept)
+        check (AiSessionStore::appendItem (file, nextOrdinal++, item), "Rewrites the kept user messages");
+
+    const auto reopened = AiSessionStore::restore (file);
+
+    check (asJson (reopened.conversation) == asJson (compacted),
+           "Restores exactly the compacted conversation that is held in memory");
+    check (reopened.nextOrdinal == nextOrdinal, "Continues the ordinals after the compaction");
+    check (describe (reopened.entries) == describe (AiSessionStore::rebuildEntries (compacted)),
+           "Rebuilds the same entries from memory and from the file");
+
+    //--------------------------------------------------------------------------
+    // 2 回目の圧縮。最後の compact 行だけが効く。
+    const juce::String secondSummary ("Preamble\nStill about Main.cpp.");
+    const auto keptAgain = AiSessionStore::selectRecentUserMessages (reopened.conversation);
+
+    juce::Array<juce::var> compactedAgain;
+    compactedAgain.add (AiSessionStore::makeSummaryMessage (secondSummary));
+    compactedAgain.addArray (keptAgain);
+
+    check (AiSessionStore::appendCompaction (file, nextOrdinal, secondSummary, nextOrdinal - 1),
+           "Writes the second compact record");
+    ++nextOrdinal;
+
+    for (const auto& item : keptAgain)
+        check (AiSessionStore::appendItem (file, nextOrdinal++, item), "Rewrites after the second compaction");
+
+    const auto twice = AiSessionStore::restore (file);
+    check (asJson (twice.conversation) == asJson (compactedAgain),
+           "Only the last compact record counts");
+    check (twice.conversation.size() > 0
+            && twice.conversation[0]["content"][0]["text"].toString().endsWith (secondSummary),
+           "Uses the newest summary");
+
+    /*  2 回圧縮しても要約は 1 件だけ。前の要約を拾うと、前置き 300 字ごと
+        積み上がって要約が要約を要約しはじめる。 */
+    auto summariesLeft = 0;
+
+    for (const auto& item : twice.conversation)
+        if (AiSessionStore::isSummaryMessage (item))
+            ++summariesLeft;
+
+    check (summariesLeft == 1, "Leaves exactly one summary after compacting twice");
+    check (asJson (twice.conversation).indexOf (summaryText) < 0,
+           "Drops the summary the second compaction replaces");
+
+    //--------------------------------------------------------------------------
+    /*  compact の境目が呼び出しと出力の間に落ちると、親の無い function_call_output
+        だけが残る。そのまま送ると 400 になるので読むときに落とす。 */
+    {
+        const auto orphaned = AiSessionStore::createSessionFile (root, "gpt-5.6-luna");
+        AiSessionStore::appendItem (orphaned, 1, userMessage ("Read it"));
+
+        auto* callToDrop = new juce::DynamicObject();
+        callToDrop->setProperty ("type", "function_call");
+        callToDrop->setProperty ("call_id", "c9");
+        callToDrop->setProperty ("name", "read_file");
+        callToDrop->setProperty ("arguments", "{}");
+        AiSessionStore::appendItem (orphaned, 2, juce::var (callToDrop));
+
+        auto* answer = new juce::DynamicObject();
+        answer->setProperty ("type", "function_call_output");
+        answer->setProperty ("call_id", "c9");
+        answer->setProperty ("output", "int main() {}");
+        AiSessionStore::appendItem (orphaned, 3, juce::var (answer));
+
+        // n ≤ 2 を置き換える。呼び出しは消え、出力だけが取り残される。
+        AiSessionStore::appendCompaction (orphaned, 4, "Earlier work", 2);
+
+        const auto reopenedOrphan = AiSessionStore::restore (orphaned);
+        check (reopenedOrphan.conversation.size() == 1, "Drops a function_call_output with no call");
+        check (reopenedOrphan.conversation.size() == 1
+                && reopenedOrphan.conversation[0]["content"][0]["text"].toString().endsWith ("Earlier work"),
+               "Leaves the summary alone");
+    }
+
+    root.deleteRecursively();
+}
+
+//==============================================================================
 int main()
 {
     testSseParser();
     testAiPaths();
     testAiSessionStore();
+    testCompaction();
 
     if (failures > 0)
     {
