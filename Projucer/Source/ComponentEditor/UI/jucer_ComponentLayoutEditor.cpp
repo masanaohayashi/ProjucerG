@@ -26,6 +26,7 @@
 #include "../../Application/jucer_Headers.h"
 #include "../../Application/jucer_Application.h"
 #include "jucer_ComponentLayoutEditor.h"
+#include "jucer_TouchPinchGesture.h"
 #include "../UI/jucer_JucerCommandIDs.h"
 #include "../jucer_ObjectTypes.h"
 #include "../Components/jucer_JucerComponentHandler.h"
@@ -146,6 +147,14 @@ ComponentLayoutEditor::~ComponentLayoutEditor()
 
     removeChildComponent (&lassoComp);
     deleteAllChildren();
+}
+
+void ComponentLayoutEditor::cancelTouchInteraction()
+{
+    lassoComp.endLasso();
+
+    if (lassoComp.getParentComponent() == this)
+        removeChildComponent (&lassoComp);
 }
 
 //==============================================================================
@@ -322,6 +331,9 @@ void ComponentLayoutEditor::refreshAllComponents()
 
 void ComponentLayoutEditor::mouseDown (const MouseEvent& e)
 {
+    if (ProjucerTouchPinchGesture::mouseDown (*this, e))
+        return;
+
     if (e.mods.isPopupMenu())
     {
         auto commandManager = &ProjucerApplication::getCommandManager();
@@ -346,12 +358,18 @@ void ComponentLayoutEditor::mouseDown (const MouseEvent& e)
 
 void ComponentLayoutEditor::mouseDrag (const MouseEvent& e)
 {
+    if (ProjucerTouchPinchGesture::mouseDrag (*this, e))
+        return;
+
     lassoComp.toFront (false);
     lassoComp.dragLasso (e);
 }
 
 void ComponentLayoutEditor::mouseUp (const MouseEvent& e)
 {
+    if (ProjucerTouchPinchGesture::mouseUp (*this, e))
+        return;
+
     lassoComp.endLasso();
     removeChildComponent (&lassoComp);
 

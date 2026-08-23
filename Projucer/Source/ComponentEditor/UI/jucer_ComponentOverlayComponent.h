@@ -26,9 +26,11 @@
 #pragma once
 
 #include "../jucer_JucerDocument.h"
+#include "jucer_TouchPinchGesture.h"
 
 //==============================================================================
 class ComponentOverlayComponent  : public Component,
+                                   public ProjucerTouchPinchGestureCancellable,
                                    private ComponentBoundsConstrainer,
                                    private ComponentListener,
                                    private ChangeListener
@@ -50,6 +52,7 @@ public:
     void mouseDown (const MouseEvent&) override;
     void mouseDrag (const MouseEvent&) override;
     void mouseUp (const MouseEvent&) override;
+    void cancelTouchInteraction() override;
 
     void updateBoundsToMatchTarget();
 

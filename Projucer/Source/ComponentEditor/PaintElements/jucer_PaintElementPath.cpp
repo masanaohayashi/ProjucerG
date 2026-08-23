@@ -26,6 +26,7 @@
 #include "../../Application/jucer_Headers.h"
 #include "jucer_PaintElementPath.h"
 #include "../Properties/jucer_PositionPropertyBase.h"
+#include "../UI/jucer_TouchPinchGesture.h"
 #include "jucer_PaintElementUndoableAction.h"
 #include "../jucer_UtilityFunctions.h"
 
@@ -309,6 +310,9 @@ void PaintElementPath::parentSizeChanged()
 //==============================================================================
 void PaintElementPath::mouseDown (const MouseEvent& e)
 {
+    if (ProjucerTouchPinchGesture::mouseDown (*this, e))
+        return;
+
     if (e.mods.isPopupMenu() || ! owner->getSelectedElements().isSelected (this))
         mouseDownOnSegment = -1;
     else
@@ -322,12 +326,18 @@ void PaintElementPath::mouseDown (const MouseEvent& e)
 
 void PaintElementPath::mouseDrag (const MouseEvent& e)
 {
+    if (ProjucerTouchPinchGesture::mouseDrag (*this, e))
+        return;
+
     if (mouseDownOnSegment < 0)
         ColouredElement::mouseDrag (e);
 }
 
 void PaintElementPath::mouseUp (const MouseEvent& e)
 {
+    if (ProjucerTouchPinchGesture::mouseUp (*this, e))
+        return;
+
     if (points[mouseDownOnSegment] == nullptr)
         ColouredElement::mouseUp (e);
     else
@@ -1604,6 +1614,9 @@ void PathPointComponent::paint (Graphics& g)
 
 void PathPointComponent::mouseDown (const MouseEvent& e)
 {
+    if (ProjucerTouchPinchGesture::mouseDown (*this, e))
+        return;
+
     dragging = false;
 
     if (e.mods.isPopupMenu())
@@ -1622,6 +1635,9 @@ void PathPointComponent::mouseDown (const MouseEvent& e)
 
 void PathPointComponent::mouseDrag (const MouseEvent& e)
 {
+    if (ProjucerTouchPinchGesture::mouseDrag (*this, e))
+        return;
+
     if (! e.mods.isPopupMenu())
     {
         if (selected && ! dragging)
@@ -1647,9 +1663,18 @@ void PathPointComponent::mouseDrag (const MouseEvent& e)
 
 void PathPointComponent::mouseUp (const MouseEvent& e)
 {
+    if (ProjucerTouchPinchGesture::mouseUp (*this, e))
+        return;
+
     routine->getSelectedPoints().addToSelectionOnMouseUp (path->getPoint (index),
                                                           e.mods, dragging,
                                                           mouseDownSelectStatus);
+}
+
+void PathPointComponent::cancelTouchInteraction()
+{
+    dragging = false;
+    owner->getDocument()->beginTransaction();
 }
 
 void PathPointComponent::changeListenerCallback (ChangeBroadcaster* source)

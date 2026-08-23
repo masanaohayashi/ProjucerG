@@ -29,6 +29,7 @@
 #include "../jucer_UtilityFunctions.h"
 #include "../UI/jucer_JucerCommandIDs.h"
 #include "../UI/jucer_PaintRoutineEditor.h"
+#include "../UI/jucer_TouchPinchGesture.h"
 #include "../Properties/jucer_PositionPropertyBase.h"
 #include "jucer_ElementSiblingComponent.h"
 #include "jucer_PaintElementUndoableAction.h"
@@ -83,6 +84,14 @@ void PaintElement::setInitialBounds (int parentWidth, int parentHeight)
     pr.rect.setX (parentWidth / 4 + Random::getSystemRandom().nextInt (parentWidth / 4) - parentWidth / 8);
     pr.rect.setY (parentHeight / 3 + Random::getSystemRandom().nextInt (parentHeight / 4) - parentHeight / 8);
     setPosition (pr, false);
+}
+
+void PaintElement::cancelTouchInteraction()
+{
+    if (dragging && owner != nullptr)
+        owner->endDragging();
+
+    dragging = false;
 }
 
 //==============================================================================
@@ -443,6 +452,9 @@ void PaintElement::resized()
 
 void PaintElement::mouseDown (const MouseEvent& e)
 {
+    if (ProjucerTouchPinchGesture::mouseDown (*this, e))
+        return;
+
     dragging = false;
 
     if (owner != nullptr)
@@ -460,6 +472,9 @@ void PaintElement::mouseDown (const MouseEvent& e)
 
 void PaintElement::mouseDrag (const MouseEvent& e)
 {
+    if (ProjucerTouchPinchGesture::mouseDrag (*this, e))
+        return;
+
     if (! e.mods.isPopupMenu())
     {
         if (auto* pe = dynamic_cast<PaintRoutineEditor*> (getParentComponent()))
@@ -484,6 +499,9 @@ void PaintElement::mouseDrag (const MouseEvent& e)
 
 void PaintElement::mouseUp (const MouseEvent& e)
 {
+    if (ProjucerTouchPinchGesture::mouseUp (*this, e))
+        return;
+
     if (owner != nullptr)
     {
         if (dragging)

@@ -27,6 +27,7 @@
 #include "../../Application/jucer_Application.h"
 #include "../UI/jucer_JucerCommandIDs.h"
 #include "jucer_PaintRoutineEditor.h"
+#include "jucer_TouchPinchGesture.h"
 #include "../jucer_ObjectTypes.h"
 #include "jucer_JucerDocumentEditor.h"
 
@@ -51,6 +52,14 @@ PaintRoutineEditor::~PaintRoutineEditor()
     removeAllElementComps();
     removeChildComponent (&lassoComp);
     deleteAllChildren();
+}
+
+void PaintRoutineEditor::cancelTouchInteraction()
+{
+    lassoComp.endLasso();
+
+    if (lassoComp.getParentComponent() == this)
+        removeChildComponent (&lassoComp);
 }
 
 void PaintRoutineEditor::removeAllElementComps()
@@ -199,6 +208,9 @@ void PaintRoutineEditor::changeListenerCallback (ChangeBroadcaster*)
 
 void PaintRoutineEditor::mouseDown (const MouseEvent& e)
 {
+    if (ProjucerTouchPinchGesture::mouseDown (*this, e))
+        return;
+
     if (e.mods.isPopupMenu())
     {
         ApplicationCommandManager* commandManager = &ProjucerApplication::getCommandManager();
@@ -223,12 +235,18 @@ void PaintRoutineEditor::mouseDown (const MouseEvent& e)
 
 void PaintRoutineEditor::mouseDrag (const MouseEvent& e)
 {
+    if (ProjucerTouchPinchGesture::mouseDrag (*this, e))
+        return;
+
     lassoComp.toFront (false);
     lassoComp.dragLasso (e);
 }
 
 void PaintRoutineEditor::mouseUp (const MouseEvent& e)
 {
+    if (ProjucerTouchPinchGesture::mouseUp (*this, e))
+        return;
+
     lassoComp.endLasso();
 
     if (! (e.mouseWasDraggedSinceMouseDown() || e.mods.isAnyModifierKeyDown()))

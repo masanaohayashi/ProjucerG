@@ -31,6 +31,7 @@
 
 //==============================================================================
 class ComponentLayoutEditor  : public Component,
+                               public ProjucerTouchPinchGestureCancellable,
                                public FileDragAndDropTarget,
                                public DragAndDropTarget,
                                public LassoSource<Component*>,
@@ -50,6 +51,7 @@ public:
     void mouseDown (const MouseEvent&) override;
     void mouseDrag (const MouseEvent&) override;
     void mouseUp (const MouseEvent&) override;
+    void cancelTouchInteraction() override;
     bool keyPressed (const KeyPress&) override;
 
     bool isInterestedInFileDrag (const StringArray& files) override;

@@ -28,10 +28,12 @@
 #include "../jucer_JucerDocument.h"
 #include "../jucer_PaintRoutine.h"
 #include "jucer_SnapGridPainter.h"
+#include "jucer_TouchPinchGesture.h"
 class JucerDocumentEditor;
 
 //==============================================================================
 class PaintRoutineEditor  : public Component,
+                            public ProjucerTouchPinchGestureCancellable,
                             public LassoSource <PaintElement*>,
                             public FileDragAndDropTarget,
                             private ChangeListener
@@ -52,6 +54,7 @@ public:
     void mouseDown (const MouseEvent& e) override;
     void mouseDrag (const MouseEvent& e) override;
     void mouseUp (const MouseEvent& e) override;
+    void cancelTouchInteraction() override;
     void visibilityChanged() override;
 
     void findLassoItemsInArea (Array <PaintElement*>& results, const Rectangle<int>& area) override;

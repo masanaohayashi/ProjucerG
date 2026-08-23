@@ -27,9 +27,11 @@
 
 #include "jucer_ElementSiblingComponent.h"
 #include "../UI/jucer_PaintRoutineEditor.h"
+#include "../UI/jucer_TouchPinchGesture.h"
 
 //==============================================================================
-class PointComponent    : public ElementSiblingComponent
+class PointComponent    : public ElementSiblingComponent,
+                          public ProjucerTouchPinchGestureCancellable
 {
 public:
     PointComponent (PaintElement* const e)
@@ -64,8 +66,11 @@ public:
     }
 
     //==============================================================================
-    void mouseDown (const MouseEvent&) override
+    void mouseDown (const MouseEvent& e) override
     {
+        if (ProjucerTouchPinchGesture::mouseDown (*this, e))
+            return;
+
         const Rectangle<int> area (((PaintRoutineEditor*) getParentComponent())->getComponentArea());
         dragX = getX() + getWidth() / 2 - area.getX();
         dragY = getY() + getHeight() / 2 - area.getY();
@@ -73,6 +78,9 @@ public:
 
     void mouseDrag (const MouseEvent& e) override
     {
+        if (ProjucerTouchPinchGesture::mouseDrag (*this, e))
+            return;
+
         const Rectangle<int> area (((PaintRoutineEditor*) getParentComponent())->getComponentArea());
         int x = dragX + e.getDistanceFromDragStartX();
         int y = dragY + e.getDistanceFromDragStartY();
@@ -98,9 +106,13 @@ public:
         }
     }
 
-    void mouseUp (const MouseEvent&) override
+    void mouseUp (const MouseEvent& e) override
     {
+        if (ProjucerTouchPinchGesture::mouseUp (*this, e))
+            return;
     }
+
+    void cancelTouchInteraction() override {}
 
 private:
     int dragX, dragY;

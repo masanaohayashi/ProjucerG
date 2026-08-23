@@ -146,7 +146,8 @@ private:
 
 
 //==============================================================================
-class PathPointComponent    : public ElementSiblingComponent
+class PathPointComponent    : public ElementSiblingComponent,
+                             public ProjucerTouchPinchGestureCancellable
 {
 public:
     PathPointComponent (PaintElementPath* const path_,
@@ -161,6 +162,7 @@ public:
     void mouseDown (const MouseEvent& e) override;
     void mouseDrag (const MouseEvent& e) override;
     void mouseUp (const MouseEvent& e) override;
+    void cancelTouchInteraction() override;
 
     void changeListenerCallback (ChangeBroadcaster*) override;
 

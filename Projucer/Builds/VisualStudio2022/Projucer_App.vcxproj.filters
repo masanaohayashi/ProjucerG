@@ -4725,6 +4725,9 @@
     <ClInclude Include="..\..\Source\ComponentEditor\UI\jucer_EditingPanelBase.h">
       <Filter>Projucer\ComponentEditor\UI</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\Source\ComponentEditor\UI\jucer_TouchPinchGesture.h">
+      <Filter>Projucer\ComponentEditor\UI</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\Source\ComponentEditor\UI\jucer_JucerCommandIDs.h">
       <Filter>Projucer\ComponentEditor\UI</Filter>
     </ClInclude>

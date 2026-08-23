@@ -538,6 +538,8 @@
               file="Source/ComponentEditor/UI/jucer_EditingPanelBase.cpp"/>
         <FILE id="MFosrf" name="jucer_EditingPanelBase.h" compile="0" resource="0"
               file="Source/ComponentEditor/UI/jucer_EditingPanelBase.h"/>
+        <FILE id="tpGst1" name="jucer_TouchPinchGesture.h" compile="0" resource="0"
+              file="Source/ComponentEditor/UI/jucer_TouchPinchGesture.h"/>
         <FILE id="zblH2R" name="jucer_JucerCommandIDs.h" compile="0" resource="0"
               file="Source/ComponentEditor/UI/jucer_JucerCommandIDs.h"/>
         <FILE id="BrtyNd" name="jucer_JucerDocumentEditor.cpp" compile="1"

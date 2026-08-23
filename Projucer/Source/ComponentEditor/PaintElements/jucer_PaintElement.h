@@ -27,6 +27,7 @@
 
 #include "../jucer_GeneratedCode.h"
 #include "../UI/jucer_RelativePositionedRectangle.h"
+#include "../UI/jucer_TouchPinchGesture.h"
 class FillType;
 class PaintRoutine;
 class JucerDocument;
@@ -38,6 +39,7 @@ class ElementSiblingComponent;
 
 */
 class PaintElement  : public Component,
+                      public ProjucerTouchPinchGestureCancellable,
                       public ComponentBoundsConstrainer,
                       private ChangeListener
 {
@@ -92,6 +94,7 @@ public:
     void mouseDown (const MouseEvent&) override;
     void mouseDrag (const MouseEvent&) override;
     void mouseUp (const MouseEvent&) override;
+    void cancelTouchInteraction() override;
     void changeListenerCallback (ChangeBroadcaster*) override;
     void parentHierarchyChanged() override;
 

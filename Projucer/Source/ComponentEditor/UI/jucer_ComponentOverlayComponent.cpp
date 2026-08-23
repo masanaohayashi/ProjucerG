@@ -25,6 +25,7 @@
 
 #include "../../Application/jucer_Headers.h"
 #include "jucer_ComponentLayoutEditor.h"
+#include "jucer_TouchPinchGesture.h"
 #include "../jucer_UtilityFunctions.h"
 
 //==============================================================================
@@ -60,6 +61,14 @@ ComponentOverlayComponent::~ComponentOverlayComponent()
 
     if (target != nullptr)
         target->removeComponentListener (this);
+}
+
+void ComponentOverlayComponent::cancelTouchInteraction()
+{
+    if (dragging)
+        layout.endDragging();
+
+    dragging = false;
 }
 
 void ComponentOverlayComponent::updateSelected()
@@ -113,6 +122,9 @@ void ComponentOverlayComponent::resized()
 
 void ComponentOverlayComponent::mouseDown (const MouseEvent& e)
 {
+    if (ProjucerTouchPinchGesture::mouseDown (*this, e))
+        return;
+
     dragging = false;
     mouseDownSelectStatus = layout.getSelectedSet().addToSelectionOnMouseDown (target, e.mods);
 
@@ -125,6 +137,9 @@ void ComponentOverlayComponent::mouseDown (const MouseEvent& e)
 
 void ComponentOverlayComponent::mouseDrag (const MouseEvent& e)
 {
+    if (ProjucerTouchPinchGesture::mouseDrag (*this, e))
+        return;
+
     if (! e.mods.isPopupMenu())
     {
         if (selected && ! dragging)
@@ -145,6 +160,9 @@ void ComponentOverlayComponent::mouseDrag (const MouseEvent& e)
 
 void ComponentOverlayComponent::mouseUp (const MouseEvent& e)
 {
+    if (ProjucerTouchPinchGesture::mouseUp (*this, e))
+        return;
+
     if (dragging)
         layout.endDragging();
 

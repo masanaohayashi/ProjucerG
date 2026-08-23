@@ -27,7 +27,10 @@
 
 #include "../jucer_JucerDocument.h"
 #include "jucer_ComponentLayoutEditor.h"
+#include "jucer_TouchPinchGesture.h"
 class LayoutPropsPanel;
+
+using ProjucerTouchScrollPosition = AnimatedPosition<AnimatedPositionBehaviours::ContinuousWithMomentum>;
 
 //==============================================================================
 /**
@@ -35,7 +38,9 @@ class LayoutPropsPanel;
     the properties panel and managing the viewport for the content.
 
 */
-class EditingPanelBase  : public Component
+class EditingPanelBase  : public Component,
+                          public ProjucerTouchPinchGestureTarget,
+                          private ProjucerTouchScrollPosition::Listener
 {
 public:
     //==============================================================================
@@ -66,10 +71,47 @@ public:
     class MagnifierComponent;
 
 protected:
+    bool handleTouchPinchMouseDown (const MouseEvent&) override;
+    bool handleTouchPinchMouseDrag (const MouseEvent&) override;
+    bool handleTouchPinchMouseUp (const MouseEvent&) override;
+
+    void mouseDown (const MouseEvent&) override;
+    void mouseDrag (const MouseEvent&) override;
+    void mouseUp (const MouseEvent&) override;
+
+    int getActiveTouchPair (Point<float>& first, Point<float>& second) const;
+    void cancelActiveTouchInteractions();
+    bool updateTouchGesture();
+    void resetTouchGesture();
+    void beginTouchScroll (Point<float> centre);
+    void endTouchScroll();
+    void stopTouchScroll();
+    void positionChanged (ProjucerTouchScrollPosition&, double) override;
+    enum class TouchGestureEventType { none, mouseDown, mouseDrag, mouseUp };
+    bool isDuplicateTouchGestureEvent (const MouseEvent&, TouchGestureEventType);
+    void setZoomKeepingPoint (double newScale,
+                              Point<float> editorPoint,
+                              Point<float> viewportPoint);
+
     JucerDocument& document;
 
     Viewport* viewport;
     MagnifierComponent* magnifier;
     Component* editor;
     Component* propsPanel;
+
+    bool touchPinchActive = false;
+    bool suppressTouchUntilAllReleased = false;
+    float touchPinchStartDistance = 0.0f;
+    double touchPinchStartZoom = 1.0;
+    Point<float> touchPinchAnchor;
+    Point<float> touchScrollStartCentre;
+    Point<float> lastTouchScrollOffset;
+    Point<float> touchScrollRemainder;
+    ProjucerTouchScrollPosition touchScrollX, touchScrollY;
+    bool ignoreTouchScrollChanges = false;
+    TouchGestureEventType lastTouchGestureEventType = TouchGestureEventType::none;
+    int lastTouchGestureSource = -1;
+    Time lastTouchGestureEventTime;
+    Point<float> lastTouchGestureScreenPosition;
 };
