@@ -13,6 +13,8 @@ struct ManifestInfo
     std::string name;
     std::string bundleId;
     std::string minimumOSVersion = "17.0";
+    /** Full Info.plist XML generated from the .jucer settings. Empty means "use the built-in default". */
+    std::string infoPlist;
     std::vector<std::string> frameworks;
     std::vector<std::string> libraries;
 };

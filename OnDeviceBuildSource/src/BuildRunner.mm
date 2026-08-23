@@ -83,6 +83,7 @@ ManifestInfo parseManifestJson (const std::string& json)
         if (info.minimumOSVersion.empty())
             info.minimumOSVersion = "17.0";
 
+        info.infoPlist = toUtf8 (dictionary[@"infoPlist"]);
         info.frameworks = stringArray (dictionary, @"frameworks");
         info.libraries = stringArray (dictionary, @"libraries");
 

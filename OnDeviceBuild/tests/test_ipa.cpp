@@ -186,6 +186,16 @@ bool opensslCanReadWithoutLegacy (const std::string& p12Path, const std::string&
                                   + " -nokeys -noout >/dev/null 2>&1";
     return std::system (command.c_str()) == 0;
 }
+
+static int countOccurrences (const std::string& haystack, const std::string& needle)
+{
+    int count = 0;
+
+    for (auto pos = haystack.find (needle); pos != std::string::npos; pos = haystack.find (needle, pos + needle.size()))
+        ++count;
+
+    return count;
+}
 } // namespace
 
 int main()
@@ -230,6 +240,39 @@ int main()
         fail ("Simulator bundle has device platform metadata");
 
     std::cout << "PASS: Simulator bundle metadata\n";
+
+    // .jucer 由来の Info.plist を渡した場合、そのキーが残り、Xcode が足す
+    // プラットフォームキーが補われ、重複したキーは足されないこと。
+    ondevice::BundleRequest jucerBundle = bundle;
+    jucerBundle.appFolder = (work / "HelloIpa-jucer.app").string();
+    jucerBundle.infoPlist =
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<plist version=\"1.0\">\n"
+        "<dict>\n"
+        "\t<key>NSMicrophoneUsageDescription</key>\n"
+        "\t<string>needs the mic</string>\n"
+        "\t<key>UILaunchScreen</key>\n"
+        "\t<dict/>\n"
+        "</dict>\n"
+        "</plist>\n";
+
+    if (! ondevice::writeAppBundle (jucerBundle, error))
+        fail ("writeAppBundle (jucer plist): " + error);
+
+    std::ifstream jucerPlist (work / "HelloIpa-jucer.app" / "Info.plist");
+    const std::string jucerPlistText ((std::istreambuf_iterator<char> (jucerPlist)), {});
+
+    if (jucerPlistText.find ("<key>NSMicrophoneUsageDescription</key>") == std::string::npos)
+        fail (".jucer Info.plist keys were dropped");
+
+    if (jucerPlistText.find ("<key>MinimumOSVersion</key>") == std::string::npos
+        || jucerPlistText.find ("<string>iPhoneOS</string>") == std::string::npos)
+        fail (".jucer Info.plist is missing the platform keys");
+
+    if (countOccurrences (jucerPlistText, "<key>UILaunchScreen</key>") != 1)
+        fail ("UILaunchScreen was duplicated in the .jucer Info.plist");
+
+    std::cout << "PASS: .jucer Info.plist merged into bundle\n";
 
     const auto unsignedIpa = work.parent_path() / ("ondevice-unsigned-" + pid + ".ipa");
     fs::remove (unsignedIpa);

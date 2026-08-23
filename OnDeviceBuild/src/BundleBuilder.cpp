@@ -182,52 +182,78 @@ bool writeAppBundle (const BundleRequest& request, std::string& error)
     const auto supportedPlatform = request.simulator ? "iPhoneSimulator" : "iPhoneOS";
     const auto platformName = request.simulator ? "iphonesimulator" : "iphoneos";
 
-    std::ostringstream plist;
-    plist <<
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-        "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" "
-        "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
-        "<plist version=\"1.0\">\n"
-        "<dict>\n"
-        "\t<key>CFBundleIdentifier</key>\n"
-        "\t<string>" << escapedId << "</string>\n"
-        "\t<key>CFBundleExecutable</key>\n"
-        "\t<string>" << escapedName << "</string>\n"
-        "\t<key>CFBundleName</key>\n"
-        "\t<string>" << escapedName << "</string>\n"
-        "\t<key>CFBundleDisplayName</key>\n"
-        "\t<string>" << escapedName << "</string>\n"
-        "\t<key>CFBundleVersion</key>\n"
-        "\t<string>1</string>\n"
-        "\t<key>CFBundleShortVersionString</key>\n"
-        "\t<string>1.0</string>\n"
-        "\t<key>CFBundlePackageType</key>\n"
-        "\t<string>APPL</string>\n"
-        "\t<key>CFBundleInfoDictionaryVersion</key>\n"
-        "\t<string>6.0</string>\n"
-        "\t<key>MinimumOSVersion</key>\n"
-        "\t<string>" << xmlEscape (minOS) << "</string>\n"
-        "\t<key>UIDeviceFamily</key>\n"
-        "\t<array>\n"
-        "\t\t<integer>1</integer>\n"
-        "\t\t<integer>2</integer>\n"
-        "\t</array>\n"
-        "\t<key>CFBundleSupportedPlatforms</key>\n"
-        "\t<array>\n"
-        "\t\t<string>" << supportedPlatform << "</string>\n"
-        "\t</array>\n"
-        "\t<key>DTPlatformName</key>\n"
-        "\t<string>" << platformName << "</string>\n"
-        "\t<key>UILaunchScreen</key>\n"
-        "\t<dict/>\n"
-        "\t<key>UIRequiredDeviceCapabilities</key>\n"
-        "\t<array>\n"
-        "\t\t<string>arm64</string>\n"
-        "\t</array>\n"
-        "</dict>\n"
-        "</plist>\n";
+    /*  Xcode がビルド時に足すぶん。PlistOptions は出してくれないので、
+        .jucer 由来の Info.plist を使うときもここで補う。 */
+    const std::vector<std::pair<std::string, std::string>> platformKeys
+    {
+        { "CFBundleInfoDictionaryVersion", "\t<string>6.0</string>\n" },
+        { "MinimumOSVersion",              "\t<string>" + xmlEscape (minOS) + "</string>\n" },
+        { "UIDeviceFamily",                "\t<array>\n\t\t<integer>1</integer>\n\t\t<integer>2</integer>\n\t</array>\n" },
+        { "CFBundleSupportedPlatforms",    std::string ("\t<array>\n\t\t<string>") + supportedPlatform + "</string>\n\t</array>\n" },
+        { "DTPlatformName",                std::string ("\t<string>") + platformName + "</string>\n" },
+        { "UILaunchScreen",                "\t<dict/>\n" },
+        { "UIRequiredDeviceCapabilities",  "\t<array>\n\t\t<string>arm64</string>\n\t</array>\n" },
+    };
 
-    if (! writeFile (fs::path (request.appFolder) / "Info.plist", plist.str(), error))
+    const auto platformKeyBlock = [&platformKeys] (const std::string& existing)
+    {
+        std::string block;
+
+        for (const auto& [key, value] : platformKeys)
+            if (existing.find ("<key>" + key + "</key>") == std::string::npos)
+                block += "\t<key>" + key + "</key>\n" + value;
+
+        return block;
+    };
+
+    std::string plistText;
+
+    if (! request.infoPlist.empty())
+    {
+        // ponytail: 文字列スプライス。plist を読むためだけに XML パーサを足さない。
+        const auto dictPos = request.infoPlist.find ("<dict>");
+
+        if (dictPos == std::string::npos)
+        {
+            error = "generated Info.plist has no <dict> element";
+            return false;
+        }
+
+        const auto insertAt = dictPos + std::strlen ("<dict>");
+        plistText = request.infoPlist;
+        plistText.insert (insertAt, "\n" + platformKeyBlock (request.infoPlist));
+    }
+    else
+    {
+        std::ostringstream plist;
+        plist <<
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" "
+            "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
+            "<plist version=\"1.0\">\n"
+            "<dict>\n"
+            "\t<key>CFBundleIdentifier</key>\n"
+            "\t<string>" << escapedId << "</string>\n"
+            "\t<key>CFBundleExecutable</key>\n"
+            "\t<string>" << escapedName << "</string>\n"
+            "\t<key>CFBundleName</key>\n"
+            "\t<string>" << escapedName << "</string>\n"
+            "\t<key>CFBundleDisplayName</key>\n"
+            "\t<string>" << escapedName << "</string>\n"
+            "\t<key>CFBundleVersion</key>\n"
+            "\t<string>1</string>\n"
+            "\t<key>CFBundleShortVersionString</key>\n"
+            "\t<string>1.0</string>\n"
+            "\t<key>CFBundlePackageType</key>\n"
+            "\t<string>APPL</string>\n"
+            << platformKeyBlock ({}) <<
+            "</dict>\n"
+            "</plist>\n";
+
+        plistText = plist.str();
+    }
+
+    if (! writeFile (fs::path (request.appFolder) / "Info.plist", plistText, error))
         return false;
 
     return true;

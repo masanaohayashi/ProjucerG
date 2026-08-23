@@ -178,6 +178,7 @@ EngineResult buildSignedIpa (const EngineRequest& request)
     bundle.bundleId = manifest.bundleId;
     bundle.name = manifest.name;
     bundle.minimumOSVersion = manifest.minimumOSVersion;
+    bundle.infoPlist = manifest.infoPlist;
     bundle.simulator = request.simulator;
 
     progress (request, "writing app bundle");

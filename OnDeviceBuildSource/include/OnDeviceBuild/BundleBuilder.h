@@ -11,6 +11,8 @@ struct BundleRequest
     std::string bundleId;
     std::string name;
     std::string minimumOSVersion = "17.0";
+    /** Full Info.plist XML from the .jucer settings. Empty falls back to a minimal built-in plist. */
+    std::string infoPlist;
     bool simulator = false;
 };
 

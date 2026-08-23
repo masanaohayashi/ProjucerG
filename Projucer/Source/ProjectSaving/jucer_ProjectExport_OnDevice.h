@@ -41,6 +41,102 @@
 #endif
 
 //==============================================================================
+/*  .jucer の iOS 設定から Info.plist の中身を作る。Xcode exporter の
+    writeInfoPlistFile() と同じ build_tools::PlistOptions を使うので、マイクや
+    Bluetooth の usage description、バックグラウンドモード、画面の向き、Custom
+    PList がそのままオンデバイスビルドにも効く。
+
+    exporter は Xcode でも OnDevice でもありうるので、getter ではなく settings
+    の ValueTree を直接読む。既定値は Xcode exporter の宣言と揃えてある。
+    On-Device exporter にはこれらの設定 UI が無いので、そこに値が無ければ
+    iOS (Xcode) exporter の設定を読む。 */
+inline String createOnDeviceInfoPlist (const ProjectExporter& exporter)
+{
+    auto& project = exporter.getProject();
+    const auto iosSettings = project.getProjectRoot()
+                                    .getChildWithName (Ids::EXPORTFORMATS)
+                                    .getChildWithName ("XCODE_IPHONE");
+
+    const auto setting = [&exporter, iosSettings] (const Identifier& id)
+    {
+        const auto value = exporter.getSettingString (id);
+        return value.isNotEmpty() ? value : iosSettings[id].toString();
+    };
+
+    const auto boolSetting = [&setting] (const Identifier& id, bool fallback)
+    {
+        const auto value = setting (id);
+        return value.isEmpty() ? fallback : value.getIntValue() != 0;
+    };
+
+    const auto textSetting = [&setting] (const Identifier& id, const char* fallback)
+    {
+        const auto value = setting (id);
+        return value.isEmpty() ? String (fallback) : value;
+    };
+
+    const auto orientations = [&setting] (const Identifier& id)
+    {
+        auto value = StringArray::fromTokens (setting (id), ",", {});
+        value.trim();
+        value.removeEmptyStrings();
+
+        if (value.isEmpty())
+            value = { "UIInterfaceOrientationPortrait",
+                      "UIInterfaceOrientationLandscapeLeft",
+                      "UIInterfaceOrientationLandscapeRight" };
+
+        return value;
+    };
+
+    build_tools::PlistOptions options;
+
+    options.type                          = build_tools::ProjectType::Target::GUIApp;
+    options.iOS                           = true;
+    options.executableName                = project.getProjectNameString();
+    options.projectName                   = project.getProjectNameString();
+    options.bundleIdentifier              = project.getBundleIdentifierString();
+    options.marketingVersion              = project.getVersionString();
+    options.currentProjectVersion         = textSetting (Ids::buildNumber, "1");
+    options.companyCopyright              = project.getCompanyCopyrightString();
+    options.applicationCategory           = setting (Ids::applicationCategory);
+    options.plistToMerge                  = setting (Ids::customPList);
+    options.allPreprocessorDefs           = exporter.getAllPreprocessorDefs();
+    options.documentExtensions            = setting (Ids::documentExtensions);
+
+    options.microphonePermissionEnabled   = boolSetting (Ids::microphonePermissionNeeded, false);
+    options.microphonePermissionText      = textSetting (Ids::microphonePermissionsText,
+                                                         "This app requires audio input. If you do not have an audio interface connected it will use the built-in microphone.");
+    options.cameraPermissionEnabled       = boolSetting (Ids::cameraPermissionNeeded, false);
+    options.cameraPermissionText          = textSetting (Ids::cameraPermissionText,
+                                                         "This app requires access to the camera to function correctly.");
+    options.bluetoothPermissionEnabled    = boolSetting (Ids::iosBluetoothPermissionNeeded, false);
+    options.bluetoothPermissionText       = textSetting (Ids::iosBluetoothPermissionText,
+                                                         "This app requires access to Bluetooth to function correctly.");
+    options.localNetworkPermissionEnabled = boolSetting (Ids::localNetworkPermissionNeeded, false);
+    options.localNetworkPermissionText    = textSetting (Ids::localNetworkPermissionText,
+                                                         "This app requires access to the local network to function correctly.");
+
+    options.fileSharingEnabled            = boolSetting (Ids::UIFileSharingEnabled, false);
+    options.documentBrowserEnabled        = boolSetting (Ids::UISupportsDocumentBrowser, false);
+    options.statusBarHidden               = boolSetting (Ids::UIStatusBarHidden, false);
+    options.requiresFullScreen            = boolSetting (Ids::UIRequiresFullScreen, true);
+    options.backgroundAudioEnabled        = boolSetting (Ids::iosBackgroundAudio, false);
+    options.backgroundBleEnabled          = boolSetting (Ids::iosBackgroundBle, false);
+    options.pushNotificationsEnabled      = boolSetting (Ids::iosPushNotifications, false);
+
+    options.iPhoneScreenOrientations      = orientations (Ids::iPhoneScreenOrientation);
+    options.iPadScreenOrientations        = orientations (Ids::iPadScreenOrientation);
+
+    // ponytail: オンデバイスビルドは storyboard をコンパイルしないので、
+    // UILaunchStoryboardName は出さずに BundleBuilder の UILaunchScreen に任せる。
+    options.shouldAddStoryboardToProject  = false;
+
+    TemporaryFile temp (exporter.getTargetFolder().getChildFile ("OnDeviceInfo.plist"));
+    options.write (temp.getFile());
+    return temp.getFile().loadFileAsString();
+}
+
 inline void writeOnDeviceManifest (const ProjectExporter& constExporter)
 {
     if (! constExporter.isiOS())
@@ -55,6 +151,7 @@ inline void writeOnDeviceManifest (const ProjectExporter& constExporter)
     root->setProperty ("name", exporter.getProject().getProjectNameString());
     root->setProperty ("bundleId", exporter.getProject().getBundleIdentifierString());
     root->setProperty ("minimumOSVersion", "17.0");
+    root->setProperty ("infoPlist", createOnDeviceInfoPlist (exporter));
 
     auto defs = mergePreprocessorDefs (exporter.getProject().getAppConfigDefs(), exporter.getAllPreprocessorDefs());
     defs.set ("JUCE_IOS", "1");
