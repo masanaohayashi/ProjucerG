@@ -38,6 +38,9 @@
 #include "Sidebar/jucer_Sidebar.h"
 #include "../../Terminal/jucer_TerminalPanel.h"
 #include "../../AI/jucer_AiChatView.h"
+#if JUCE_IOS
+ #include "../../OnDevice/jucer_OnDeviceBuildController.h"
+#endif
 #include "../../AI/jucer_AiSession.h"
 #include "../../AI/jucer_CodexAuth.h"
 #include "../../AI/jucer_GrokAuth.h"
@@ -840,6 +843,9 @@ void ProjectContentComponent::getAllCommands (Array <CommandID>& commands)
                          CommandIDs::showExportersPanel,
                          CommandIDs::showExporterSettings,
                          CommandIDs::showTerminal,
+                        #if JUCE_IOS
+                         CommandIDs::showBuildProgress,
+                        #endif
                          CommandIDs::openInIDE,
                          CommandIDs::saveAndOpenInIDE,
                          CommandIDs::createNewExporter,
@@ -974,6 +980,15 @@ void ProjectContentComponent::getCommandInfo (const CommandID commandID, Applica
         result.defaultKeypresses.add ({ '`', cmdCtrl, 0 });
         break;
 
+   #if JUCE_IOS
+    case CommandIDs::showBuildProgress:
+        result.setInfo ("Show Build Progress",
+                        "Re-opens the On-Device Build progress window",
+                        CommandCategories::general, 0);
+        result.setActive (hasOnDeviceBuildProgress());
+        break;
+   #endif
+
     case CommandIDs::openInIDE:
         result.setInfo ("Open in IDE...",
                         "Launches the project in an external IDE",
@@ -1071,6 +1086,9 @@ bool ProjectContentComponent::perform (const InvocationInfo& info)
         case CommandIDs::showExportersPanel:        showExportersPanel();           break;
         case CommandIDs::showExporterSettings:      showCurrentExporterSettings();  break;
         case CommandIDs::showTerminal:              toggleTerminal();               break;
+       #if JUCE_IOS
+        case CommandIDs::showBuildProgress:         showOnDeviceBuildProgress();    break;
+       #endif
 
         case CommandIDs::openInIDE:                 openInSelectedIDE (false);      break;
         case CommandIDs::saveAndOpenInIDE:          openInSelectedIDE (true);       break;

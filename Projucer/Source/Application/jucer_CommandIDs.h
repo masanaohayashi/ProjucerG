@@ -74,6 +74,7 @@ namespace CommandIDs
         showExportersPanel      = 0x300035,
         showExporterSettings    = 0x300036,
         showTerminal            = 0x300037,
+        showBuildProgress       = 0x300038,
 
         closeWindow             = 0x300040,
         closeAllWindows         = 0x300041,

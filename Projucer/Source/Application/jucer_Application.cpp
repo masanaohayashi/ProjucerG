@@ -873,6 +873,9 @@ PopupMenu ProjucerApplication::createViewMenu()
 
     menu.addSeparator();
     menu.addCommandItem (commandManager.get(), CommandIDs::showTerminal);
+   #if JUCE_IOS
+    menu.addCommandItem (commandManager.get(), CommandIDs::showBuildProgress);
+   #endif
 
     menu.addSeparator();
     createColourSchemeItems (menu);

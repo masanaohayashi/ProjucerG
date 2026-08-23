@@ -175,12 +175,19 @@ public:
         addAndMakeVisible (timeLabel);
         addAndMakeVisible (rssLabel);
 
-        closeButton.onClick = [this]
+        cancelButton.onClick = [this]
         {
-            if (closeRequested)
-                closeRequested();
+            if (cancelRequested)
+                cancelRequested();
         };
-        addAndMakeVisible (closeButton);
+        addAndMakeVisible (cancelButton);
+
+        hideButton.onClick = [this]
+        {
+            if (hideRequested)
+                hideRequested();
+        };
+        addAndMakeVisible (hideButton);
 
         setSize (640, 420);
         startTimerHz (4);
@@ -190,7 +197,8 @@ public:
     {
         auto bounds = getLocalBounds().reduced (8);
         auto footer = bounds.removeFromBottom (32);
-        closeButton.setBounds (footer.removeFromRight (132).reduced (0, 2));
+        hideButton.setBounds (footer.removeFromRight (90).reduced (0, 2));
+        cancelButton.setBounds (footer.removeFromRight (132).reduced (2, 2));
         timeLabel.setBounds (footer.removeFromLeft (footer.getWidth() / 2));
         rssLabel.setBounds (footer);
         log.setBounds (bounds.withTrimmedBottom (6));
@@ -203,24 +211,50 @@ public:
         log.moveCaretToEnd();
     }
 
+    /*  新しいビルドのためにパネルを使い回す。ログと footer を初期状態へ戻す。 */
+    void restartForNewBuild (double newStartSeconds)
+    {
+        log.clear();
+        startSeconds = newStartSeconds;
+        finished = false;
+        cancelButton.setButtonText ("Cancel Build");
+        cancelButton.setEnabled (true);
+        cancelButton.setVisible (true);
+        hideButton.setButtonText ("Hide");
+        startTimerHz (4);
+        updateStats();
+    }
+
+    /*  パネルを開き直したときに、コントローラが持っている全ログを流し込む。 */
+    void setLog (const String& text)
+    {
+        log.setText (text, false);
+        log.moveCaretToEnd();
+    }
+
     void markFinished()
     {
         finished = true;
         stopTimer();
-        closeButton.setButtonText ("Close");
-        closeButton.setEnabled (true);
+        cancelButton.setVisible (false);
+        hideButton.setButtonText ("Close");
         updateStats();
     }
 
     void markCancelling()
     {
-        closeButton.setButtonText ("Stopping...");
-        closeButton.setEnabled (false);
+        cancelButton.setButtonText ("Stopping...");
+        cancelButton.setEnabled (false);
     }
 
-    void setCloseRequested (std::function<void()> callback)
+    void setCancelRequested (std::function<void()> callback)
     {
-        closeRequested = std::move (callback);
+        cancelRequested = std::move (callback);
+    }
+
+    void setHideRequested (std::function<void()> callback)
+    {
+        hideRequested = std::move (callback);
     }
 
     void setStartTime (double seconds) { startSeconds = seconds; }
@@ -239,8 +273,9 @@ private:
 
     TextEditor log;
     Label timeLabel, rssLabel;
-    TextButton closeButton { "Cancel Build" };
-    std::function<void()> closeRequested;
+    TextButton cancelButton { "Cancel Build" };
+    TextButton hideButton { "Hide" };
+    std::function<void()> cancelRequested, hideRequested;
     double startSeconds = Time::getMillisecondCounterHiRes() / 1000.0;
     bool finished = false;
 };
@@ -248,22 +283,23 @@ private:
 class OnDeviceBuildDialog final : public DialogWindow
 {
 public:
-    explicit OnDeviceBuildDialog (std::function<void()> closeRequested)
+    explicit OnDeviceBuildDialog (std::function<void()> hideRequested)
         : DialogWindow ("Build & Install", Colours::lightgrey, true),
-          closeRequested (std::move (closeRequested))
+          hideRequested (std::move (hideRequested))
     {
         setUsingNativeTitleBar (true);
         setResizable (true, false);
     }
 
+    /*  タイトルバーの x は隠すだけ。ビルドは走り続ける。 */
     void closeButtonPressed() override
     {
-        if (closeRequested)
-            closeRequested();
+        if (hideRequested)
+            hideRequested();
     }
 
 private:
-    std::function<void()> closeRequested;
+    std::function<void()> hideRequested;
 };
 
 class OnDeviceBuildController final
@@ -287,9 +323,19 @@ public:
         }
 
         cancelRequested.store (false);
-        closeWhenFinished = false;
+
+        {
+            const juce::ScopedLock sl (logLock);
+            buildLog.clear();
+        }
+
+        buildStartSeconds = Time::getMillisecondCounterHiRes() / 1000.0;
         previousIdleTimerDisabled = UIApplication.sharedApplication.idleTimerDisabled;
         UIApplication.sharedApplication.idleTimerDisabled = YES;
+
+        if (auto* panel = panelPtr.getComponent())
+            panel->restartForNewBuild (buildStartSeconds);
+
         showProgressPanel();
 
         const auto documents = documentsDirectory();
@@ -317,6 +363,19 @@ public:
         }).detach();
 
         return true;
+    }
+
+    /*  進捗パネルを開き直す。既に出ていれば前面へ。 */
+    void showPanel()
+    {
+        showProgressPanel();
+    }
+
+    /*  ビルド中か、直近のビルドのログが残っているか。 */
+    bool hasLog() const
+    {
+        const juce::ScopedLock sl (logLock);
+        return buildLog.isNotEmpty();
     }
 
     bool isBuilding() const
@@ -426,16 +485,33 @@ private:
 
     void showProgressPanel()
     {
+        if (dialog != nullptr)
+        {
+            dialog->setVisible (true);
+            dialog->toFront (true);
+            return;
+        }
+
         auto* panel = new OnDeviceProgressPanel();
         panelPtr = panel;
-        panel->setStartTime (Time::getMillisecondCounterHiRes() / 1000.0);
-        panel->setCloseRequested ([this] { requestClose(); });
+        panel->setStartTime (buildStartSeconds);
+        panel->setCancelRequested ([this] { requestCancel(); });
+        panel->setHideRequested ([this] { hideDialog(); });
 
-        auto* window = new OnDeviceBuildDialog ([this] { requestClose(); });
-        window->setContentOwned (panel, true);
-        window->centreWithSize (window->getWidth(), window->getHeight());
-        window->enterModalState (true, nullptr, true);
-        dialogPtr = window;
+        {
+            const juce::ScopedLock sl (logLock);
+            panel->setLog (buildLog);
+        }
+
+        if (! isBuilding())
+            panel->markFinished();
+
+        dialog = std::make_unique<OnDeviceBuildDialog> ([this] { hideDialog(); });
+        dialog->setContentOwned (panel, true);
+        dialog->centreWithSize (dialog->getWidth(), dialog->getHeight());
+        // ponytail: 非モーダル。ビルド中もエディタを触れることがこの窓の要件。
+        dialog->setVisible (true);
+        dialog->toFront (true);
 
         if (backgroundObserver == nil)
         {
@@ -462,6 +538,9 @@ private:
 
                 *captureLog << line;
             }
+
+            // パネルを閉じてもログが残るよう、コントローラが常に持つ。
+            buildLog << line << "\n";
         }
 
         if (! MessageManager::getInstance()->isThisTheMessageThread())
@@ -496,12 +575,6 @@ private:
                 building = false;
             }
 
-            if (closeWhenFinished)
-            {
-                closeWhenFinished = false;
-                closeDialog();
-            }
-
             if (waitForMain)
                 done.signal();
         };
@@ -518,30 +591,24 @@ private:
             done.wait();
     }
 
-    void requestClose()
+    void requestCancel()
     {
         if (! MessageManager::getInstance()->isThisTheMessageThread())
         {
-            MessageManager::callAsync ([this] { requestClose(); });
+            MessageManager::callAsync ([this] { requestCancel(); });
             return;
         }
 
-        if (! building)
-        {
-            closeDialog();
-            return;
-        }
-
-        if (cancelPromptShown)
+        if (! building || cancelPromptShown)
             return;
 
         cancelPromptShown = true;
         auto options = MessageBoxOptions::makeOptionsYesNo (MessageBoxIconType::QuestionIcon,
                                                             "Stop build?",
-                                                            "The build is still running. Stop it and close this window?",
+                                                            "The build is still running. Stop it?",
                                                             "Stop Build",
                                                             "Keep Building",
-                                                            dialogPtr.getComponent());
+                                                            dialog.get());
         cancelPrompt = AlertWindow::showScopedAsync (options, [this] (int result)
         {
             cancelPromptShown = false;
@@ -549,13 +616,9 @@ private:
             if (result == 1)
             {
                 if (! building)
-                {
-                    closeDialog();
                     return;
-                }
 
                 cancelRequested.store (true);
-                closeWhenFinished = true;
 
                 if (auto* panel = panelPtr.getComponent())
                     panel->markCancelling();
@@ -565,12 +628,14 @@ private:
         });
     }
 
-    void closeDialog()
+    /*  窓を隠すだけ。ビルドは走り続け、ログはパネルと buildLog の両方に積み上がる。
+        消さずに残すのは、ボタンのコールバックの中から自分を破棄しないため。 */
+    void hideDialog()
     {
         cancelPrompt.close();
 
-        if (auto* dialog = dialogPtr.getComponent())
-            dialog->exitModalState (0);
+        if (dialog != nullptr)
+            dialog->setVisible (false);
     }
 
     bool runBuild (File documents, File projectRoot, File manifestFile, String projectName,
@@ -949,7 +1014,7 @@ private:
         [manifestURL release];
     }
 
-    Component::SafePointer<DialogWindow> dialogPtr;
+    std::unique_ptr<OnDeviceBuildDialog> dialog;
     Component::SafePointer<OnDeviceProgressPanel> panelPtr;
     ScopedMessageBox cancelPrompt;
     LoopbackServer* server = nil;
@@ -958,11 +1023,12 @@ private:
     std::atomic<bool> cancelRequested { false };
     std::atomic<bool>* externalCancel = nullptr;
     juce::CriticalSection buildLock;
-    juce::CriticalSection logLock;
+    mutable juce::CriticalSection logLock;
     String* captureLog = nullptr;
+    String buildLog;
+    double buildStartSeconds = Time::getMillisecondCounterHiRes() / 1000.0;
     std::atomic<bool> lastSuccess { false };
     bool building = false;
-    bool closeWhenFinished = false;
     bool cancelPromptShown = false;
     bool linkerDisabled = false;
 };
@@ -978,6 +1044,17 @@ bool runOnDeviceBuildCapturingLog (const File& projectRoot,
                                    std::atomic<bool>& cancelled)
 {
     return OnDeviceBuildController::get().runCapturing (projectRoot, logOut, cancelled);
+}
+
+void showOnDeviceBuildProgress()
+{
+    OnDeviceBuildController::get().showPanel();
+}
+
+bool hasOnDeviceBuildProgress()
+{
+    auto& controller = OnDeviceBuildController::get();
+    return controller.isBuilding() || controller.hasLog();
 }
 
 #endif
