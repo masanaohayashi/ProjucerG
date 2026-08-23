@@ -17,9 +17,38 @@ struct ManifestInfo
     std::string infoPlist;
     std::vector<std::string> frameworks;
     std::vector<std::string> libraries;
+    /** .jucer の Extra Linker Flags。 */
+    std::vector<std::string> linkerFlags;
+    /** .jucer の Library Search Paths。プロジェクトルートからの相対。 */
+    std::vector<std::string> libSearchPaths;
 };
 
 ManifestInfo parseManifestJson (const std::string& json);
+
+/** .jucer のリンカフラグは clang ドライバ向けに書かれている。オンデバイスビルドは
+    lld を直接呼ぶので、ドライバへの受け渡し接頭辞 "-Wl," を外して中身だけ渡す。 */
+inline void appendDriverLinkerFlag (const std::string& flag, std::vector<std::string>& out)
+{
+    if (flag == "-Wl")
+        return;
+
+    if (flag.rfind ("-Wl,", 0) != 0)
+    {
+        out.push_back (flag);
+        return;
+    }
+
+    for (size_t start = 4; start <= flag.size();)
+    {
+        const auto comma = flag.find (',', start);
+        const auto end = comma == std::string::npos ? flag.size() : comma;
+
+        if (end > start)
+            out.push_back (flag.substr (start, end - start));
+
+        start = end + 1;
+    }
+}
 
 struct CompileManifestRequest
 {

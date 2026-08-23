@@ -1,5 +1,6 @@
 #include "OnDeviceBuild/Engine.h"
 #include "OnDeviceBuild/MachOCheck.h"
+#include "BuildRunner.h"
 
 #include <cstdlib>
 #include <cstring>
@@ -77,10 +78,25 @@ std::vector<std::string> zipListing (const std::string& zipPath)
 
     return entries;
 }
+
+void checkDriverLinkerFlags()
+{
+    std::vector<std::string> out;
+    ondevice::appendDriverLinkerFlag ("-Wl", out);              // ドライバ専用、捨てる
+    ondevice::appendDriverLinkerFlag ("-dead_strip", out);      // そのまま
+    ondevice::appendDriverLinkerFlag ("-Wl,-x,-map,a.map", out); // 接頭辞を外して分解
+
+    const std::vector<std::string> expected { "-dead_strip", "-x", "-map", "a.map" };
+
+    if (out != expected)
+        fail ("appendDriverLinkerFlag produced the wrong argument list");
+}
 } // namespace
 
 int main()
 {
+    checkDriverLinkerFlags();
+
     const std::string sysroot = requireEnv ("ONDEVICE_SYSROOT");
     const std::string resourceDir = requireEnv ("ONDEVICE_RESOURCE_DIR");
     const std::string builtins = requireEnv ("ONDEVICE_BUILTINS");

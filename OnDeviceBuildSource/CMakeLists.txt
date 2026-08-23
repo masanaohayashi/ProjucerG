@@ -208,6 +208,7 @@ target_link_libraries(ondevice-test-zipstore PRIVATE OnDeviceBuild)
 
 add_executable(ondevice-test-engine tests/test_engine.cpp)
 target_link_libraries(ondevice-test-engine PRIVATE OnDeviceBuild)
+target_include_directories(ondevice-test-engine PRIVATE src)
 target_compile_definitions(ondevice-test-engine PRIVATE
     ONDEVICE_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
 

@@ -86,6 +86,8 @@ ManifestInfo parseManifestJson (const std::string& json)
         info.infoPlist = toUtf8 (dictionary[@"infoPlist"]);
         info.frameworks = stringArray (dictionary, @"frameworks");
         info.libraries = stringArray (dictionary, @"libraries");
+        info.linkerFlags = stringArray (dictionary, @"linkerFlags");
+        info.libSearchPaths = stringArray (dictionary, @"libSearchPaths");
 
         if (info.name.empty() || info.bundleId.empty())
         {
@@ -242,6 +244,12 @@ CompileManifestResult compileManifest (const CompileManifestRequest& request)
                     compile.extraArgs.push_back ("-I");
                     compile.extraArgs.push_back ([root stringByAppendingPathComponent: include].UTF8String);
                 }
+
+                // .jucer の Extra Compiler Flags。-I のあとに置くので、ユーザーの
+                // フラグが生成側の既定を上書きできる。
+                for (NSString* flag in manifest[@"compilerFlags"])
+                    if ([flag isKindOfClass: NSString.class])
+                        compile.extraArgs.push_back (flag.UTF8String);
 
                 const auto unitStart = CFAbsoluteTimeGetCurrent();
                 const auto compiled = compileToObject (compile);

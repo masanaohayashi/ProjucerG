@@ -196,13 +196,32 @@ inline void writeOnDeviceManifest (const ProjectExporter& constExporter)
     for (const auto& path : exporter.extraSearchPaths)
         addHeaderPath (path);
 
+    /*  オンデバイスビルドには Debug/Release の選択が無く、常に -O3 でコンパイル
+        するので、設定は Release（最初の非 Debug）構成から読む。 */
+    ProjectExporter::BuildConfiguration::Ptr config;
+
+    for (int i = 0; i < exporter.getNumConfigurations(); ++i)
+    {
+        auto candidate = exporter.getConfiguration (i);
+
+        if (candidate != nullptr && (config == nullptr || (config->isDebug() && ! candidate->isDebug())))
+            config = candidate;
+    }
+
     /*  Xcode と同じ。jucer の headerPath（プロジェクトと Configuration）を
         -I に載せる。TWV の Source と Teensy4 のような隣同士のフォルダは
         ここに書いてある。 */
-    if (exporter.getNumConfigurations() > 0)
-        if (auto config = exporter.getConfiguration (0))
-            for (const auto& path : config->getHeaderSearchPaths())
-                addHeaderPath (path);
+    if (config != nullptr)
+        for (const auto& path : config->getHeaderSearchPaths())
+            addHeaderPath (path);
+
+    /*  Xcode exporter が全ターゲットに足しているのと同じパス
+        （XcodeTarget::getHeaderSearchPaths）。AUv3 ラッパーがこの中を見る。
+        projectFolder 基準なので includes にそのまま入れられる。 */
+    if (exporter.getProject().getEnabledModules().isModuleEnabled ("juce_audio_plugin_client"))
+        includes.addIfNotAlreadyThere (exporter.getModuleFolderRelativeToProject ("juce_audio_plugin_client")
+                                           .getChildFile ("AU")
+                                           .toUnixStyle());
 
     Array<var> includeList;
 
@@ -210,6 +229,40 @@ inline void writeOnDeviceManifest (const ProjectExporter& constExporter)
         includeList.add (include);
 
     root->setProperty ("includes", var (includeList));
+
+    /*  .jucer の Extra Compiler/Linker Flags と Library Search Paths。Xcode の
+        OTHER_CPLUSPLUSFLAGS / OTHER_LDFLAGS / LIBRARY_SEARCH_PATHS に相当する。 */
+    const auto flagList = [] (const String& flags)
+    {
+        Array<var> list;
+
+        for (const auto& flag : StringArray::fromTokens (flags, true))
+            if (flag.isNotEmpty())
+                list.add (flag.unquoted());
+
+        return var (list);
+    };
+
+    if (config != nullptr)
+    {
+        root->setProperty ("compilerFlags", flagList (config->getAllCompilerFlagsString()));
+        root->setProperty ("linkerFlags",   flagList (config->getAllLinkerFlagsString()));
+
+        Array<var> libSearchPaths;
+
+        for (const auto& path : config->getLibrarySearchPaths())
+        {
+            const auto unix = path.replaceCharacter ('\\', '/').trim();
+
+            if (unix.isEmpty())
+                continue;
+
+            const build_tools::RelativePath buildPath (unix, build_tools::RelativePath::buildTargetFolder);
+            libSearchPaths.addIfNotAlreadyThere (exporter.rebaseFromBuildTargetToProjectFolder (buildPath).toUnixStyle());
+        }
+
+        root->setProperty ("libSearchPaths", var (libSearchPaths));
+    }
 
     const std::function<void (const Project::Item&, Array<var>&)> collect =
         [&] (const Project::Item& item, Array<var>& sourceList)

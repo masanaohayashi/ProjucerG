@@ -138,6 +138,12 @@ EngineResult buildSignedIpa (const EngineRequest& request)
     if (! manifest.libraries.empty())
         link.libraries = manifest.libraries;
 
+    for (const auto& path : manifest.libSearchPaths)
+        link.extraArgs.push_back ("-L" + (fs::path (request.projectRoot) / path).string());
+
+    for (const auto& flag : manifest.linkerFlags)
+        appendDriverLinkerFlag (flag, link.extraArgs);
+
     progress (request, "linking " + manifest.name);
 
     if (isCancelled (request))
