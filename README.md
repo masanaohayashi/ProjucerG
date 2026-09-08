@@ -9,7 +9,7 @@ Software Limited.
 
 ## Current Status
 
-The `master` branch currently contains the JUCE 9.0.0 based version.
+The `master` branch currently contains the JUCE 9.0.2 based version.
 
 Implemented changes include:
 
@@ -27,7 +27,7 @@ Implemented changes include:
 
 Planned branch structure:
 
-- `master`: current JUCE 9.0.0 based branch.
+- `master`: current JUCE 9.0.2 based branch.
 - `juce8`: JUCE 8 based maintenance branch, if split from `master`.
 - `juce9`: JUCE 9 based branch, if split from `master`.
 
@@ -111,12 +111,17 @@ above.
 
 ## Build Requirements
 
-This branch keeps the JUCE 9.0.0 checkout inside this repository. The current
+This branch keeps the JUCE 9.0.2 checkout inside this repository. The current
 development setup uses:
 
 ```text
 OnDeviceBuild/dependencies/JUCE
 ```
+
+The setup script pins JUCE 9.0.2 to commit
+`72782788ce18c2d4d760b28e0921d6ffc6431102`. It reuses an existing checkout;
+when upgrading an existing development environment, check for local JUCE changes
+and update that checkout to the `9.0.2` tag before rebuilding.
 
 The Projucer project file is:
 
@@ -150,7 +155,7 @@ xcodebuild -project Projucer/Builds/MacOSX/Projucer.xcodeproj \
 - The repository may start without an `OnDeviceBuild/` directory. The tracked
   engine source is kept in `OnDeviceBuildSource/`, and setup creates the
   generated `OnDeviceBuild/` tree from it.
-- A JUCE 9.0.0 checkout at `OnDeviceBuild/dependencies/JUCE` after setup.
+- A JUCE 9.0.2 checkout at `OnDeviceBuild/dependencies/JUCE` after setup.
 - iOS LLVM/Clang and OpenSSL build artifacts under the same dependency root:
 
 ```text

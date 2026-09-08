@@ -3130,6 +3130,16 @@ StringPairArray Project::getAppConfigDefs()
     for (auto& m : modules)
         result.set ("JUCE_MODULE_AVAILABLE_" + m->getID(), "1");
 
+    for (auto& m : modules)
+    {
+        if (const auto webviewInteropVersion = m->getWebviewInteropLibraryVersion();
+            webviewInteropVersion.isNotEmpty())
+        {
+            result.set ("JUCE_WEBVIEW_INTEROP_LIBRARY_VERSION",
+                        CppTokeniserFunctions::addEscapeChars (webviewInteropVersion).quoted());
+        }
+    }
+
     result.set ("JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED", "1");
 
     for (auto& m : modules)

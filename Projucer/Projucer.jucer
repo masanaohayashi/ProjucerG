@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <JUCERPROJECT id="M70qfTRRk" name="Projucer" projectType="guiapp" juceFolder="../OnDeviceBuild/dependencies/JUCE"
-              version="9.0.0" bundleIdentifier="tokyo.studio-r.juce.theprojucer"
+              version="9.0.2" bundleIdentifier="tokyo.studio-r.juce.theprojucer"
               companyName="STUDIO-R" companyCopyright="STUDIO-R" useAppConfig="0"
               addUsingNamespaceToJuceHeader="1" jucerFormatVersion="1" companyWebsite="studio-r.tokyo">
   <EXPORTFORMATS>
@@ -139,7 +139,7 @@
                   UIFileSharingEnabled="1" UIStatusBarHidden="1"
                   iosContentSharing="1" iosDevelopmentTeamID="P5G28RMWUN" iCloudPermissions="1"
                   iCloudPublicDocuments="1" iCloudContainerIds="iCloud.tokyo.studio-r.juce.theprojucer"
-                  supportsOpeningDocumentsInPlace="1" iCloudContainerName="Projucer" buildNumber="9.0.1"
+                  supportsOpeningDocumentsInPlace="1" iCloudContainerName="Projucer" buildNumber="9.0.2"
                   extraFrameworks="Network,Security,SafariServices"
                  
                   postbuildCommand="DEST=&quot;${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/clang-resource&quot;; mkdir -p &quot;$DEST/include&quot; &quot;$DEST/lib/darwin&quot;; CLANG_INCLUDE=&quot;${SRCROOT}/../../../OnDeviceBuild/dependencies/PocClangIOS/build-ios/lib/clang/22/include&quot;; if [ &quot;${EFFECTIVE_PLATFORM_NAME}&quot; = &quot;-iphonesimulator&quot; ]; then CLANG_INCLUDE=&quot;${SRCROOT}/../../../OnDeviceBuild/dependencies/PocClangIOS/build-ios-simulator/lib/clang/22/include&quot;; fi; rsync -a --delete &quot;$CLANG_INCLUDE/&quot; &quot;$DEST/include/&quot;; cp -f &quot;${SRCROOT}/../../../OnDeviceBuild/dependencies/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.ios.a&quot; &quot;$DEST/lib/darwin/libclang_rt.ios.a&quot;; if [ -f &quot;${SRCROOT}/../../../OnDeviceBuild/dependencies/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.iossim.a&quot; ]; then cp -f &quot;${SRCROOT}/../../../OnDeviceBuild/dependencies/PocClangIOS/build-rt-ios/lib/darwin/libclang_rt.iossim.a&quot; &quot;$DEST/lib/darwin/libclang_rt.iossim.a&quot;; fi; if [ &quot;${EFFECTIVE_PLATFORM_NAME}&quot; = &quot;-iphonesimulator&quot; ] &amp;&amp; ! /usr/sbin/lsof -nP -iTCP:38472 -sTCP:LISTEN &gt;/dev/null 2&gt;&amp;1; then /usr/bin/nohup /usr/bin/python3 &quot;${SRCROOT}/../../../scripts/simulator_install_bridge.py&quot; &gt;/tmp/projucer-simulator-install-bridge.log 2&gt;&amp;1 &amp; fi">

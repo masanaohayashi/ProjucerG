@@ -109,6 +109,7 @@ if [ "$targets" = "macos" ] || [ "$targets" = "all" ]; then
     ios_setup_log "Configuring libgit2 for macOS"
     cmake -S "$libgit2_root" -B "$libgit2_root/build-macos" \
         "${common_arguments[@]}" \
+        '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64' \
         -DUSE_HTTPS=SecureTransport \
         -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 >/dev/null
     cmake --build "$libgit2_root/build-macos" >/dev/null

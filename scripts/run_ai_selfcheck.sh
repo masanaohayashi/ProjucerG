@@ -8,7 +8,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 
-JUCE_MODULES="$ROOT/JUCE-8.0.13/modules"
+JUCE_MODULES="$ROOT/OnDeviceBuild/dependencies/JUCE/modules"
 
 # juce_core is compiled once here so the check keeps working without an IDE
 # project. The GUI modules are deliberately left out.
@@ -17,6 +17,12 @@ clang++ -std=c++17 -x objective-c++ -O0 -g -w \
     -I "$JUCE_MODULES" \
     -c "$JUCE_MODULES/juce_core/juce_core.mm" \
     -o "$OUT/juce_core.o"
+
+clang -O0 -g -w \
+    -DJUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1 \
+    -I "$JUCE_MODULES" \
+    -c "$JUCE_MODULES/juce_core/juce_core_zlib.c" \
+    -o "$OUT/juce_core_zlib.o"
 
 clang++ -std=c++17 -O0 -g -w \
     -DJUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1 \
@@ -32,7 +38,7 @@ clang++ -std=c++17 -fsanitize=address,undefined -g -Wall -Wextra \
     "$ROOT/Projucer/Source/AI/jucer_SseParser.cpp" \
     "$ROOT/Projucer/Source/AI/jucer_AiPaths.cpp" \
     "$ROOT/Projucer/Source/AI/jucer_AiSessionStore.cpp" \
-    "$OUT/juce_core.o" "$OUT/juce_core_time.o" \
+    "$OUT/juce_core.o" "$OUT/juce_core_time.o" "$OUT/juce_core_zlib.o" \
     -framework Cocoa -framework Carbon -framework IOKit -framework Security \
     -o "$OUT/ai_selfcheck"
 

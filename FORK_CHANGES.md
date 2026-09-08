@@ -3,6 +3,15 @@
 This fork extends Projucer's GUI editor with practical support for several JUCE
 components and workflows that are limited or missing in the original Projucer.
 
+## JUCE 9.0.2
+
+- Updated the JUCE dependency and Projucer application version to 9.0.2.
+- Integrated upstream Projucer fixes since 9.0.0: per-target Xcode framework
+  build files, dSYM strip inputs, WebView interop version definitions, and
+  Android Gradle/billing dependency updates.
+- Updated the AI self-check to use the active JUCE checkout and compile the
+  separate zlib C translation unit introduced in JUCE 9.0.1.
+
 ## GUI Editor Improvements
 
 - Added preview and generated-code support for `ImageButton` images.

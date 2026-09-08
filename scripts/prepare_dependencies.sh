@@ -7,7 +7,7 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd -P)
 source "$SCRIPT_DIR/ios_setup_common.sh"
 
 JUCE_REPOSITORY=${JUCE_REPOSITORY:-https://github.com/juce-framework/JUCE.git}
-JUCE_COMMIT=${JUCE_COMMIT:-f8f8864172464b9adf9eba6101e1f784838d1597}
+JUCE_COMMIT=${JUCE_COMMIT:-72782788ce18c2d4d760b28e0921d6ffc6431102}
 LLVM_VERSION=${LLVM_VERSION:-22.1.8}
 LLVM_SOURCE_URL=${LLVM_SOURCE_URL:-"https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/llvm-project-${LLVM_VERSION}.src.tar.xz"}
 OPENSSL_VERSION=${OPENSSL_VERSION:-3.5.4}
