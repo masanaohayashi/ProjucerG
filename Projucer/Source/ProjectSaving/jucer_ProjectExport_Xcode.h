@@ -947,7 +947,7 @@ public:
 
         props.add (new ChoicePropertyComponent (keepCustomXcodeSchemesValue, "Keep Custom Xcode Schemes"),
                    "Enable this to keep any Xcode schemes you have created for debugging or running, e.g. to launch a plug-in in "
-                   "various hosts. If disabled, all schemes are replaced by a default set.");
+                   "various hosts. If disabled, the default Standalone scheme is regenerated. Unrelated schemes are preserved.");
 
         props.add (new ChoicePropertyComponent (useHeaderMapValue, "USE_HEADERMAP"),
                    "Enable this to make Xcode search all the projects folders for include files. This means you can be lazy "
@@ -998,6 +998,7 @@ public:
         build_tools::writeStreamToFile (projectBundle.getChildFile ("project.pbxproj"),
                                         [this] (MemoryOutputStream& mo) { writeProjectFile (mo); });
 
+        writeStandaloneScheme();
         writeInfoPlistFiles();
         writeWorkspaceSettings();
 
@@ -2728,7 +2729,6 @@ private:
         }
 
         addProjectObject();
-        removeMismatchedXcuserdata();
     }
 
     void prepareTargets() const
@@ -4407,76 +4407,101 @@ private:
     }
 
     //==============================================================================
-    void removeMismatchedXcuserdata() const
+    void writeStandaloneScheme() const
     {
-        if (shouldKeepCustomXcodeSchemes())
-            return;
+        const auto directory = getProjectBundle().getChildFile ("xcshareddata/xcschemes");
+        const auto* target = getTargetOfType (XcodeTarget::StandalonePlugIn);
+        const auto filename = target != nullptr
+                            ? File::createLegalFileName (target->getTargetBaseName()) + ".xcscheme"
+                            : String();
+        const auto schemeFile = directory.getChildFile (filename);
 
-        auto xcuserdata = getProjectBundle().getChildFile ("xcuserdata");
-
-        if (! xcuserdata.exists())
-            return;
-
-        if (! xcuserdataMatchesTargets (xcuserdata))
+        // Only retire schemes that we generated. Never discard workspace or user data
+        // merely because Xcode's scheme list differs from the target list.
+        if (! shouldKeepCustomXcodeSchemes())
         {
-            xcuserdata.deleteRecursively();
-            getProjectBundle().getChildFile ("xcshareddata").getChildFile ("xcschemes").deleteRecursively();
-            getProjectBundle().getChildFile ("project.xcworkspace").deleteRecursively();
-        }
-    }
-
-    bool xcuserdataMatchesTargets (const File& xcuserdata) const
-    {
-        for (auto& plist : xcuserdata.findChildFiles (File::findFiles, true, "xcschememanagement.plist"))
-            if (! xcschemeManagementPlistMatchesTargets (plist))
-                return false;
-
-        return true;
-    }
-
-    static StringArray parseNamesOfTargetsFromPlist (const XmlElement& dictXML)
-    {
-        for (auto* schemesKey : dictXML.getChildWithTagNameIterator ("key"))
-        {
-            if (schemesKey->getAllSubText().trim().equalsIgnoreCase ("SchemeUserState"))
-            {
-                if (auto* dict = schemesKey->getNextElement())
-                {
-                    if (dict->hasTagName ("dict"))
-                    {
-                        StringArray names;
-
-                        for (auto* key : dict->getChildWithTagNameIterator ("key"))
-                            names.add (key->getAllSubText().upToLastOccurrenceOf (".xcscheme", false, false).trim());
-
-                        names.sort (false);
-                        return names;
-                    }
-                }
-            }
+            for (const auto& file : directory.findChildFiles (File::findFiles, false, "*.xcscheme"))
+                if (file != schemeFile || target == nullptr)
+                    if (auto xml = parseXML (file))
+                        if (xml->getStringAttribute ("ProjucerGeneratedScheme") == "Standalone")
+                            if (! file.deleteFile())
+                                throw build_tools::SaveError ("Can't remove obsolete scheme: " + file.getFullPathName());
         }
 
-        return {};
-    }
+        if (target == nullptr || (shouldKeepCustomXcodeSchemes() && schemeFile.existsAsFile()))
+            return;
 
-    StringArray getNamesOfTargets() const
-    {
-        StringArray names;
+        auto debug = getConfiguration (0);
+        auto release = getConfiguration (0);
 
-        for (auto& target : targets)
-            names.add (target->getTargetBaseName());
+        for (ConstConfigIterator config (*this); config.next();)
+        {
+            if (config->isDebug() && (debug == nullptr || ! debug->isDebug()))
+                debug = config.config;
 
-        names.sort (false);
-        return names;
-    }
+            if (! config->isDebug() && (release == nullptr || release->isDebug()))
+                release = config.config;
+        }
 
-    bool xcschemeManagementPlistMatchesTargets (const File& plist) const
-    {
-        if (auto xml = parseXML (plist))
-            if (auto* dict = xml->getChildByName ("dict"))
-                return parseNamesOfTargetsFromPlist (*dict) == getNamesOfTargets();
+        if (debug == nullptr || release == nullptr)
+            throw build_tools::SaveError ("A Standalone scheme requires a build configuration.");
 
-        return false;
+        const auto addReference = [&] (XmlElement& parent, const BuildConfiguration& config)
+        {
+            auto* reference = parent.createNewChildElement ("BuildableReference");
+            reference->setAttribute ("BuildableIdentifier", "primary");
+            reference->setAttribute ("BlueprintIdentifier", target->getID());
+            reference->setAttribute ("BuildableName", replacePreprocessorTokens (config, config.getTargetBinaryNameString())
+                                                     + target->xcodeBundleExtension);
+            reference->setAttribute ("BlueprintName", target->getTargetBaseName());
+            reference->setAttribute ("ReferencedContainer", "container:" + getProjectBundle().getFileName());
+        };
+
+        XmlElement scheme ("Scheme");
+        scheme.setAttribute ("version", "1.3");
+        scheme.setAttribute ("ProjucerGeneratedScheme", "Standalone");
+
+        auto* build = scheme.createNewChildElement ("BuildAction");
+        build->setAttribute ("parallelizeBuildables", "YES");
+        build->setAttribute ("buildImplicitDependencies", "YES");
+        auto* entry = build->createNewChildElement ("BuildActionEntries")->createNewChildElement ("BuildActionEntry");
+
+        for (const auto* flag : { "buildForTesting", "buildForRunning", "buildForProfiling",
+                                 "buildForArchiving", "buildForAnalyzing" })
+            entry->setAttribute (flag, "YES");
+
+        addReference (*entry, *debug);
+
+        auto* test = scheme.createNewChildElement ("TestAction");
+        test->setAttribute ("buildConfiguration", debug->getName());
+        test->setAttribute ("shouldUseLaunchSchemeArgsEnv", "YES");
+        test->createNewChildElement ("Testables");
+
+        auto* launch = scheme.createNewChildElement ("LaunchAction");
+        launch->setAttribute ("buildConfiguration", debug->getName());
+        launch->setAttribute ("selectedDebuggerIdentifier", "Xcode.DebuggerFoundation.Debugger.LLDB");
+        launch->setAttribute ("selectedLauncherIdentifier", "Xcode.DebuggerFoundation.Launcher.LLDB");
+        launch->setAttribute ("launchStyle", "0");
+        launch->setAttribute ("useCustomWorkingDirectory", "NO");
+        launch->setAttribute ("allowLocationSimulation", "YES");
+        auto* runnable = launch->createNewChildElement ("BuildableProductRunnable");
+        runnable->setAttribute ("runnableDebuggingMode", "0");
+        addReference (*runnable, *debug);
+
+        auto* profile = scheme.createNewChildElement ("ProfileAction");
+        profile->setAttribute ("buildConfiguration", release->getName());
+        profile->setAttribute ("shouldUseLaunchSchemeArgsEnv", "YES");
+        auto* profileRunnable = profile->createNewChildElement ("BuildableProductRunnable");
+        profileRunnable->setAttribute ("runnableDebuggingMode", "0");
+        addReference (*profileRunnable, *release);
+
+        scheme.createNewChildElement ("AnalyzeAction")->setAttribute ("buildConfiguration", debug->getName());
+        auto* archive = scheme.createNewChildElement ("ArchiveAction");
+        archive->setAttribute ("buildConfiguration", release->getName());
+        archive->setAttribute ("revealArchiveInOrganizer", "YES");
+
+        createDirectoryOrThrow (directory);
+        build_tools::overwriteFileIfDifferentOrThrow (schemeFile, scheme.toString());
     }
 
     StringArray getProjectObjectAttributes() const
